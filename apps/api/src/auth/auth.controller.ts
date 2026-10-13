@@ -80,10 +80,15 @@ export class AuthController {
   }
 
   private cookieOptions() {
+    const isProd = this.config.get('NODE_ENV', { infer: true }) === 'production';
+    // En production, le frontend (Vercel) et l'API (Render) sont sur des domaines différents : un cookie
+    // "lax" n'est alors jamais renvoyé par le navigateur sur les requêtes fetch/XHR cross-site (seulement
+    // sur une navigation top-level), ce qui casse le rafraîchissement silencieux du token. "none" (qui exige
+    // "secure") est nécessaire dès que front et API ne partagent pas le même site.
     return {
       httpOnly: true,
-      secure: this.config.get('NODE_ENV', { infer: true }) === 'production',
-      sameSite: 'lax' as const,
+      secure: isProd,
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
       path: '/api/auth',
     };
   }
