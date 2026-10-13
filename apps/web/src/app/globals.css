@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 33% 97%;
+  --foreground: 213 45% 14%;
+  --card: 0 0% 100%;
+  --muted: 210 25% 94%;
+  --muted-foreground: 213 16% 38%;
+  --border: 210 22% 86%;
+  /* Palette de marque « Study in World — Premium Travel Editorial » (brief fourni) :
+     navy #072C7A, royal #064BB5, sky #39A9ED, blanc, fond très clair #F5F9FF.
+     Le bleu Study in World reste la couleur qui unifie tout le site (public, portails, admin) ;
+     seules les destinations reçoivent une couleur d'accent ponctuelle (voir CountryAccent). */
+  --navy: 221 89% 25%; /* #072C7A */
+  --primary: 216 94% 37%; /* #064BB5 */
+  --primary-foreground: 0 0% 100%;
+  --primary-soft: 210 100% 95%;
+  --sw-sky: 203 83% 58%; /* #39A9ED */
+  --sw-bg-light: 216 100% 98%; /* #F5F9FF */
+  --ring: 216 94% 37%;
+  --accent: 39 92% 55%;
+  --destructive: 0 68% 40%;
+  --destructive-soft: 0 80% 96%;
+  --success: 152 60% 26%;
+  --success-soft: 152 45% 92%;
+}
+
+/* Bascule de police par langue : Poppins (identité Travel Editorial) pour le français, Readex Pro pour l'arabe
+   — Poppins n'a pas de glyphes arabes, il ne faut jamais casser le rendu de la version arabe pour une identité
+   visuelle qui, elle, est pensée pour du texte latin. */
+.lang-fr { --font-sans: var(--font-poppins); }
+.lang-ar { --font-sans: var(--font-arabic); }
+
+html { -webkit-text-size-adjust: 100%; }
+body { background: hsl(var(--background)); color: hsl(var(--foreground)); font-feature-settings: 'kern', 'liga'; }
+
+:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

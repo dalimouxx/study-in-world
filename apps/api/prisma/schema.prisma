@@ -1,0 +1,1384 @@
+// Study in World — schéma Phase 1 (fondations)
+// Toutes les tables métier portent organizationId : l'isolation multi-agences
+// est ainsi possible sans refonte (Phase 12), même si une seule agence existe au départ.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Organization {
+  id                 String             @id @default(cuid())
+  name               String
+  slug               String             @unique
+  isActive           Boolean            @default(true)
+  // SaaS multi-agences (Phase 12) : chaque organisation est une agence cliente indépendante, déjà isolée par
+  // organizationId sur toutes les tables métier. Ces champs suivent juste le cycle de vie de son abonnement —
+  // ils ne changent rien à l'isolation elle-même, qui existe depuis la Phase 1.
+  plan               OrganizationPlan   @default(TRIAL)
+  subscriptionStatus SubscriptionStatus @default(TRIALING)
+  trialEndsAt        DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  branches     Branch[]
+  users        User[]
+  roles        Role[]
+  settings     AgencySettings?
+  activityLogs ActivityLog[]
+  loginLogs    LoginLog[]
+
+  prospects            Prospect[]
+  candidates           Candidate[]
+  timelineEntries      TimelineEntry[]
+  documents            CandidateDocument[]
+  checklistItems       ChecklistItem[]
+  applications         Application[]
+  visaFiles            VisaFile[]
+  quotes               Quote[]
+  invoices             Invoice[]
+  payments             Payment[]
+  expenses             Expense[]
+  cashboxSessions      CashboxSession[]
+  cashboxMovements     CashboxMovement[]
+  tasks                Task[]
+  appointments         Appointment[]
+  countries            Country[]
+  universities         University[]
+  programs             Program[]
+  automationRules      AutomationRule[]
+  automationExecutions AutomationExecution[]
+  messages             Message[]
+  contracts            Contract[]
+  partners             Partner[]
+  partnerUsers         PartnerUser[]
+  partnerComments      PartnerComment[]
+  commissions          Commission[]
+  blogPosts            BlogPost[]
+  platformInvoices     PlatformInvoice[]
+  notifications        Notification[]
+}
+
+enum OrganizationPlan {
+  TRIAL
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+}
+
+model Branch {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  code           String
+  city           String?
+  address        String?
+  phone          String?
+  email          String?
+  isActive       Boolean   @default(true)
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  users           User[]
+  prospects       Prospect[]
+  candidates      Candidate[]
+  expenses        Expense[]
+  cashboxSessions CashboxSession[]
+  appointments    Appointment[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, deletedAt])
+}
+
+model Permission {
+  id     String           @id @default(cuid())
+  code   String           @unique // ex: employee.view
+  module String
+  action String
+  roles  RolePermission[]
+
+  @@index([module])
+}
+
+model Role {
+  id             String   @id @default(cuid())
+  organizationId String
+  code           String // SUPER_ADMIN, ADMIN, ... ou code d'un rôle personnalisé
+  name           String
+  description    String?
+  isSystem       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  permissions  RolePermission[]
+  users        User[]
+
+  @@unique([organizationId, code])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model User {
+  id                 String     @id @default(cuid())
+  organizationId     String
+  branchId           String?
+  roleId             String
+  email              String     @unique
+  passwordHash       String
+  firstName          String
+  lastName           String
+  phone              String?
+  locale             String     @default("fr")
+  status             UserStatus @default(ACTIVE)
+  mustChangePassword Boolean    @default(false)
+  // Distinct du RBAC normal (Role/Permission, scopé par organisation) : ce indicateur donne accès à
+  // /platform-admin, l'espace de gestion des agences clientes elles-mêmes. Jamais réglable depuis l'écran
+  // de gestion des employés — seulement en base, pour éviter qu'une faille dans l'admin normal ne devienne
+  // une élévation vers la gestion de toutes les agences.
+  isPlatformAdmin    Boolean    @default(false)
+  failedLoginCount   Int        @default(0)
+  lockedUntil        DateTime?
+  lastLoginAt        DateTime?
+  deletedAt          DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch?      @relation(fields: [branchId], references: [id])
+  role         Role         @relation(fields: [roleId], references: [id])
+
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  assignedProspects   Prospect[]           @relation("ProspectAssignee")
+  assignedCandidates  Candidate[]          @relation("CandidateAssignee")
+  assignedTasks       Task[]               @relation("TaskAssignee")
+  blogPosts           BlogPost[]
+  notifications       Notification[]
+
+  @@index([organizationId, deletedAt])
+  @@index([roleId])
+  @@index([branchId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  ip        String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model LoginLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  userId         String?
+  email          String
+  success        Boolean
+  reason         String?
+  ip             String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([userId])
+}
+
+model ActivityLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  action         String // ex: employee.create
+  entity         String // ex: User
+  entityId       String?
+  metadata       Json?
+  ip             String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([entity, entityId])
+  @@index([userId])
+}
+
+// ===================================================================
+// Phase 2 — Prospects et candidats (CRM)
+// ===================================================================
+
+enum ProspectSource {
+  WEBSITE
+  PHONE
+  WALK_IN
+  REFERRAL
+  SOCIAL
+  PARTNER
+  OTHER
+}
+
+enum ProspectStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  LOST
+}
+
+enum CandidateStatus {
+  ACTIVE
+  ON_HOLD
+  ARCHIVED
+}
+
+enum TimelineEntityType {
+  PROSPECT
+  CANDIDATE
+}
+
+enum TimelineType {
+  NOTE
+  CALL
+  MEETING
+  EMAIL
+  STATUS_CHANGE
+  DOCUMENT
+  SYSTEM
+}
+
+model Prospect {
+  id                   String         @id @default(cuid())
+  organizationId       String
+  branchId             String?
+  firstName            String
+  lastName             String
+  phone                String
+  email                String?
+  city                 String?
+  desiredCountryId     String?
+  desiredProgram       String?
+  budget               Float?
+  campaign             String?
+  nextFollowUpAt       DateTime?
+  source               ProspectSource @default(OTHER)
+  status               ProspectStatus @default(NEW)
+  assignedToId         String?
+  notes                String?
+  convertedCandidateId String?        @unique
+  deletedAt            DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  branch         Branch?      @relation(fields: [branchId], references: [id])
+  desiredCountry Country?     @relation(fields: [desiredCountryId], references: [id])
+  assignedTo     User?        @relation("ProspectAssignee", fields: [assignedToId], references: [id])
+  candidate      Candidate?   @relation("ProspectOrigin", fields: [convertedCandidateId], references: [id])
+
+  @@index([organizationId, deletedAt, status])
+  @@index([organizationId, phone])
+  @@index([organizationId, email])
+  @@index([organizationId, nextFollowUpAt])
+}
+
+model Candidate {
+  id                String          @id @default(cuid())
+  organizationId    String
+  branchId          String?
+  firstName         String
+  lastName          String
+  phone             String
+  email             String?
+  birthDate         DateTime?
+  nationality       String?
+  passportNumber    String?
+  assignedToId      String?
+  partnerId         String? // partenaire à l'origine du candidat (section 63-64), pour l'isolation stricte du portail partenaire
+  status            CandidateStatus @default(ACTIVE)
+  // Portail candidat (Phase 3, section 19)
+  passwordHash      String?
+  portalActivatedAt DateTime?
+  failedLoginCount  Int             @default(0)
+  lockedUntil       DateTime?
+  lastLoginAt       DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch?      @relation(fields: [branchId], references: [id])
+  assignedTo   User?        @relation("CandidateAssignee", fields: [assignedToId], references: [id])
+  partner      Partner?     @relation(fields: [partnerId], references: [id])
+  fromProspect Prospect?    @relation("ProspectOrigin")
+
+  documents       CandidateDocument[]
+  checklist       ChecklistItem[]
+  applications    Application[]
+  visaFiles       VisaFile[]
+  quotes          Quote[]
+  invoices        Invoice[]
+  refreshTokens   CandidateRefreshToken[]
+  accessTokens    CandidateAccessToken[]
+  messages        Message[]
+  contracts       Contract[]
+  expenses        Expense[]
+  partnerComments PartnerComment[]
+  commissions     Commission[]
+
+  @@index([organizationId, deletedAt, status])
+  @@index([organizationId, phone])
+}
+
+model TimelineEntry {
+  id             String             @id @default(cuid())
+  organizationId String
+  entityType     TimelineEntityType
+  entityId       String
+  type           TimelineType
+  content        String
+  createdById    String?
+  createdAt      DateTime           @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, entityType, entityId, createdAt])
+}
+
+// ===================================================================
+// Phase 3 — Dossier candidat : documents et checklist
+// ===================================================================
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ChecklistItemStatus {
+  PENDING
+  DONE
+  NOT_APPLICABLE
+}
+
+model CandidateDocument {
+  id             String         @id @default(cuid())
+  organizationId String
+  candidateId    String
+  type           String // ex: PASSPORT, DIPLOMA, TRANSCRIPT, PHOTO, BANK_STATEMENT, OTHER
+  label          String
+  version        Int            @default(1)
+  filePath       String // chemin relatif sous le dossier de stockage privé
+  mimeType       String
+  size           Int
+  status         DocumentStatus @default(PENDING)
+  reviewNote     String?
+  expiryDate     DateTime? // ex : date d'expiration du passeport — alimente le Health Score (section 21/26)
+  uploadedById   String?
+  deletedAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  candidate    Candidate    @relation(fields: [candidateId], references: [id])
+
+  @@index([organizationId, candidateId, deletedAt])
+}
+
+model ChecklistItem {
+  id             String              @id @default(cuid())
+  organizationId String
+  candidateId    String
+  visaFileId     String? // si renseigné, l'élément appartient à la checklist d'un dossier visa précis plutôt qu'au candidat en général
+  label          String
+  status         ChecklistItemStatus @default(PENDING)
+  note           String?
+  position       Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  candidate    Candidate    @relation(fields: [candidateId], references: [id])
+  visaFile     VisaFile?    @relation(fields: [visaFileId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, candidateId])
+  @@index([visaFileId])
+}
+
+// ===================================================================
+// Phase 4 — Candidatures, admissions et visas
+// ===================================================================
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  WAITLISTED
+  WITHDRAWN
+}
+
+enum VisaStatus {
+  NOT_STARTED
+  PREPARING
+  SUBMITTED
+  APPROVED
+  REFUSED
+}
+
+model Application {
+  id             String            @id @default(cuid())
+  organizationId String
+  candidateId    String
+  programId      String? // lien optionnel vers le catalogue (Phase 4) ; les champs texte ci-dessous restent le repli pour un programme non catalogué
+  country        String
+  university     String
+  program        String
+  intake         String // ex: "Automne 2026"
+  deadline       DateTime? // date limite de dépôt ; dérivée du catalogue si programId est fourni, sinon saisie manuellement
+  status         ApplicationStatus @default(DRAFT)
+  submittedAt    DateTime?
+  decisionAt     DateTime?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  candidate      Candidate    @relation(fields: [candidateId], references: [id])
+  catalogProgram Program?     @relation(fields: [programId], references: [id])
+  visaFiles      VisaFile[]
+
+  @@index([organizationId, candidateId])
+  @@index([organizationId, status])
+  @@index([organizationId, programId])
+}
+
+model VisaFile {
+  id              String     @id @default(cuid())
+  organizationId  String
+  candidateId     String
+  applicationId   String?
+  country         String
+  visaCenter      String?
+  referenceNumber String?
+  submissionDate  DateTime?
+  status          VisaStatus @default(NOT_STARTED)
+  appointmentDate DateTime?
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  candidate    Candidate       @relation(fields: [candidateId], references: [id])
+  application  Application?    @relation(fields: [applicationId], references: [id])
+  checklist    ChecklistItem[]
+
+  @@index([organizationId, candidateId])
+}
+
+// ===================================================================
+// Phase 5 — Finance : devis, factures, paiements, caisse, dépenses
+// ===================================================================
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  CHEQUE
+}
+
+enum CashboxMovementType {
+  IN
+  OUT
+}
+
+/**
+ * Compteur atomique par organisation : numérotation des devis/factures/paiements/reçus.
+ */
+model Counter {
+  organizationId String
+  key            String // ex: "quote", "invoice", "receipt"
+  year           Int
+  value          Int    @default(0)
+
+  @@id([organizationId, key, year])
+}
+
+model Quote {
+  id             String      @id @default(cuid())
+  organizationId String
+  candidateId    String
+  number         String
+  status         QuoteStatus @default(DRAFT)
+  currency       String      @default("TND")
+  validUntil     DateTime?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  candidate    Candidate    @relation(fields: [candidateId], references: [id])
+  items        QuoteItem[]
+  invoices     Invoice[]
+  contracts    Contract[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, candidateId])
+}
+
+model QuoteItem {
+  id        String @id @default(cuid())
+  quoteId   String
+  label     String
+  quantity  Int    @default(1)
+  unitPrice Float
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  organizationId String
+  candidateId    String
+  quoteId        String?
+  number         String
+  status         InvoiceStatus @default(DRAFT)
+  currency       String        @default("TND")
+  dueDate        DateTime?
+  notes          String?
+  createdById    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  candidate    Candidate     @relation(fields: [candidateId], references: [id])
+  quote        Quote?        @relation(fields: [quoteId], references: [id])
+  items        InvoiceItem[]
+  payments     Payment[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, candidateId])
+  @@index([organizationId, status])
+}
+
+model InvoiceItem {
+  id        String @id @default(cuid())
+  invoiceId String
+  label     String
+  quantity  Int    @default(1)
+  unitPrice Float
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  organizationId String
+  invoiceId      String
+  amount         Float
+  method         PaymentMethod
+  receiptNumber  String
+  paidAt         DateTime      @default(now())
+  createdById    String?
+  createdAt      DateTime      @default(now())
+
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  invoice         Invoice          @relation(fields: [invoiceId], references: [id])
+  cashboxMovement CashboxMovement?
+
+  @@unique([organizationId, receiptNumber])
+  @@index([organizationId, invoiceId])
+}
+
+enum ContractStatus {
+  DRAFT
+  SENT
+  SIGNED
+  CANCELLED
+}
+
+enum SignatureMethod {
+  DRAWN
+  TYPED
+}
+
+/**
+ * Section 35-36 : le contenu (déjà rempli à partir du modèle) est figé à la création. Une fois signé, plus aucune
+ * modification directe — seule l'annulation reste possible (jamais une réécriture d'un document déjà signé).
+ */
+model Contract {
+  id              String           @id @default(cuid())
+  organizationId  String
+  candidateId     String
+  quoteId         String?
+  number          String
+  status          ContractStatus   @default(DRAFT)
+  content         String
+  totalAmount     Float
+  currency        String           @default("TND")
+  signedAt        DateTime?
+  signerName      String?
+  signatureMethod SignatureMethod?
+  signatureImage  String? // chemin de stockage (comme les documents candidat), image PNG du tracé
+  createdById     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  candidate    Candidate    @relation(fields: [candidateId], references: [id])
+  quote        Quote?       @relation(fields: [quoteId], references: [id])
+
+  @@unique([organizationId, number])
+  @@index([organizationId, candidateId])
+}
+
+model Expense {
+  id             String   @id @default(cuid())
+  organizationId String
+  branchId       String?
+  candidateId    String? // si renseigné, dépense attribuable à ce candidat (section 43 : rentabilité)
+  category       String
+  amount         Float
+  description    String
+  date           DateTime @default(now())
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  branch          Branch?          @relation(fields: [branchId], references: [id])
+  candidate       Candidate?       @relation(fields: [candidateId], references: [id])
+  cashboxMovement CashboxMovement?
+
+  @@index([organizationId, date])
+  @@index([candidateId])
+}
+
+model CashboxSession {
+  id             String    @id @default(cuid())
+  organizationId String
+  branchId       String
+  openedById     String
+  openedAt       DateTime  @default(now())
+  openingAmount  Float
+  closedById     String?
+  closedAt       DateTime?
+  closingAmount  Float?
+  expectedAmount Float?
+  note           String?
+
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  branch       Branch            @relation(fields: [branchId], references: [id])
+  movements    CashboxMovement[]
+
+  @@index([organizationId, branchId, closedAt])
+}
+
+model CashboxMovement {
+  id             String              @id @default(cuid())
+  organizationId String
+  sessionId      String
+  type           CashboxMovementType
+  amount         Float
+  reason         String
+  paymentId      String?             @unique
+  expenseId      String?             @unique
+  createdById    String?
+  createdAt      DateTime            @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  session      CashboxSession @relation(fields: [sessionId], references: [id])
+  payment      Payment?       @relation(fields: [paymentId], references: [id])
+  expense      Expense?       @relation(fields: [expenseId], references: [id])
+
+  @@index([organizationId, sessionId])
+}
+
+// ===================================================================
+// Phase 6 — Tâches et rendez-vous
+// ===================================================================
+
+enum TaskStatus {
+  TODO
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  DONE
+  CANCELLED
+  NO_SHOW
+}
+
+model Task {
+  id             String              @id @default(cuid())
+  organizationId String
+  title          String
+  description    String?
+  dueDate        DateTime?
+  assignedToId   String?
+  relatedType    TimelineEntityType?
+  relatedId      String?
+  status         TaskStatus          @default(TODO)
+  priority       TaskPriority        @default(MEDIUM)
+  createdById    String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  assignedTo   User?        @relation("TaskAssignee", fields: [assignedToId], references: [id])
+
+  @@index([organizationId, assignedToId, status, dueDate])
+}
+
+model Appointment {
+  id             String              @id @default(cuid())
+  organizationId String
+  branchId       String?
+  title          String
+  relatedType    TimelineEntityType?
+  relatedId      String?
+  startAt        DateTime
+  endAt          DateTime
+  location       String?
+  status         AppointmentStatus   @default(SCHEDULED)
+  createdById    String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  branch       Branch?      @relation(fields: [branchId], references: [id])
+
+  @@index([organizationId, startAt])
+}
+
+// ===================================================================
+// Phase 4 — Catalogue : pays, universités, programmes
+// ===================================================================
+
+enum ProgramLevel {
+  LICENCE
+  MASTER
+  DOCTORAT
+  FOUNDATION
+  PREPA
+  FORMATION_PRO
+  FORMATION_PRIVEE
+  FORMATION_PUBLIQUE
+  SEJOUR_LINGUISTIQUE
+  COURS_DE_LANGUE
+  CERTIFICAT
+}
+
+model Country {
+  id                  String    @id @default(cuid())
+  organizationId      String
+  slug                String
+  name                String
+  flagEmoji           String?
+  imageUrl            String?
+  description         String?
+  universitySystem    String?
+  advantages          String?
+  costOfLiving        String?
+  tuitionFeesInfo     String?
+  languages           String?
+  admissionConditions String?
+  languageLevel       String?
+  applicationProcess  String?
+  visaInfo            String?
+  housingInfo         String?
+  insuranceInfo       String?
+  studentWorkInfo     String?
+  transportInfo       String?
+  calendarInfo        String?
+  documentsInfo       String?
+  faq                 String?
+  isActive            Boolean   @default(true)
+  deletedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  universities       University[]
+  desiredByProspects Prospect[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, isActive, deletedAt])
+}
+
+model University {
+  id               String    @id @default(cuid())
+  organizationId   String
+  countryId        String
+  slug             String
+  name             String
+  logoUrl          String?
+  city             String
+  address          String?
+  website          String?
+  email            String?
+  phone            String?
+  isPublic         Boolean   @default(true)
+  description      String?
+  feesInfo         String?
+  calendarInfo     String?
+  deadlinesInfo    String?
+  conditionsInfo   String?
+  languageLevel    String?
+  extraInfo        String?
+  isActive         Boolean   @default(true)
+  applicationsOpen Boolean   @default(true)
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  country      Country      @relation(fields: [countryId], references: [id])
+  programs     Program[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, countryId, deletedAt])
+}
+
+model Program {
+  id                 String       @id @default(cuid())
+  organizationId     String
+  universityId       String
+  slug               String
+  name               String
+  level              ProgramLevel
+  domain             String?
+  specialty          String?
+  language           String?
+  durationMonths     Int?
+  credits            Int?
+  tuitionFees        Float?
+  applicationFees    Float?
+  currency           String       @default("EUR")
+  openDate           DateTime?
+  deadline           DateTime?
+  intake             String?
+  academicConditions String?
+  prerequisites      String?
+  minIelts           Float?
+  minToefl           Float?
+  otherCertificates  String?
+  documentsRequired  String?
+  description        String?
+  outcomes           String?
+  officialUrl        String?
+  isActive           Boolean      @default(true)
+  deletedAt          DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  university   University    @relation(fields: [universityId], references: [id])
+  applications Application[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, universityId, deletedAt])
+  @@index([organizationId, level])
+}
+
+// ===================================================================
+// Phase 5 (approfondie) — Moteur d'automatisation (WHEN / THEN) et alertes
+// ===================================================================
+
+/**
+ * Événement qui peut déclencher une règle. La valeur associée (triggerValue) est le nouveau statut concerné.
+ */
+enum AutomationTrigger {
+  APPLICATION_STATUS_CHANGED
+  VISA_STATUS_CHANGED
+  DOCUMENT_REJECTED
+  CANDIDATE_STATUS_CHANGED
+}
+
+enum AutomationActionType {
+  CREATE_TASK
+  ADD_CHECKLIST_ITEM
+  TIMELINE_NOTE
+}
+
+model AutomationRule {
+  id             String            @id @default(cuid())
+  organizationId String
+  name           String
+  trigger        AutomationTrigger
+  triggerValue   String? // ex: "ACCEPTED" pour APPLICATION_STATUS_CHANGED ; null = tout changement
+  isActive       Boolean           @default(true)
+  createdById    String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id])
+  actions      AutomationAction[]
+  executions   AutomationExecution[]
+
+  @@index([organizationId, trigger, isActive])
+}
+
+model AutomationAction {
+  id       String               @id @default(cuid())
+  ruleId   String
+  type     AutomationActionType
+  position Int                  @default(0)
+  // Contenu selon le type : CREATE_TASK -> {title, daysOffset, priority} ; ADD_CHECKLIST_ITEM -> {label} ; TIMELINE_NOTE -> {content}
+  config   Json
+
+  rule AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+}
+
+/**
+ * Historique d'exécution (section 51) : une ligne par règle déclenchée sur une candidature donnée.
+ */
+model AutomationExecution {
+  id             String   @id @default(cuid())
+  organizationId String
+  ruleId         String
+  candidateId    String
+  summary        String // résumé lisible des actions effectuées
+  createdAt      DateTime @default(now())
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  rule         AutomationRule @relation(fields: [ruleId], references: [id])
+
+  @@index([organizationId, candidateId])
+}
+
+enum CandidateAccessTokenKind {
+  ACTIVATE
+  RESET
+}
+
+/**
+ * Session du portail candidat — même logique de rotation que RefreshToken (employés), table séparée par prudence.
+ */
+model CandidateRefreshToken {
+  id          String    @id @default(cuid())
+  candidateId String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  userAgent   String?
+  ip          String?
+  createdAt   DateTime  @default(now())
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+}
+
+/**
+ * Jeton à usage unique pour activer le compte (première connexion) ou réinitialiser le mot de passe.
+ */
+model CandidateAccessToken {
+  id          String                   @id @default(cuid())
+  candidateId String
+  kind        CandidateAccessTokenKind
+  tokenHash   String                   @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime                 @default(now())
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+}
+
+model CandidateLoginLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  candidateId    String?
+  email          String
+  success        Boolean
+  reason         String?
+  ip             String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([candidateId])
+}
+
+enum MessageSender {
+  STAFF
+  CANDIDATE
+}
+
+/**
+ * Messagerie candidat ↔ agence (section 52). Une conversation implicite par candidat — pas besoin d'un modèle
+ * Conversation séparé pour l'instant, chaque candidat n'a qu'un seul fil avec l'agence.
+ */
+// ===================================================================
+// Phase 8 — Partenaires (sections 63-65)
+// ===================================================================
+
+enum PartnerType {
+  UNIVERSITY
+  SCHOOL
+  TRAINING_CENTER
+  LANGUAGE_ORGANIZATION
+  AGENT
+  OTHER
+}
+
+enum CommissionType {
+  FIXED
+  PERCENTAGE
+}
+
+enum CommissionStatus {
+  TO_CONFIRM
+  EXPECTED
+  INVOICED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model Partner {
+  id              String         @id @default(cuid())
+  organizationId  String
+  type            PartnerType    @default(OTHER)
+  companyName     String
+  contactName     String?
+  email           String?
+  phone           String?
+  country         String?
+  notes           String?
+  commissionType  CommissionType @default(PERCENTAGE)
+  commissionValue Float          @default(0) // montant fixe (devise agence) ou pourcentage (0-100) selon commissionType
+  isActive        Boolean        @default(true)
+  deletedAt       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  users        PartnerUser[]
+  candidates   Candidate[]
+  commissions  Commission[]
+
+  @@index([organizationId, deletedAt, isActive])
+}
+
+/**
+ * Portail partenaire (section 64) — authentification totalement séparée des employés et des candidats.
+ */
+model PartnerUser {
+  id                String    @id @default(cuid())
+  organizationId    String
+  partnerId         String
+  email             String
+  passwordHash      String?
+  firstName         String
+  lastName          String
+  portalActivatedAt DateTime?
+  failedLoginCount  Int       @default(0)
+  lockedUntil       DateTime?
+  lastLoginAt       DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  organization  Organization          @relation(fields: [organizationId], references: [id])
+  partner       Partner               @relation(fields: [partnerId], references: [id])
+  refreshTokens PartnerRefreshToken[]
+  accessTokens  PartnerAccessToken[]
+  comments      PartnerComment[]
+
+  @@index([organizationId, partnerId, deletedAt])
+}
+
+model PartnerRefreshToken {
+  id            String    @id @default(cuid())
+  partnerUserId String
+  tokenHash     String    @unique
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  userAgent     String?
+  ip            String?
+  createdAt     DateTime  @default(now())
+
+  partnerUser PartnerUser @relation(fields: [partnerUserId], references: [id], onDelete: Cascade)
+
+  @@index([partnerUserId])
+}
+
+enum PartnerAccessTokenKind {
+  ACTIVATE
+  RESET
+}
+
+model PartnerAccessToken {
+  id            String                 @id @default(cuid())
+  partnerUserId String
+  kind          PartnerAccessTokenKind
+  tokenHash     String                 @unique
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime               @default(now())
+
+  partnerUser PartnerUser @relation(fields: [partnerUserId], references: [id], onDelete: Cascade)
+
+  @@index([partnerUserId])
+}
+
+model PartnerLoginLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  partnerUserId  String?
+  email          String
+  success        Boolean
+  reason         String?
+  ip             String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([partnerUserId])
+}
+
+/**
+ * Commentaire laissé par un partenaire sur un candidat qui lui est lié — jamais une note interne.
+ */
+model PartnerComment {
+  id             String   @id @default(cuid())
+  organizationId String
+  candidateId    String
+  partnerUserId  String
+  content        String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  candidate    Candidate    @relation(fields: [candidateId], references: [id])
+  partnerUser  PartnerUser  @relation(fields: [partnerUserId], references: [id])
+
+  @@index([organizationId, candidateId])
+}
+
+/**
+ * Section 65 : montant fixe ou pourcentage, jamais calculé puis oublié — le statut se suit manuellement.
+ */
+model Commission {
+  id             String           @id @default(cuid())
+  organizationId String
+  partnerId      String
+  candidateId    String
+  amount         Float
+  currency       String           @default("TND")
+  status         CommissionStatus @default(TO_CONFIRM)
+  notes          String?
+  createdById    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  partner      Partner      @relation(fields: [partnerId], references: [id])
+  candidate    Candidate    @relation(fields: [candidateId], references: [id])
+
+  @@index([organizationId, partnerId])
+  @@index([organizationId, candidateId])
+}
+
+model Message {
+  id                String        @id @default(cuid())
+  organizationId    String
+  candidateId       String
+  sender            MessageSender
+  senderId          String? // userId de l'employé qui a écrit ; null pour un message du candidat
+  content           String
+  readByStaffAt     DateTime?
+  readByCandidateAt DateTime?
+  createdAt         DateTime      @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  candidate    Candidate    @relation(fields: [candidateId], references: [id])
+
+  @@index([organizationId, candidateId, createdAt])
+}
+
+model AgencySettings {
+  id               String   @id @default(cuid())
+  organizationId   String   @unique
+  name             String
+  logoUrl          String?
+  logoDarkUrl      String?
+  faviconUrl       String?
+  address          String?
+  phone            String?
+  whatsapp         String?
+  email            String?
+  website          String?
+  socialLinks      Json? // { facebook, instagram, tiktok, linkedin, youtube }
+  openingHours     String?
+  legalInfo        String?
+  taxId            String? // matricule fiscal
+  bankDetails      String?
+  currency         String   @default("TND")
+  timezone         String   @default("Africa/Tunis")
+  footerText       String?
+  privacyPolicy    String?
+  termsOfService   String?
+  legalNotice      String?
+  contractTemplate String? // texte du modèle de contrat, avec des espaces réservés {{comme_ceci}} (section 35)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+}
+
+enum BlogPostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum PlatformInvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+/**
+ * Facturation manuelle du SaaS multi-agences (section 12, décision explicite : aucun prestataire de paiement
+ * pour l'instant, un suivi manuel comme pour les factures des candidats). Jamais lié à une transaction
+ * bancaire réelle — juste un enregistrement de ce qui est dû et de ce qui a été payé, agence par agence.
+ */
+model PlatformInvoice {
+  id             String                @id @default(cuid())
+  organizationId String
+  amount         Float
+  currency       String                @default("TND")
+  periodStart    DateTime
+  periodEnd      DateTime
+  dueDate        DateTime
+  status         PlatformInvoiceStatus @default(PENDING)
+  paidAt         DateTime?
+  notes          String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, status])
+}
+
+enum NotificationType {
+  NEW_MESSAGE
+  TASK_ASSIGNED
+}
+
+/**
+ * Notifications en temps réel (via interrogation régulière, section « jamais construit »).
+ */
+model Notification {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String
+  type           NotificationType
+  title          String
+  body           String
+  link           String?
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([userId, readAt])
+}
+
+model BlogPost {
+  id             String         @id @default(cuid())
+  organizationId String
+  authorId       String?
+  slug           String
+  title          String
+  excerpt        String
+  content        String // Markdown simple, rendu tel quel côté public
+  coverImageUrl  String?
+  status         BlogPostStatus @default(DRAFT)
+  publishedAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  author       User?        @relation(fields: [authorId], references: [id])
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, status, publishedAt])
+}
