@@ -7,7 +7,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
 /** Utilisé par les pages dynamiques (destination/université/programme) pour construire un titre réel côté serveur. */
 export async function fetchPublicEntity<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 3600 } });
+    // Voir sitemap.ts : timeout court pour ne pas bloquer le build si l'API est en sommeil.
+    const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {

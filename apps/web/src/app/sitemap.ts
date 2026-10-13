@@ -13,7 +13,9 @@ interface Program { slug: string }
 
 async function safeFetchJson<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, { next: { revalidate } });
+    // Timeout court : sur une API en sommeil (hébergement gratuit), un fetch sans limite peut bloquer
+    // la génération statique du sitemap bien au-delà des 60s que Vercel accorde à une route pendant le build.
+    const res = await fetch(`${API_BASE}${path}`, { next: { revalidate }, signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {
