@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist-seed",
+    "rootDir": "./",
+    "sourceMap": false
+  },
+  "include": ["prisma/seed.ts", "src/rbac/permissions.ts", "src/auth/dto/auth.dto.ts"]
+}

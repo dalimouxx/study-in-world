@@ -14,9 +14,11 @@ fi
 # Seed idempotent (organisation, rôles, permissions, Super Admin) : rejoué sans risque à chaque
 # démarrage, utile sur les instances sans accès Shell (plan gratuit) où "npm run seed" ne peut pas
 # être lancé manuellement. Ne bloque pas le démarrage de l'API en cas d'échec (ex: variables absentes).
+# Exécuté via "node" sur le JS précompilé (dist-seed, voir Dockerfile) et non "ts-node" : la
+# compilation TypeScript à la volée de ts-node dépassait les 512 Mo de RAM du plan gratuit Render.
 if [ -n "${SEED_ADMIN_EMAIL:-}" ]; then
   echo "→ Seed (idempotent)"
-  npx ts-node prisma/seed.ts || echo "! Le seed a échoué (voir ci-dessus) — l'API démarre quand même." >&2
+  node dist-seed/prisma/seed.js || echo "! Le seed a échoué (voir ci-dessus) — l'API démarre quand même." >&2
 else
   echo "SEED_ADMIN_EMAIL absent : seed ignoré."
 fi

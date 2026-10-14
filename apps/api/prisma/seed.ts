@@ -2,6 +2,9 @@
  * - Base (toujours) : organisation, paramètres, branche, permissions, rôles, Super Admin.
  * - Démo (SEED_DEMO=true, jamais en production) : quelques employés de test.
  */
+// Requis car ce script est exécuté seul (via "node"), hors du bootstrap Nest qui charge
+// normalement ce polyfill : auth.dto.ts utilise des décorateurs (@nestjs/swagger, class-validator).
+import 'reflect-metadata';
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PERMISSION_CODES, SYSTEM_ROLES, SUPER_ADMIN_ROLE } from '../src/rbac/permissions';
