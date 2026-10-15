@@ -66,6 +66,12 @@ model Organization {
   blogPosts            BlogPost[]
   platformInvoices     PlatformInvoice[]
   notifications        Notification[]
+
+  landingPageContent LandingPageContent?
+  landingServices    LandingService[]
+  landingFaqItems    LandingFaqItem[]
+  testimonials       Testimonial[]
+  partnerLogos       PartnerLogo[]
 }
 
 enum OrganizationPlan {
@@ -1291,6 +1297,9 @@ model AgencySettings {
   currency         String   @default("TND")
   timezone         String   @default("Africa/Tunis")
   footerText       String?
+  // Version arabe du texte de pied de page (Phase « CMS landing page ») — footerText reste le texte
+  // principal/français existant, jamais renommé pour ne pas casser les agences déjà en place.
+  footerTextAr     String?
   privacyPolicy    String?
   termsOfService   String?
   legalNotice      String?
@@ -1299,6 +1308,117 @@ model AgencySettings {
   updatedAt        DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
+}
+
+/**
+ * Contenu éditable de la landing page publique (CMS, section « amélioration frontend »), réservé au rôle
+ * Super Admin (jamais au rôle Administrateur, même si celui-ci a aussi « ALL » comme permissions — voir
+ * SuperAdminGuard, volontairement distinct de PermissionsGuard pour cette raison).
+ *
+ * Chaque texte a un champ *Fr (saisi par le Super Admin) et un champ *Ar (rempli automatiquement par
+ * traduction à l'enregistrement — voir TranslationService). Si la traduction échoue (clé API absente ou
+ * en erreur), *Ar reste simplement null et le front retombe sur le texte français par défaut : on ne bloque
+ * jamais l'enregistrement pour un problème de traduction.
+ */
+model LandingPageContent {
+  id             String  @id @default(cuid())
+  organizationId String  @unique
+  heroTitleFr        String?
+  heroTitleAr        String?
+  heroSubtitleFr     String?
+  heroSubtitleAr     String?
+  heroImageUrl       String?
+  aboutTitleFr       String?
+  aboutTitleAr       String?
+  aboutTextFr        String?
+  aboutTextAr        String?
+  aboutImageUrl      String?
+  seoTitleFr         String?
+  seoTitleAr         String?
+  seoDescriptionFr   String?
+  seoDescriptionAr   String?
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+}
+
+/** Carte de service affichée sur la landing page (section « Nos services ») — liste réordonnable, Super Admin uniquement. */
+model LandingService {
+  id             String   @id @default(cuid())
+  organizationId String
+  titleFr        String
+  titleAr        String?
+  descriptionFr  String
+  descriptionAr  String?
+  // Nom d'icône (ex: "GraduationCap") choisi dans une liste fermée côté admin — jamais de SVG arbitraire importé.
+  iconName       String
+  position       Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, position])
+}
+
+/** Question/réponse de la FAQ publique — liste réordonnable, Super Admin uniquement. */
+model LandingFaqItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  questionFr     String
+  questionAr     String?
+  answerFr       String
+  answerAr       String?
+  position       Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, position])
+}
+
+/**
+ * Témoignage candidat affiché sur la landing page. Jamais créé ou pré-rempli automatiquement :
+ * un témoignage attribué à une personne qui n'existe pas serait trompeur — toujours saisi à la main
+ * par le Super Admin à partir d'un retour réel.
+ */
+model Testimonial {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  destination    String?
+  quoteFr        String
+  quoteAr        String?
+  position       Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, position])
+}
+
+/**
+ * Logo de partenaire (université, etc.) affiché sur la landing page. Jamais ajouté sans action explicite
+ * du Super Admin : afficher le logo d'un établissement implique un partenariat réel.
+ */
+model PartnerLogo {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  logoUrl        String
+  position       Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, position])
 }
 
 enum BlogPostStatus {
