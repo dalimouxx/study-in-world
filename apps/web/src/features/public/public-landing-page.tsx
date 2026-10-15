@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Briefcase, ChevronDown, FileText, GraduationCap, Languages, Newspaper, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { Briefcase, ChevronDown, Download, FileText, GraduationCap, Languages, Newspaper, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -32,6 +32,14 @@ interface PublicStats {
   programs: number;
 }
 
+interface LeadMagnetValues {
+  firstName: string;
+  lastName: string;
+  phone: string;
+}
+
+const GUIDE_URL = '/guides/guide-etudes-etranger.pdf';
+
 const SERVICES = [
   { key: 'visa', icon: GraduationCap, accent: '#064BB5' },
   { key: 'training', icon: Briefcase, accent: '#0F9D58' },
@@ -57,10 +65,20 @@ export function PublicLandingPage() {
   });
   const agency = useAgency();
   const [openFaq, setOpenFaq] = useState<string | null>(FAQ_KEYS[0]);
+  const [guideUnlocked, setGuideUnlocked] = useState(false);
 
   const submit = useMutation({
     mutationFn: (v: ContactValues) => api('/public/leads', { method: 'POST', body: { ...v, email: v.email || undefined, message: v.message || undefined }, auth: false }),
     onSuccess: () => { toast.success(t('contactSent')); reset(); },
+    onError: (err) => toast.error(errorMessage(err)),
+  });
+
+  const leadMagnetForm = useForm<LeadMagnetValues>();
+  // Pas d'envoi par e-mail (le SMTP n'est pas garanti configuré) : on capte le lead comme pour le
+  // formulaire de contact, puis on débloque immédiatement le téléchargement direct du PDF.
+  const leadMagnetSubmit = useMutation({
+    mutationFn: (v: LeadMagnetValues) => api('/public/leads', { method: 'POST', body: { ...v, campaign: 'guide-telechargement' }, auth: false }),
+    onSuccess: () => setGuideUnlocked(true),
     onError: (err) => toast.error(errorMessage(err)),
   });
 
@@ -189,6 +207,55 @@ export function PublicLandingPage() {
         <Reveal delay={0.1} className="mt-12">
           <JourneyTimeline steps={JOURNEY_KEYS.map((key) => ({ title: t(`journey.${key}.title`), description: t(`journey.${key}.description`) }))} />
         </Reveal>
+      </section>
+
+      {/* GUIDE TÉLÉCHARGEABLE (lead magnet) — capte les visiteurs pas encore prêts à remplir le
+          formulaire de contact complet. Contenu basé uniquement sur ce qui est déjà publié sur
+          le site (parcours, services) ; aucun chiffre ni témoignage inventé. */}
+      <section className="bg-sw-sky/10 py-16">
+        <div className="mx-auto grid max-w-5xl items-center gap-10 px-6 lg:grid-cols-2">
+          <Reveal>
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Download className="h-5 w-5" aria-hidden />
+            </span>
+            <p className="mt-3 text-sm font-semibold uppercase tracking-wide text-primary">{t('leadMagnet.eyebrow')}</p>
+            <h2 className="mt-2 font-poppins text-3xl font-bold text-navy">{t('leadMagnet.title')}</h2>
+            <p className="mt-3 max-w-md text-muted-foreground">{t('leadMagnet.subtitle')}</p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            {guideUnlocked ? (
+              <div className="rounded-organic border border-primary/10 bg-white p-6 text-center shadow-[0_8px_30px_-15px_rgba(7,44,122,0.2)]">
+                <p className="font-poppins font-semibold text-navy">{t('leadMagnet.success')}</p>
+                <a
+                  href={GUIDE_URL}
+                  download
+                  className="mt-4 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-white hover:bg-primary/90"
+                >
+                  <Download className="h-4 w-4" aria-hidden /> {t('leadMagnet.downloadButton')}
+                </a>
+              </div>
+            ) : (
+              <form
+                onSubmit={leadMagnetForm.handleSubmit((v) => leadMagnetSubmit.mutate(v))}
+                noValidate
+                className="space-y-4 rounded-organic border border-primary/10 bg-white p-6 shadow-[0_8px_30px_-15px_rgba(7,44,122,0.2)]"
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label={t('firstName')} htmlFor="guide-first" error={leadMagnetForm.formState.errors.firstName?.message}>
+                    <Input id="guide-first" aria-invalid={!!leadMagnetForm.formState.errors.firstName} {...leadMagnetForm.register('firstName', { required: tc('required') })} />
+                  </Field>
+                  <Field label={t('lastName')} htmlFor="guide-last" error={leadMagnetForm.formState.errors.lastName?.message}>
+                    <Input id="guide-last" aria-invalid={!!leadMagnetForm.formState.errors.lastName} {...leadMagnetForm.register('lastName', { required: tc('required') })} />
+                  </Field>
+                </div>
+                <Field label={t('phone')} htmlFor="guide-phone" error={leadMagnetForm.formState.errors.phone?.message}>
+                  <Input id="guide-phone" dir="ltr" aria-invalid={!!leadMagnetForm.formState.errors.phone} {...leadMagnetForm.register('phone', { required: tc('required') })} />
+                </Field>
+                <Button type="submit" className="w-full !rounded-full" loading={leadMagnetSubmit.isPending}>{t('leadMagnet.cta')}</Button>
+              </form>
+            )}
+          </Reveal>
+        </div>
       </section>
 
       {/* QUI SOMMES-NOUS */}

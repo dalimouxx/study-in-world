@@ -947,7 +947,15 @@
         }
       }
     },
-    "whatsappCta": "Discuter sur WhatsApp"
+    "whatsappCta": "Discuter sur WhatsApp",
+    "leadMagnet": {
+      "eyebrow": "Guide gratuit",
+      "title": "Les 7 étapes pour réussir votre projet d'études à l'étranger",
+      "subtitle": "Téléchargez notre guide gratuit : tout le parcours expliqué, étape par étape, pour savoir exactement à quoi vous attendre.",
+      "cta": "Recevoir le guide",
+      "success": "Merci ! Votre guide est prêt.",
+      "downloadButton": "Télécharger le PDF"
+    }
   },
   "catalog": {
     "title": "Catalogue",
