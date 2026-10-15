@@ -33,6 +33,18 @@ const schema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   MAIL_FROM: z.string().default('Study in World <contact@studyinworld.net>'),
+  // Stockage S3-compatible (Cloudflare R2) : entièrement optionnel — sans configuration, StorageService
+  // retombe sur le disque local du conteneur (comportement historique, voir son commentaire). Deux
+  // buckets distincts : un privé (documents candidats, jamais exposé publiquement) et un public (photos/
+  // logos de la landing page, lus directement par le navigateur via S3_PUBLIC_BASE_URL).
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_REGION: z.string().default('auto'),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_PRIVATE_BUCKET: z.string().optional(),
+  S3_PUBLIC_BUCKET: z.string().optional(),
+  // URL publique de base du bucket public (ex: https://pub-xxxx.r2.dev), sans slash final.
+  S3_PUBLIC_BASE_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof schema>;
