@@ -43,6 +43,8 @@ import { ReportsModule } from './reports/reports.module';
 import { RolesModule } from './roles/roles.module';
 import { SettingsModule } from './settings/settings.module';
 import { StorageModule } from './storage/storage.module';
+import { TranslationModule } from './translation/translation.module';
+import { LandingPageModule } from './landing-page/landing-page.module';
 import { TasksModule } from './tasks/tasks.module';
 import { TimelineModule } from './timeline/timeline.module';
 import { VisaModule } from './visa/visa.module';
@@ -56,6 +58,7 @@ import { VisaModule } from './visa/visa.module';
     AutomationModule,
     MailModule,
     StorageModule,
+    TranslationModule,
     CounterModule,
     DashboardModule,
     TimelineModule,
@@ -91,6 +94,7 @@ import { VisaModule } from './visa/visa.module';
     CommissionsModule,
     PartnerPortalModule,
     PublicModule,
+    LandingPageModule,
   ],
   controllers: [HealthController],
   providers: [

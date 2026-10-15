@@ -49,7 +49,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           <div className="grid gap-8 sm:grid-cols-3">
             <div>
               <StudyWorldLogo className="[&_span]:text-white [&_svg]:text-sw-sky" />
-              <p className="mt-3 max-w-xs text-sm text-white/70">{t('footerTagline')}</p>
+              <p className="mt-3 max-w-xs text-sm text-white/70">{agency.data?.footerText || t('footerTagline')}</p>
             </div>
             <div className="space-y-2 text-sm text-white/80">
               {agency.data?.address && <p className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0 text-sw-sky" aria-hidden /> {agency.data.address}</p>}

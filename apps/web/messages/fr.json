@@ -62,6 +62,7 @@
     "commandCenter": "Centre de pilotage",
     "partners": "Partenaires",
     "blog": "Blog",
+    "siteAdmin": "Page d’accueil",
     "platformAdmin": "Gestion des agences"
   },
   "auth": {
@@ -258,12 +259,9 @@
     "subtitle": "Ces informations alimentent la page de connexion, les documents et le futur site public.",
     "saved": "Paramètres enregistrés",
     "identity": "Identité",
-    "identityHint": "Le nom et les logos apparaissent partout où l’agence se présente.",
+    "identityHint": "Le nom de l’agence apparaît partout où elle se présente.",
+    "logosMovedHint": "Les logos, la favicon et le texte de pied de page se gèrent désormais depuis « Page d’accueil » (réservé au Super Admin).",
     "name": "Nom de l’agence",
-    "logoUrl": "Logo",
-    "logoDarkUrl": "Logo pour fond sombre",
-    "faviconUrl": "Favicon",
-    "urlHint": "Adresse (URL) de l’image. Le téléversement de fichiers arrive avec la gestion des documents.",
     "contact": "Coordonnées",
     "phone": "Téléphone",
     "whatsapp": "WhatsApp",
@@ -288,9 +286,8 @@
     "legalInfo": "Mentions légales de l’agence",
     "bankDetails": "Coordonnées bancaires",
     "bankHint": "Visible uniquement par les employés autorisés. Jamais publié sur le site.",
-    "content": "Textes du site",
+    "content": "Textes légaux",
     "contentHint": "Repris par le site public.",
-    "footerText": "Texte de pied de page",
     "privacyPolicy": "Politique de confidentialité",
     "termsOfService": "Conditions d’utilisation",
     "legalNotice": "Mentions légales",
@@ -298,6 +295,86 @@
     "contractTemplateHint": "Texte utilisé pour générer chaque nouveau contrat.",
     "contractTemplate": "Modèle",
     "contractTemplateVars": "Espaces réservés disponibles : {{agency_name}}, {{candidate_name}}, {{candidate_passport}}, {{services}}, {{total}}, {{currency}}, {{date}}, {{number}}. Laissez vide pour utiliser le modèle par défaut."
+  },
+  "siteAdmin": {
+    "title": "Page d’accueil",
+    "subtitle": "Logos, photos et textes du site public — réservé au Super Admin. Saisissez le texte en français : la version arabe est générée automatiquement.",
+    "visibleOnSite": "Visible sur le site",
+    "upload": {
+      "choose": "Choisir une image",
+      "change": "Changer l’image",
+      "remove": "Retirer"
+    },
+    "branding": {
+      "title": "Logos et pied de page",
+      "hint": "Utilisés sur tout le site : connexion, en-tête, pied de page.",
+      "logo": "Logo",
+      "logoDark": "Logo (fond sombre)",
+      "favicon": "Favicon",
+      "footerText": "Texte de pied de page"
+    },
+    "content": {
+      "title": "Accueil : titre, texte, image",
+      "hint": "Affiché en haut de la page d’accueil publique et dans les résultats de recherche.",
+      "heroGroup": "Bannière principale",
+      "heroTitle": "Titre",
+      "heroSubtitle": "Sous-titre",
+      "heroImage": "Photo de la bannière",
+      "aboutGroup": "Qui sommes-nous",
+      "aboutTitle": "Titre",
+      "aboutText": "Texte",
+      "aboutImage": "Photo",
+      "seoGroup": "Référencement (SEO)",
+      "seoTitle": "Titre de la page",
+      "seoTitleHint": "Affiché dans l’onglet du navigateur et les résultats Google (60-70 caractères).",
+      "seoDescription": "Description",
+      "seoDescriptionHint": "Affichée sous le titre dans les résultats Google (150-160 caractères)."
+    },
+    "services": {
+      "title": "Services",
+      "hint": "Les cartes « nos services » de la page d’accueil.",
+      "empty": "Aucun service pour l’instant.",
+      "addTitle": "Ajouter un service",
+      "editTitle": "Modifier le service",
+      "titleField": "Titre",
+      "description": "Description",
+      "icon": "Icône",
+      "deleteTitle": "Supprimer ce service ?",
+      "deleteDescription": "Il disparaîtra immédiatement du site public."
+    },
+    "faq": {
+      "title": "Questions fréquentes",
+      "hint": "Affichées dans la section FAQ de la page d’accueil.",
+      "empty": "Aucune question pour l’instant.",
+      "addTitle": "Ajouter une question",
+      "editTitle": "Modifier la question",
+      "question": "Question",
+      "answer": "Réponse",
+      "deleteTitle": "Supprimer cette question ?",
+      "deleteDescription": "Elle disparaîtra immédiatement du site public."
+    },
+    "testimonials": {
+      "title": "Témoignages",
+      "hint": "Toujours saisis à la main à partir d’un retour réel — jamais inventés.",
+      "empty": "Aucun témoignage pour l’instant.",
+      "addTitle": "Ajouter un témoignage",
+      "editTitle": "Modifier le témoignage",
+      "formHint": "N’utilisez que des témoignages réels, avec l’accord de la personne.",
+      "name": "Prénom",
+      "destination": "Destination (optionnel)",
+      "quote": "Témoignage",
+      "deleteTitle": "Supprimer ce témoignage ?",
+      "deleteDescription": "Il disparaîtra immédiatement du site public."
+    },
+    "partners": {
+      "title": "Logos partenaires",
+      "hint": "N’ajoutez que des établissements avec lesquels un accord réel existe.",
+      "empty": "Aucun logo partenaire pour l’instant.",
+      "logo": "Logo",
+      "name": "Nom de l’établissement",
+      "deleteTitle": "Retirer ce logo ?",
+      "deleteDescription": "Il disparaîtra immédiatement du site public."
+    }
   },
   "logs": {
     "title": "Journal d’activité",

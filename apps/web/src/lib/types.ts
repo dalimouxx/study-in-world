@@ -89,6 +89,93 @@ export interface AgencySettings {
   contractTemplate: string | null;
 }
 
+// ---------- CMS « Page d'accueil » (réservé au Super Admin) ----------
+
+export const LANDING_SERVICE_ICONS = ['GraduationCap', 'Briefcase', 'Languages', 'Users', 'FileText', 'ShieldCheck', 'Sparkles', 'Plane', 'Home', 'Heart'] as const;
+export type LandingServiceIcon = (typeof LANDING_SERVICE_ICONS)[number];
+
+export interface LandingPageContent {
+  id: string;
+  heroTitleFr: string | null;
+  heroTitleAr: string | null;
+  heroSubtitleFr: string | null;
+  heroSubtitleAr: string | null;
+  heroImageUrl: string | null;
+  aboutTitleFr: string | null;
+  aboutTitleAr: string | null;
+  aboutTextFr: string | null;
+  aboutTextAr: string | null;
+  aboutImageUrl: string | null;
+  seoTitleFr: string | null;
+  seoTitleAr: string | null;
+  seoDescriptionFr: string | null;
+  seoDescriptionAr: string | null;
+}
+
+export interface LandingBranding {
+  logoUrl: string | null;
+  logoDarkUrl: string | null;
+  faviconUrl: string | null;
+  footerTextFr: string | null;
+  footerTextAr: string | null;
+}
+
+export interface LandingService {
+  id: string;
+  titleFr: string;
+  titleAr: string | null;
+  descriptionFr: string;
+  descriptionAr: string | null;
+  iconName: LandingServiceIcon;
+  position: number;
+  isActive: boolean;
+}
+
+export interface LandingFaqItem {
+  id: string;
+  questionFr: string;
+  questionAr: string | null;
+  answerFr: string;
+  answerAr: string | null;
+  position: number;
+  isActive: boolean;
+}
+
+export interface Testimonial {
+  id: string;
+  name: string;
+  destination: string | null;
+  quoteFr: string;
+  quoteAr: string | null;
+  position: number;
+  isActive: boolean;
+}
+
+export interface PartnerLogo {
+  id: string;
+  name: string;
+  logoUrl: string;
+  position: number;
+  isActive: boolean;
+}
+
+export interface LandingPageAdminData {
+  content: LandingPageContent;
+  branding: LandingBranding;
+  services: LandingService[];
+  faq: LandingFaqItem[];
+  testimonials: Testimonial[];
+  partnerLogos: PartnerLogo[];
+}
+
+export interface LandingPagePublicData {
+  content: LandingPageContent | null;
+  services: LandingService[];
+  faq: LandingFaqItem[];
+  testimonials: Testimonial[];
+  partnerLogos: PartnerLogo[];
+}
+
 // ---------- Phase 2 : prospects et candidats ----------
 
 export type ProspectSource = 'WEBSITE' | 'PHONE' | 'WALK_IN' | 'REFERRAL' | 'SOCIAL' | 'PARTNER' | 'OTHER';

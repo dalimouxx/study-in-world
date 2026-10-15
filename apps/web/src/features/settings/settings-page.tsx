@@ -17,9 +17,11 @@ import { useAuth } from '@/features/auth/auth-context';
 
 type SocialKey = 'facebook' | 'instagram' | 'tiktok' | 'linkedin' | 'youtube';
 const SOCIALS: SocialKey[] = ['facebook', 'instagram', 'tiktok', 'linkedin', 'youtube'];
+// logoUrl, logoDarkUrl, faviconUrl et footerText sont gérés depuis la page « Page d'accueil »
+// (réservée au Super Admin), plus ici : voir site-admin-page.tsx.
 const TEXT_FIELDS = [
-  'name', 'logoUrl', 'logoDarkUrl', 'faviconUrl', 'address', 'phone', 'whatsapp', 'email', 'website', 'openingHours',
-  'legalInfo', 'taxId', 'bankDetails', 'currency', 'timezone', 'footerText', 'privacyPolicy', 'termsOfService', 'legalNotice',
+  'name', 'address', 'phone', 'whatsapp', 'email', 'website', 'openingHours',
+  'legalInfo', 'taxId', 'bankDetails', 'currency', 'timezone', 'privacyPolicy', 'termsOfService', 'legalNotice',
   'contractTemplate',
 ] as const;
 
@@ -93,9 +95,7 @@ function Content() {
         <Field label={t('name')} htmlFor="s-name" error={errors.name?.message} className="sm:col-span-2">
           <Input id="s-name" aria-invalid={!!errors.name} {...f('name', { required: true })} />
         </Field>
-        <Field label={t('logoUrl')} htmlFor="s-logo" hint={t('urlHint')}><Input id="s-logo" dir="ltr" inputMode="url" {...f('logoUrl')} /></Field>
-        <Field label={t('logoDarkUrl')} htmlFor="s-logo-dark"><Input id="s-logo-dark" dir="ltr" inputMode="url" {...f('logoDarkUrl')} /></Field>
-        <Field label={t('faviconUrl')} htmlFor="s-favicon"><Input id="s-favicon" dir="ltr" inputMode="url" {...f('faviconUrl')} /></Field>
+        <p className="text-sm text-muted-foreground sm:col-span-2">{t('logosMovedHint')}</p>
       </Section>
 
       <Section title={t('contact')}>
@@ -134,7 +134,6 @@ function Content() {
       </Section>
 
       <Section title={t('content')} description={t('contentHint')}>
-        <Field label={t('footerText')} htmlFor="s-footer" className="sm:col-span-2"><Input id="s-footer" {...f('footerText')} /></Field>
         <Field label={t('privacyPolicy')} htmlFor="s-privacy" className="sm:col-span-2"><Textarea id="s-privacy" rows={5} {...f('privacyPolicy')} /></Field>
         <Field label={t('termsOfService')} htmlFor="s-terms" className="sm:col-span-2"><Textarea id="s-terms" rows={5} {...f('termsOfService')} /></Field>
         <Field label={t('legalNotice')} htmlFor="s-notice" className="sm:col-span-2"><Textarea id="s-notice" rows={5} {...f('legalNotice')} /></Field>

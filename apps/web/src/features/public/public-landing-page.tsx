@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Briefcase, ChevronDown, Download, FileText, GraduationCap, Languages, Newspaper, Quote, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -11,12 +11,19 @@ import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/form';
 import { Link } from '@/i18n/navigation';
 import { api } from '@/lib/api';
+import { LANDING_SERVICE_ICON_COMPONENTS } from '@/lib/landing-service-icons';
 import { siteUrl } from '@/lib/site-url';
-import type { Country, Paginated, PublicBlogPost } from '@/lib/types';
+import type { Country, LandingPagePublicData, Paginated, PublicBlogPost } from '@/lib/types';
 import { useErrorMessage } from '@/lib/use-error-message';
 import { useAgency } from '@/features/auth/use-agency';
 import { BrushTitle, DestinationCard, HandwrittenTagline, JourneyTimeline, PlaneTrail, Reveal, RevealGroup, RevealItem, ServiceCard, StudyWorldButton } from './design-system';
 import { PublicShell } from './public-shell';
+
+/** Choisit le texte arabe traduit automatiquement s'il existe, sinon retombe toujours sur le français saisi par le Super Admin. */
+function pick(locale: string, fr: string | null | undefined, ar: string | null | undefined): string | null {
+  const value = locale === 'ar' && ar ? ar : fr;
+  return value && value.trim() ? value : null;
+}
 
 interface ContactValues {
   firstName: string;
@@ -40,28 +47,12 @@ interface LeadMagnetValues {
 
 const GUIDE_URL = '/guides/guide-etudes-etranger.pdf';
 
-interface Testimonial {
-  name: string;
-  destination: string;
-  quote: string;
-}
-
-interface PartnerLogo {
-  name: string;
-  logoUrl: string;
-}
-
 /**
- * Volontairement vides : un témoignage attribué à une personne qui n'existe pas, ou un logo
- * d'université affiché sans accord réel, sont des contenus trompeurs — on ne les invente jamais,
- * même pour « faire complet ». Les deux sections ci-dessous sont prêtes côté code (elles restent
- * masquées tant que ces tableaux sont vides, comme pour le blog) : dès que Mohamed fournit de
- * vrais témoignages ou les logos de partenaires réels, il suffit de compléter ces tableaux —
- * aucun autre changement de code n'est nécessaire.
+ * Témoignages et logos partenaires viennent du CMS (page « Page d'accueil », réservée au Super Admin) —
+ * voir useQuery(['public', 'landing-page']) ci-dessous. Tant qu'ils sont vides (aucun témoignage ou
+ * logo réel saisi), les sections correspondantes restent masquées, comme pour le blog : on n'invente
+ * jamais un avis client ou un partenariat qui n'existe pas.
  */
-const TESTIMONIALS: Testimonial[] = [];
-const PARTNER_LOGOS: PartnerLogo[] = [];
-
 const SERVICES = [
   { key: 'visa', icon: GraduationCap, accent: '#064BB5' },
   { key: 'training', icon: Briefcase, accent: '#0F9D58' },
@@ -70,12 +61,14 @@ const SERVICES = [
   { key: 'family', icon: Users, accent: '#F5A623' },
   { key: 'admin', icon: FileText, accent: '#072C7A' },
 ] as const;
+const SERVICE_ACCENTS = ['#064BB5', '#0F9D58', '#39A9ED', '#CE2939', '#F5A623', '#072C7A'];
 const JOURNEY_KEYS = ['profile', 'orientation', 'documents', 'application', 'admission', 'visa', 'departure'] as const;
 const FAQ_KEYS = ['duration', 'countries', 'language', 'payment', 'visaRefusal', 'tracking'] as const;
 
 export function PublicLandingPage() {
   const t = useTranslations('public');
   const tc = useTranslations('common');
+  const locale = useLocale();
   const errorMessage = useErrorMessage();
   const { register, handleSubmit, reset, formState: { errors, isSubmitSuccessful } } = useForm<ContactValues>();
 
@@ -85,6 +78,14 @@ export function PublicLandingPage() {
     queryKey: ['public', 'blog', 'latest'],
     queryFn: () => api<Paginated<PublicBlogPost>>('/public/blog', { auth: false, query: { pageSize: 3 } }),
   });
+  // CMS « Page d'accueil » (Super Admin) : hero, à propos, services, FAQ, témoignages, logos partenaires.
+  // Chaque section retombe sur le contenu par défaut (ci-dessus) tant que le Super Admin n'a rien saisi.
+  const landingPage = useQuery({ queryKey: ['public', 'landing-page'], queryFn: () => api<LandingPagePublicData>('/public/landing-page', { auth: false }) });
+  const content = landingPage.data?.content;
+  const dynamicServices = landingPage.data?.services ?? [];
+  const faqItems = landingPage.data?.faq ?? [];
+  const testimonials = landingPage.data?.testimonials ?? [];
+  const partnerLogos = landingPage.data?.partnerLogos ?? [];
   const agency = useAgency();
   const [openFaq, setOpenFaq] = useState<string | null>(FAQ_KEYS[0]);
   const [guideUnlocked, setGuideUnlocked] = useState(false);
@@ -132,10 +133,17 @@ export function PublicLandingPage() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 lg:grid-cols-2">
           <Reveal>
             <PlaneTrail />
-            <h1 className="mt-3 font-poppins text-4xl font-bold leading-[1.1] text-navy sm:text-5xl">
-              {t('heroTitleLine1')} <BrushTitle color="hsl(var(--sw-sky))">{t('heroTitleHighlight')}</BrushTitle>
-            </h1>
-            <p className="mt-5 max-w-md text-lg text-muted-foreground">{t('heroSubtitle')}</p>
+            {(() => {
+              const heroTitle = pick(locale, content?.heroTitleFr, content?.heroTitleAr);
+              return heroTitle ? (
+                <h1 className="mt-3 font-poppins text-4xl font-bold leading-[1.1] text-navy sm:text-5xl">{heroTitle}</h1>
+              ) : (
+                <h1 className="mt-3 font-poppins text-4xl font-bold leading-[1.1] text-navy sm:text-5xl">
+                  {t('heroTitleLine1')} <BrushTitle color="hsl(var(--sw-sky))">{t('heroTitleHighlight')}</BrushTitle>
+                </h1>
+              );
+            })()}
+            <p className="mt-5 max-w-md text-lg text-muted-foreground">{pick(locale, content?.heroSubtitleFr, content?.heroSubtitleAr) ?? t('heroSubtitle')}</p>
             <HandwrittenTagline className="mt-4">{t('taglineMain')}</HandwrittenTagline>
             <div className="mt-8 flex flex-wrap gap-3">
               <StudyWorldButton href="/destinations">{t('ctaDestinations')}</StudyWorldButton>
@@ -145,14 +153,20 @@ export function PublicLandingPage() {
           <Reveal delay={0.15} className="relative">
             <div className="absolute -inset-4 -z-10 rounded-organic bg-sw-sky/20" aria-hidden />
             <div className="relative aspect-[4/5] overflow-hidden rounded-organic shadow-2xl sm:aspect-[5/6]">
-              <Image
-                src="/images/destinations/bresil-hero.jpg"
-                alt=""
-                fill
-                priority
-                sizes="(min-width: 1024px) 480px, 100vw"
-                className="object-cover"
-              />
+              {content?.heroImageUrl ? (
+                // Image hébergée par le Super Admin (domaine non connu à l'avance) : <img> plutôt que next/image.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={content.heroImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <Image
+                  src="/images/destinations/bresil-hero.jpg"
+                  alt=""
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 480px, 100vw"
+                  className="object-cover"
+                />
+              )}
             </div>
           </Reveal>
         </div>
@@ -176,40 +190,53 @@ export function PublicLandingPage() {
         </section>
       )}
 
-      {/* PARTENAIRES — masqué tant qu'aucun logo réel n'est renseigné (voir PARTNER_LOGOS ci-dessus). */}
-      {!!PARTNER_LOGOS.length && (
+      {/* PARTENAIRES — masqué tant qu'aucun logo réel n'est renseigné depuis la page « Page d'accueil ». */}
+      {!!partnerLogos.length && (
         <section className="bg-white py-10">
           <div className="mx-auto max-w-5xl px-6">
             <p className="text-center text-sm font-medium uppercase tracking-wide text-muted-foreground">{t('partnersSection.title')}</p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-6 grayscale">
-              {PARTNER_LOGOS.map((partner) => (
+              {partnerLogos.map((partner) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={partner.name} src={partner.logoUrl} alt={partner.name} className="h-10 w-auto object-contain opacity-70" />
+                <img key={partner.id} src={partner.logoUrl} alt={partner.name} className="h-10 w-auto object-contain opacity-70" />
               ))}
             </div>
           </div>
         </section>
       )}
 
-      {/* SERVICES */}
+      {/* SERVICES — le CMS (Super Admin) prend le relais dès qu'il contient au moins un service ; sinon, repli sur l'offre par défaut. */}
       <section className="mx-auto max-w-6xl px-6 py-16">
         <Reveal className="mx-auto max-w-2xl text-center">
           <h2 className="font-poppins text-3xl font-bold text-navy">{t('servicesTitle')}</h2>
           <p className="mt-2 text-muted-foreground">{t('servicesSubtitle')}</p>
         </Reveal>
         <RevealGroup className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {SERVICES.map(({ key, icon: Icon, accent }) => (
-            <RevealItem key={key}>
-              <ServiceCard
-                icon={Icon}
-                accent={accent}
-                title={t(`services.${key}.title`)}
-                description={t(`services.${key}.description`)}
-                bullets={[t(`services.${key}.bullet1`), t(`services.${key}.bullet2`)]}
-                href="/eligibility"
-              />
-            </RevealItem>
-          ))}
+          {dynamicServices.length
+            ? dynamicServices.map((service, i) => (
+                <RevealItem key={service.id}>
+                  <ServiceCard
+                    icon={LANDING_SERVICE_ICON_COMPONENTS[service.iconName]}
+                    accent={SERVICE_ACCENTS[i % SERVICE_ACCENTS.length] ?? '#064BB5'}
+                    title={pick(locale, service.titleFr, service.titleAr) ?? service.titleFr}
+                    description={pick(locale, service.descriptionFr, service.descriptionAr) ?? service.descriptionFr}
+                    bullets={[]}
+                    href="/eligibility"
+                  />
+                </RevealItem>
+              ))
+            : SERVICES.map(({ key, icon: Icon, accent }) => (
+                <RevealItem key={key}>
+                  <ServiceCard
+                    icon={Icon}
+                    accent={accent}
+                    title={t(`services.${key}.title`)}
+                    description={t(`services.${key}.description`)}
+                    bullets={[t(`services.${key}.bullet1`), t(`services.${key}.bullet2`)]}
+                    href="/eligibility"
+                  />
+                </RevealItem>
+              ))}
         </RevealGroup>
       </section>
 
@@ -246,8 +273,8 @@ export function PublicLandingPage() {
         </Reveal>
       </section>
 
-      {/* TÉMOIGNAGES — masqué tant qu'aucun témoignage réel n'est renseigné (voir TESTIMONIALS ci-dessus). */}
-      {!!TESTIMONIALS.length && (
+      {/* TÉMOIGNAGES — masqué tant qu'aucun témoignage réel n'est saisi depuis la page « Page d'accueil ». */}
+      {!!testimonials.length && (
         <section className="bg-white py-16">
           <div className="mx-auto max-w-6xl px-6">
             <Reveal className="mx-auto max-w-2xl text-center">
@@ -255,13 +282,13 @@ export function PublicLandingPage() {
               <p className="mt-2 text-muted-foreground">{t('testimonialsSection.subtitle')}</p>
             </Reveal>
             <RevealGroup className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {TESTIMONIALS.map((testimonial) => (
-                <RevealItem key={testimonial.name}>
+              {testimonials.map((testimonial) => (
+                <RevealItem key={testimonial.id}>
                   <div className="flex h-full flex-col rounded-organic border border-primary/10 bg-white p-6 shadow-[0_10px_35px_-18px_rgba(7,44,122,0.35)]">
                     <Quote className="h-6 w-6 text-sw-sky" aria-hidden />
-                    <p className="mt-3 flex-1 text-sm text-muted-foreground">{testimonial.quote}</p>
+                    <p className="mt-3 flex-1 text-sm text-muted-foreground">{pick(locale, testimonial.quoteFr, testimonial.quoteAr) ?? testimonial.quoteFr}</p>
                     <p className="mt-4 font-poppins font-semibold text-navy">{testimonial.name}</p>
-                    <p className="text-xs text-muted-foreground">{testimonial.destination}</p>
+                    {testimonial.destination && <p className="text-xs text-muted-foreground">{testimonial.destination}</p>}
                   </div>
                 </RevealItem>
               ))}
@@ -326,8 +353,8 @@ export function PublicLandingPage() {
             <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/10">
               <Users className="h-6 w-6 text-sw-sky" aria-hidden />
             </span>
-            <h2 className="mt-4 font-poppins text-3xl font-bold">{t('aboutTitle')}</h2>
-            <p className="mt-4 max-w-lg text-white/80">{t('aboutText')}</p>
+            <h2 className="mt-4 font-poppins text-3xl font-bold">{pick(locale, content?.aboutTitleFr, content?.aboutTitleAr) ?? t('aboutTitle')}</h2>
+            <p className="mt-4 max-w-lg text-white/80">{pick(locale, content?.aboutTextFr, content?.aboutTextAr) ?? t('aboutText')}</p>
             <div className="mt-6 grid grid-cols-3 gap-4">
               {(['value1', 'value2', 'value3'] as const).map((v) => (
                 <div key={v} className="rounded-xl bg-white/5 p-3 text-center text-sm font-medium">{t(`about.${v}`)}</div>
@@ -335,13 +362,18 @@ export function PublicLandingPage() {
             </div>
           </Reveal>
           <Reveal delay={0.15} className="relative order-1 aspect-[5/4] overflow-hidden rounded-organic shadow-2xl lg:order-2">
-            <Image
-              src="/images/destinations/lituanie-hero.jpg"
-              alt=""
-              fill
-              sizes="(min-width: 1024px) 560px, 100vw"
-              className="object-cover"
-            />
+            {content?.aboutImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={content.aboutImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <Image
+                src="/images/destinations/lituanie-hero.jpg"
+                alt=""
+                fill
+                sizes="(min-width: 1024px) 560px, 100vw"
+                className="object-cover"
+              />
+            )}
           </Reveal>
         </div>
       </section>
@@ -395,23 +427,41 @@ export function PublicLandingPage() {
           <p className="mt-2 text-muted-foreground">{t('faq.subtitle')}</p>
         </Reveal>
         <Reveal delay={0.1} className="mt-10 space-y-3">
-          {FAQ_KEYS.map((key) => {
-            const isOpen = openFaq === key;
-            return (
-              <div key={key} className="overflow-hidden rounded-organic border border-primary/10 bg-white">
-                <button
-                  type="button"
-                  onClick={() => setOpenFaq(isOpen ? null : key)}
-                  aria-expanded={isOpen}
-                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-poppins font-medium text-navy"
-                >
-                  {t(`faq.items.${key}.question`)}
-                  <ChevronDown className={`h-5 w-5 shrink-0 text-primary transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
-                </button>
-                {isOpen && <p className="px-5 pb-4 text-sm text-muted-foreground">{t(`faq.items.${key}.answer`)}</p>}
-              </div>
-            );
-          })}
+          {faqItems.length
+            ? faqItems.map((item) => {
+                const isOpen = openFaq === item.id;
+                return (
+                  <div key={item.id} className="overflow-hidden rounded-organic border border-primary/10 bg-white">
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq(isOpen ? null : item.id)}
+                      aria-expanded={isOpen}
+                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-poppins font-medium text-navy"
+                    >
+                      {pick(locale, item.questionFr, item.questionAr) ?? item.questionFr}
+                      <ChevronDown className={`h-5 w-5 shrink-0 text-primary transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
+                    </button>
+                    {isOpen && <p className="px-5 pb-4 text-sm text-muted-foreground">{pick(locale, item.answerFr, item.answerAr) ?? item.answerFr}</p>}
+                  </div>
+                );
+              })
+            : FAQ_KEYS.map((key) => {
+                const isOpen = openFaq === key;
+                return (
+                  <div key={key} className="overflow-hidden rounded-organic border border-primary/10 bg-white">
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq(isOpen ? null : key)}
+                      aria-expanded={isOpen}
+                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-poppins font-medium text-navy"
+                    >
+                      {t(`faq.items.${key}.question`)}
+                      <ChevronDown className={`h-5 w-5 shrink-0 text-primary transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
+                    </button>
+                    {isOpen && <p className="px-5 pb-4 text-sm text-muted-foreground">{t(`faq.items.${key}.answer`)}</p>}
+                  </div>
+                );
+              })}
         </Reveal>
       </section>
 

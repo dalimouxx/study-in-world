@@ -19,7 +19,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user, can, logout } = useAuth();
   const agency = useAgency();
-  const items = NAV_ITEMS.filter((i) => (!i.permission || can(i.permission)) && (!i.platformAdminOnly || user?.isPlatformAdmin));
+  const items = NAV_ITEMS.filter(
+    (i) =>
+      (!i.permission || can(i.permission)) &&
+      (!i.platformAdminOnly || user?.isPlatformAdmin) &&
+      (!i.superAdminOnly || user?.roleCode === 'SUPER_ADMIN'),
+  );
 
   return (
     <div className="flex h-full flex-col">
