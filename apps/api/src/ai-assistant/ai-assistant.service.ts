@@ -100,7 +100,7 @@ export class AiAssistantService {
         `${AiAssistantService.COUNTRY_FIELDS.join(', ')}. Chaque texte doit être concis (2 à 5 phrases, sauf "languages" ` +
         `et "languageLevel" qui tiennent sur une ligne), informatif et utile à un futur candidat. Si un fait précis ` +
         `(chiffre, procédure, délai) t'est incertain ou peut avoir changé, reste général plutôt que d'inventer une valeur exacte.`,
-      2200,
+      3200,
     );
     return this.parseJsonFields(text, AiAssistantService.COUNTRY_FIELDS);
   }
@@ -114,20 +114,27 @@ export class AiAssistantService {
         `français : ${AiAssistantService.UNIVERSITY_FIELDS.join(', ')}. Chaque texte doit être concis (2 à 4 phrases, ` +
         `sauf "languageLevel" qui tient sur une ligne). Si un fait précis (frais exacts, date limite, délai) t'est ` +
         `incertain ou peut avoir changé, reste général plutôt que d'inventer une valeur exacte.`,
-      1200,
+      1800,
     );
     return this.parseJsonFields(text, AiAssistantService.UNIVERSITY_FIELDS);
   }
 
   private parseJsonFields(text: string, fields: readonly string[]): Record<string, string> {
-    const cleaned = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    // Le modèle respecte presque toujours la consigne « JSON seul », mais pas garanti à 100% : on prend tout
+    // ce qui se trouve entre la première { et la dernière } plutôt que de ne retirer qu'une éventuelle balise
+    // markdown, pour tolérer une courte phrase d'intro ou de conclusion autour du JSON.
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    const candidate = start !== -1 && end > start ? text.slice(start, end + 1) : text.trim();
     let parsed: unknown;
     try {
-      parsed = JSON.parse(cleaned);
+      parsed = JSON.parse(candidate);
     } catch {
+      this.logger.error(`Réponse IA non-JSON (${fields.length} champs attendus) : ${text.slice(0, 800)}`);
       throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
     }
     if (typeof parsed !== 'object' || parsed === null) {
+      this.logger.error(`Réponse IA JSON mais pas un objet : ${text.slice(0, 800)}`);
       throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
     }
     const record = parsed as Record<string, unknown>;
