@@ -1,15 +1,18 @@
 'use client';
 
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Briefcase, FileText, GraduationCap, Languages, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { Briefcase, ChevronDown, FileText, GraduationCap, Languages, Newspaper, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/form';
+import { Link } from '@/i18n/navigation';
 import { api } from '@/lib/api';
 import { siteUrl } from '@/lib/site-url';
-import type { Country } from '@/lib/types';
+import type { Country, Paginated, PublicBlogPost } from '@/lib/types';
 import { useErrorMessage } from '@/lib/use-error-message';
 import { useAgency } from '@/features/auth/use-agency';
 import { BrushTitle, DestinationCard, HandwrittenTagline, JourneyTimeline, PlaneTrail, Reveal, RevealGroup, RevealItem, ServiceCard, StudyWorldButton } from './design-system';
@@ -23,6 +26,12 @@ interface ContactValues {
   message: string;
 }
 
+interface PublicStats {
+  countries: number;
+  universities: number;
+  programs: number;
+}
+
 const SERVICES = [
   { key: 'visa', icon: GraduationCap, accent: '#064BB5' },
   { key: 'training', icon: Briefcase, accent: '#0F9D58' },
@@ -32,6 +41,7 @@ const SERVICES = [
   { key: 'admin', icon: FileText, accent: '#072C7A' },
 ] as const;
 const JOURNEY_KEYS = ['profile', 'orientation', 'documents', 'application', 'admission', 'visa', 'departure'] as const;
+const FAQ_KEYS = ['duration', 'countries', 'language', 'payment', 'visaRefusal', 'tracking'] as const;
 
 export function PublicLandingPage() {
   const t = useTranslations('public');
@@ -40,7 +50,13 @@ export function PublicLandingPage() {
   const { register, handleSubmit, reset, formState: { errors, isSubmitSuccessful } } = useForm<ContactValues>();
 
   const destinations = useQuery({ queryKey: ['public', 'countries'], queryFn: () => api<Country[]>('/public/catalog/countries', { auth: false }) });
+  const stats = useQuery({ queryKey: ['public', 'stats'], queryFn: () => api<PublicStats>('/public/catalog/stats', { auth: false }) });
+  const latestPosts = useQuery({
+    queryKey: ['public', 'blog', 'latest'],
+    queryFn: () => api<Paginated<PublicBlogPost>>('/public/blog', { auth: false, query: { pageSize: 3 } }),
+  });
   const agency = useAgency();
+  const [openFaq, setOpenFaq] = useState<string | null>(FAQ_KEYS[0]);
 
   const submit = useMutation({
     mutationFn: (v: ContactValues) => api('/public/leads', { method: 'POST', body: { ...v, email: v.email || undefined, message: v.message || undefined }, auth: false }),
@@ -88,13 +104,37 @@ export function PublicLandingPage() {
           </Reveal>
           <Reveal delay={0.15} className="relative">
             <div className="absolute -inset-4 -z-10 rounded-organic bg-sw-sky/20" aria-hidden />
-            <div className="overflow-hidden rounded-organic shadow-2xl">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/destinations/bresil-hero.jpg" alt="" className="h-full w-full object-cover" />
+            <div className="relative aspect-[4/5] overflow-hidden rounded-organic shadow-2xl sm:aspect-[5/6]">
+              <Image
+                src="/images/destinations/bresil-hero.jpg"
+                alt=""
+                fill
+                priority
+                sizes="(min-width: 1024px) 480px, 100vw"
+                className="object-cover"
+              />
             </div>
           </Reveal>
         </div>
       </section>
+
+      {/* CHIFFRES CLÉS — toujours des données réelles du catalogue, jamais de chiffres inventés. */}
+      {stats.data && (
+        <section className="border-y border-primary/10 bg-white py-10">
+          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 px-6 text-center sm:grid-cols-3">
+            {([
+              ['countries', stats.data.countries],
+              ['universities', stats.data.universities],
+              ['programs', stats.data.programs],
+            ] as const).map(([key, value]) => (
+              <div key={key}>
+                <p className="font-poppins text-4xl font-bold text-primary">{value}+</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t(`stats.${key}Label`)}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* SERVICES */}
       <section className="mx-auto max-w-6xl px-6 py-16">
@@ -166,11 +206,85 @@ export function PublicLandingPage() {
               ))}
             </div>
           </Reveal>
-          <Reveal delay={0.15} className="order-1 overflow-hidden rounded-organic shadow-2xl lg:order-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/destinations/lituanie-hero.jpg" alt="" className="h-full w-full object-cover" />
+          <Reveal delay={0.15} className="relative order-1 aspect-[5/4] overflow-hidden rounded-organic shadow-2xl lg:order-2">
+            <Image
+              src="/images/destinations/lituanie-hero.jpg"
+              alt=""
+              fill
+              sizes="(min-width: 1024px) 560px, 100vw"
+              className="object-cover"
+            />
           </Reveal>
         </div>
+      </section>
+
+      {/* BLOG — n'apparaît que s'il existe des articles publiés, jamais une section vide. */}
+      {!!latestPosts.data?.items.length && (
+        <section className="bg-white py-16">
+          <div className="mx-auto max-w-6xl px-6">
+            <Reveal className="mx-auto max-w-2xl text-center">
+              <h2 className="font-poppins text-3xl font-bold text-navy">{t('blogSection.title')}</h2>
+              <p className="mt-2 text-muted-foreground">{t('blogSection.subtitle')}</p>
+            </Reveal>
+            <RevealGroup className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {latestPosts.data.items.map((post) => (
+                <RevealItem key={post.id}>
+                  <Link
+                    href={`/blog/${post.slug}`}
+                    className="group flex h-full flex-col overflow-hidden rounded-organic bg-white shadow-[0_10px_35px_-18px_rgba(7,44,122,0.35)] transition-transform hover:-translate-y-1"
+                  >
+                    {post.coverImageUrl ? (
+                      // Couverture hébergée par l'admin (URL dynamique, domaine non connu à l'avance) :
+                      // on garde un <img> classique plutôt que next/image, qui exige de déclarer les
+                      // domaines externes autorisés à l'avance.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={post.coverImageUrl} alt="" className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    ) : (
+                      <div className="flex h-44 w-full items-center justify-center bg-gradient-to-br from-navy to-primary">
+                        <Newspaper className="h-8 w-8 text-white/70" aria-hidden />
+                      </div>
+                    )}
+                    <div className="flex flex-1 flex-col p-5">
+                      <p className="font-poppins font-semibold text-navy">{post.title}</p>
+                      <p className="mt-1.5 flex-1 text-sm text-muted-foreground">{post.excerpt}</p>
+                      <p className="mt-3 text-xs font-medium text-primary">{t('blogSection.readMore')}</p>
+                    </div>
+                  </Link>
+                </RevealItem>
+              ))}
+            </RevealGroup>
+            <div className="mt-10 text-center">
+              <StudyWorldButton href="/blog" variant="secondary">{t('blogSection.seeAll')}</StudyWorldButton>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* FAQ */}
+      <section className="mx-auto max-w-3xl px-6 py-16">
+        <Reveal className="text-center">
+          <h2 className="font-poppins text-3xl font-bold text-navy">{t('faq.title')}</h2>
+          <p className="mt-2 text-muted-foreground">{t('faq.subtitle')}</p>
+        </Reveal>
+        <Reveal delay={0.1} className="mt-10 space-y-3">
+          {FAQ_KEYS.map((key) => {
+            const isOpen = openFaq === key;
+            return (
+              <div key={key} className="overflow-hidden rounded-organic border border-primary/10 bg-white">
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(isOpen ? null : key)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-poppins font-medium text-navy"
+                >
+                  {t(`faq.items.${key}.question`)}
+                  <ChevronDown className={`h-5 w-5 shrink-0 text-primary transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
+                </button>
+                {isOpen && <p className="px-5 pb-4 text-sm text-muted-foreground">{t(`faq.items.${key}.answer`)}</p>}
+              </div>
+            );
+          })}
+        </Reveal>
       </section>
 
       {/* CONTACT */}

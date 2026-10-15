@@ -35,6 +35,18 @@ export class PublicCatalogController {
     return this.prisma.country.findMany({ where: { organizationId, isActive: true, deletedAt: null }, orderBy: { name: 'asc' } });
   }
 
+  /** Chiffres affichés comme preuve sociale sur la landing page (section « stats ») : toujours réels, jamais figés en dur. */
+  @Public() @Get('stats')
+  async stats() {
+    const organizationId = await this.orgId();
+    const [countries, universities, programs] = await this.prisma.$transaction([
+      this.prisma.country.count({ where: { organizationId, isActive: true, deletedAt: null } }),
+      this.prisma.university.count({ where: { organizationId, isActive: true, deletedAt: null } }),
+      this.prisma.program.count({ where: { organizationId, isActive: true, deletedAt: null } }),
+    ]);
+    return { countries, universities, programs };
+  }
+
   @Public() @Get('countries/:slug')
   async country(@Param('slug') slug: string) {
     const organizationId = await this.orgId();

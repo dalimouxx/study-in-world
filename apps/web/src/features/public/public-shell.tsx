@@ -74,6 +74,21 @@ export function PublicShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </footer>
+
+      {/* Bouton WhatsApp flottant : canal de contact le plus direct pour ce marché, visible sur
+          toutes les pages publiques plutôt que caché dans le pied de page. */}
+      {agency.data?.whatsapp && (
+        <a
+          href={`https://wa.me/${agency.data.whatsapp.replace(/[^0-9]/g, '')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={t('whatsappCta')}
+          title={t('whatsappCta')}
+          className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-black/25 transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          <MessageCircle className="h-7 w-7" aria-hidden />
+        </a>
+      )}
     </div>
   );
 }

@@ -905,7 +905,49 @@
     "blogTitle": "Blog",
     "blogSubtitle": "Conseils, actualités et retours d’expérience pour préparer votre projet international.",
     "emptyBlog": "Aucun article publié pour le moment.",
-    "backToBlog": "← Retour au blog"
+    "backToBlog": "← Retour au blog",
+    "stats": {
+      "countriesLabel": "Destinations",
+      "universitiesLabel": "Universités partenaires",
+      "programsLabel": "Programmes disponibles"
+    },
+    "blogSection": {
+      "title": "Nos derniers articles",
+      "subtitle": "Conseils, actualités et témoignages pour préparer votre projet à l'étranger.",
+      "readMore": "Lire l'article",
+      "seeAll": "Voir tous les articles"
+    },
+    "faq": {
+      "title": "Questions fréquentes",
+      "subtitle": "Les réponses aux questions qu'on nous pose le plus souvent.",
+      "items": {
+        "duration": {
+          "question": "Combien de temps dure le processus ?",
+          "answer": "Cela dépend du pays et du programme choisis, mais comptez en moyenne plusieurs mois entre le premier contact et le départ. Un calendrier précis vous est donné dès l'étude de votre dossier."
+        },
+        "countries": {
+          "question": "Dans quels pays proposez-vous des programmes ?",
+          "answer": "Consultez notre page Destinations pour la liste à jour des pays et universités partenaires."
+        },
+        "language": {
+          "question": "Dois-je déjà parler la langue du pays ?",
+          "answer": "Pas nécessairement : certains programmes incluent une préparation linguistique avant le départ. Nous vous orientons selon votre niveau actuel."
+        },
+        "payment": {
+          "question": "Comment se passe le paiement de vos services ?",
+          "answer": "Les modalités vous sont présentées clairement avant toute signature, avec un reçu pour chaque versement."
+        },
+        "visaRefusal": {
+          "question": "Que se passe-t-il si mon visa est refusé ?",
+          "answer": "Nous vous accompagnons pour constituer le dossier le plus solide possible et vous conseillons sur les suites possibles en cas de refus."
+        },
+        "tracking": {
+          "question": "Puis-je suivre l'avancement de mon dossier ?",
+          "answer": "Oui, votre espace candidat vous permet de suivre chaque étape de votre dossier en temps réel."
+        }
+      }
+    },
+    "whatsappCta": "Discuter sur WhatsApp"
   },
   "catalog": {
     "title": "Catalogue",
