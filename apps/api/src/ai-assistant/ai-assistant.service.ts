@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { HealthScoreService } from '../health-score/health-score.service';
@@ -15,6 +15,8 @@ import type { Env } from '../config/env';
  */
 @Injectable()
 export class AiAssistantService {
+  private readonly logger = new Logger(AiAssistantService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly healthScore: HealthScoreService,
@@ -148,14 +150,29 @@ export class AiAssistantService {
         headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({ model: this.config.get('ANTHROPIC_MODEL', { infer: true }), max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
       });
-    } catch {
+    } catch (err) {
+      // Jamais de clé API dans les logs — seulement le message d'erreur réseau (DNS, timeout, etc.).
+      this.logger.error(`Appel à l'API Anthropic impossible : ${err instanceof Error ? err.message : String(err)}`);
       throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
     }
-    if (!res.ok) throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
+    if (!res.ok) {
+      // Cause la plus fréquente : clé invalide (401), ou compte sans crédit (400/403 "credit balance too low").
+      let body = '';
+      try {
+        body = await res.text();
+      } catch {
+        /* corps illisible : on logue au moins le statut HTTP ci-dessous */
+      }
+      this.logger.error(`L'API Anthropic a répondu ${res.status} : ${body.slice(0, 500)}`);
+      throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
+    }
 
     const data = (await res.json()) as { content?: { type: string; text?: string }[] };
     const text = data.content?.find((b) => b.type === 'text')?.text;
-    if (!text) throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
+    if (!text) {
+      this.logger.error(`Réponse Anthropic sans texte exploitable : ${JSON.stringify(data).slice(0, 500)}`);
+      throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
+    }
     return text.trim();
   }
 }
