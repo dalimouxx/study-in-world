@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AiAssistantModule } from '../ai-assistant/ai-assistant.module';
 import { CountriesController } from './countries.controller';
 import { CountriesService } from './countries.service';
 import { PublicCatalogController } from './public/public-catalog.controller';
@@ -8,6 +9,7 @@ import { UniversitiesController } from './universities.controller';
 import { UniversitiesService } from './universities.service';
 
 @Module({
+  imports: [AiAssistantModule],
   controllers: [CountriesController, UniversitiesController, ProgramsController, PublicCatalogController],
   providers: [CountriesService, UniversitiesService, ProgramsService],
   exports: [CountriesService, UniversitiesService, ProgramsService],

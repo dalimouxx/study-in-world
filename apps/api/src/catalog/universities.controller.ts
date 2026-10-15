@@ -2,6 +2,8 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } fr
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, ReqMeta, RequirePermissions } from '../common/decorators';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
+import { AiAssistantService } from '../ai-assistant/ai-assistant.service';
+import { DraftUniversityContentDto } from './dto/catalog-ai.dto';
 import { CreateUniversityDto, ListUniversitiesQuery, UpdateUniversityDto } from './dto/university.dto';
 import { UniversitiesService } from './universities.service';
 
@@ -9,11 +11,20 @@ import { UniversitiesService } from './universities.service';
 @ApiBearerAuth()
 @Controller('universities')
 export class UniversitiesController {
-  constructor(private readonly universities: UniversitiesService) {}
+  constructor(
+    private readonly universities: UniversitiesService,
+    private readonly ai: AiAssistantService,
+  ) {}
 
   @Get() @RequirePermissions('catalog.view')
   list(@CurrentUser() user: AuthUser, @Query() q: ListUniversitiesQuery) {
     return this.universities.list(user, q);
+  }
+
+  /** Brouillon IA : jamais enregistré directement, juste renvoyé pour relecture dans le formulaire. */
+  @Post('ai-draft') @RequirePermissions('catalog.manage')
+  draftContent(@Body() dto: DraftUniversityContentDto) {
+    return this.ai.draftUniversityContent(dto.name, dto.city, dto.countryName);
   }
 
   @Get(':id') @RequirePermissions('catalog.view')

@@ -72,7 +72,72 @@ export class AiAssistantService {
     );
   }
 
-  private async call(prompt: string): Promise<string> {
+  /** Champs texte d'une fiche pays ("destination"), rédigés par l'IA à partir du seul nom du pays. */
+  private static readonly COUNTRY_FIELDS = [
+    'description', 'universitySystem', 'advantages', 'costOfLiving', 'tuitionFeesInfo', 'languages',
+    'admissionConditions', 'languageLevel', 'applicationProcess', 'visaInfo', 'housingInfo',
+    'insuranceInfo', 'studentWorkInfo', 'transportInfo', 'calendarInfo', 'documentsInfo', 'faq',
+  ] as const;
+
+  /** Champs texte d'une fiche établissement, rédigés par l'IA à partir du nom, de la ville et du pays. */
+  private static readonly UNIVERSITY_FIELDS = [
+    'description', 'feesInfo', 'calendarInfo', 'deadlinesInfo', 'conditionsInfo', 'languageLevel', 'extraInfo',
+  ] as const;
+
+  /**
+   * Brouillon de fiche destination (Phase « catalogue »), même logique que summary()/draftMessage() : jamais
+   * écrit en base, un texte à relire et corriger avant d'enregistrer. Seule la correction avant enregistrement
+   * garantit qu'une imprécision de l'IA (visa, coûts, démarches) ne se retrouve jamais publiée sans relecture
+   * humaine — le prompt demande explicitement de rester général plutôt que d'inventer un chiffre précis.
+   */
+  async draftCountryContent(name: string): Promise<Record<string, string>> {
+    const text = await this.call(
+      `Tu rédiges, pour le compte d'une agence d'études à l'étranger qui conseille des étudiants tunisiens/maghrébins, ` +
+        `une fiche destination pour le pays « ${name} ». Réponds UNIQUEMENT avec un objet JSON (sans texte autour, sans ` +
+        `balise markdown) contenant exactement ces clés, chacune avec une valeur texte en français : ` +
+        `${AiAssistantService.COUNTRY_FIELDS.join(', ')}. Chaque texte doit être concis (2 à 5 phrases, sauf "languages" ` +
+        `et "languageLevel" qui tiennent sur une ligne), informatif et utile à un futur candidat. Si un fait précis ` +
+        `(chiffre, procédure, délai) t'est incertain ou peut avoir changé, reste général plutôt que d'inventer une valeur exacte.`,
+      2200,
+    );
+    return this.parseJsonFields(text, AiAssistantService.COUNTRY_FIELDS);
+  }
+
+  /** Brouillon de fiche établissement — même principe que draftCountryContent(). */
+  async draftUniversityContent(name: string, city: string, countryName: string): Promise<Record<string, string>> {
+    const text = await this.call(
+      `Tu rédiges, pour le compte d'une agence d'études à l'étranger qui conseille des étudiants tunisiens/maghrébins, ` +
+        `une fiche établissement pour « ${name} », situé à ${city} (${countryName}). Réponds UNIQUEMENT avec un objet ` +
+        `JSON (sans texte autour, sans balise markdown) contenant exactement ces clés, chacune avec une valeur texte en ` +
+        `français : ${AiAssistantService.UNIVERSITY_FIELDS.join(', ')}. Chaque texte doit être concis (2 à 4 phrases, ` +
+        `sauf "languageLevel" qui tient sur une ligne). Si un fait précis (frais exacts, date limite, délai) t'est ` +
+        `incertain ou peut avoir changé, reste général plutôt que d'inventer une valeur exacte.`,
+      1200,
+    );
+    return this.parseJsonFields(text, AiAssistantService.UNIVERSITY_FIELDS);
+  }
+
+  private parseJsonFields(text: string, fields: readonly string[]): Record<string, string> {
+    const cleaned = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
+    }
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
+    }
+    const record = parsed as Record<string, unknown>;
+    const result: Record<string, string> = {};
+    for (const field of fields) {
+      const value = record[field];
+      result[field] = typeof value === 'string' ? value.trim() : '';
+    }
+    return result;
+  }
+
+  private async call(prompt: string, maxTokens = 800): Promise<string> {
     const apiKey = this.config.get('ANTHROPIC_API_KEY', { infer: true });
     if (!apiKey) throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_NOT_CONFIGURED', 'Assistant IA non configuré');
 
@@ -81,7 +146,7 @@ export class AiAssistantService {
       res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({ model: this.config.get('ANTHROPIC_MODEL', { infer: true }), max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
+        body: JSON.stringify({ model: this.config.get('ANTHROPIC_MODEL', { infer: true }), max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
       });
     } catch {
       throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
