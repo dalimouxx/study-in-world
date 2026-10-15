@@ -93,51 +93,85 @@ export class AiAssistantService {
    * humaine — le prompt demande explicitement de rester général plutôt que d'inventer un chiffre précis.
    */
   async draftCountryContent(name: string): Promise<Record<string, string>> {
-    const text = await this.call(
+    return this.callForFields(
       `Tu rédiges, pour le compte d'une agence d'études à l'étranger qui conseille des étudiants tunisiens/maghrébins, ` +
-        `une fiche destination pour le pays « ${name} ». Réponds UNIQUEMENT avec un objet JSON (sans texte autour, sans ` +
-        `balise markdown) contenant exactement ces clés, chacune avec une valeur texte en français : ` +
-        `${AiAssistantService.COUNTRY_FIELDS.join(', ')}. Chaque texte doit être concis (2 à 5 phrases, sauf "languages" ` +
-        `et "languageLevel" qui tiennent sur une ligne), informatif et utile à un futur candidat. Si un fait précis ` +
-        `(chiffre, procédure, délai) t'est incertain ou peut avoir changé, reste général plutôt que d'inventer une valeur exacte.`,
+        `une fiche destination pour le pays « ${name} ». Utilise l'outil fourni pour renvoyer le contenu de chaque champ, ` +
+        `en français. Chaque texte doit être concis (2 à 5 phrases, sauf "languages" et "languageLevel" qui tiennent sur ` +
+        `une ligne), informatif et utile à un futur candidat. Si un fait précis (chiffre, procédure, délai) t'est ` +
+        `incertain ou peut avoir changé, reste général plutôt que d'inventer une valeur exacte.`,
+      AiAssistantService.COUNTRY_FIELDS,
       3200,
     );
-    return this.parseJsonFields(text, AiAssistantService.COUNTRY_FIELDS);
   }
 
   /** Brouillon de fiche établissement — même principe que draftCountryContent(). */
   async draftUniversityContent(name: string, city: string, countryName: string): Promise<Record<string, string>> {
-    const text = await this.call(
+    return this.callForFields(
       `Tu rédiges, pour le compte d'une agence d'études à l'étranger qui conseille des étudiants tunisiens/maghrébins, ` +
-        `une fiche établissement pour « ${name} », situé à ${city} (${countryName}). Réponds UNIQUEMENT avec un objet ` +
-        `JSON (sans texte autour, sans balise markdown) contenant exactement ces clés, chacune avec une valeur texte en ` +
-        `français : ${AiAssistantService.UNIVERSITY_FIELDS.join(', ')}. Chaque texte doit être concis (2 à 4 phrases, ` +
-        `sauf "languageLevel" qui tient sur une ligne). Si un fait précis (frais exacts, date limite, délai) t'est ` +
-        `incertain ou peut avoir changé, reste général plutôt que d'inventer une valeur exacte.`,
+        `une fiche établissement pour « ${name} », situé à ${city} (${countryName}). Utilise l'outil fourni pour renvoyer ` +
+        `le contenu de chaque champ, en français. Chaque texte doit être concis (2 à 4 phrases, sauf "languageLevel" qui ` +
+        `tient sur une ligne). Si un fait précis (frais exacts, date limite, délai) t'est incertain ou peut avoir changé, ` +
+        `reste général plutôt que d'inventer une valeur exacte.`,
+      AiAssistantService.UNIVERSITY_FIELDS,
       1800,
     );
-    return this.parseJsonFields(text, AiAssistantService.UNIVERSITY_FIELDS);
   }
 
-  private parseJsonFields(text: string, fields: readonly string[]): Record<string, string> {
-    // Le modèle respecte presque toujours la consigne « JSON seul », mais pas garanti à 100% : on prend tout
-    // ce qui se trouve entre la première { et la dernière } plutôt que de ne retirer qu'une éventuelle balise
-    // markdown, pour tolérer une courte phrase d'intro ou de conclusion autour du JSON.
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    const candidate = start !== -1 && end > start ? text.slice(start, end + 1) : text.trim();
-    let parsed: unknown;
+  /**
+   * Variante structurée de call() : au lieu de demander un bloc de texte libre contenant du JSON (fragile — le
+   * modèle peut ajouter une phrase autour, utiliser des guillemets non échappés, ou être coupé par max_tokens
+   * en plein milieu), on force un appel d'outil ("tool_choice") dont le schéma exige exactement ces champs.
+   * L'API Anthropic garantit alors un objet déjà parsé et conforme au schéma, sans étape de parsing texte→JSON.
+   */
+  private async callForFields(prompt: string, fields: readonly string[], maxTokens: number): Promise<Record<string, string>> {
+    const apiKey = this.config.get('ANTHROPIC_API_KEY', { infer: true });
+    if (!apiKey) throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_NOT_CONFIGURED', 'Assistant IA non configuré');
+
+    const tool = {
+      name: 'rediger_fiche',
+      description: 'Enregistre le contenu rédigé pour chaque champ de la fiche.',
+      input_schema: {
+        type: 'object',
+        properties: Object.fromEntries(fields.map((f) => [f, { type: 'string' }])),
+        required: [...fields],
+      },
+    };
+
+    let res: Response;
     try {
-      parsed = JSON.parse(candidate);
-    } catch {
-      this.logger.error(`Réponse IA non-JSON (${fields.length} champs attendus) : ${text.slice(0, 800)}`);
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model: this.config.get('ANTHROPIC_MODEL', { infer: true }),
+          max_tokens: maxTokens,
+          tools: [tool],
+          tool_choice: { type: 'tool', name: tool.name },
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+    } catch (err) {
+      this.logger.error(`Appel à l'API Anthropic impossible : ${err instanceof Error ? err.message : String(err)}`);
       throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
     }
-    if (typeof parsed !== 'object' || parsed === null) {
-      this.logger.error(`Réponse IA JSON mais pas un objet : ${text.slice(0, 800)}`);
+    if (!res.ok) {
+      let body = '';
+      try {
+        body = await res.text();
+      } catch {
+        /* corps illisible : on logue au moins le statut HTTP ci-dessous */
+      }
+      this.logger.error(`L'API Anthropic a répondu ${res.status} : ${body.slice(0, 500)}`);
       throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
     }
-    const record = parsed as Record<string, unknown>;
+
+    const data = (await res.json()) as { content?: { type: string; input?: unknown; [k: string]: unknown }[]; stop_reason?: string };
+    const toolUse = data.content?.find((b) => b.type === 'tool_use');
+    if (!toolUse || typeof toolUse.input !== 'object' || toolUse.input === null) {
+      this.logger.error(`Réponse IA sans tool_use exploitable (stop_reason=${data.stop_reason}) : ${JSON.stringify(data).slice(0, 800)}`);
+      throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'AI_UNAVAILABLE', 'Assistant IA momentanément indisponible');
+    }
+    const record = toolUse.input as Record<string, unknown>;
     const result: Record<string, string> = {};
     for (const field of fields) {
       const value = record[field];
