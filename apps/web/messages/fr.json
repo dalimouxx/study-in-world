@@ -955,6 +955,13 @@
       "cta": "Recevoir le guide",
       "success": "Merci ! Votre guide est prêt.",
       "downloadButton": "Télécharger le PDF"
+    },
+    "testimonialsSection": {
+      "title": "Ce qu'en disent nos candidats",
+      "subtitle": "Des parcours réels, racontés par ceux qui les ont vécus."
+    },
+    "partnersSection": {
+      "title": "Ils nous font confiance"
     }
   },
   "catalog": {

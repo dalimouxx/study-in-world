@@ -955,6 +955,13 @@
       "cta": "احصل على الدليل",
       "success": "شكرًا! دليلك جاهز الآن.",
       "downloadButton": "تحميل ملف PDF"
+    },
+    "testimonialsSection": {
+      "title": "ماذا يقول مترشحونا",
+      "subtitle": "مسارات حقيقية، يرويها من عاشها."
+    },
+    "partnersSection": {
+      "title": "يثقون بنا"
     }
   },
   "catalog": {

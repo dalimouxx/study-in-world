@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Briefcase, ChevronDown, Download, FileText, GraduationCap, Languages, Newspaper, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { Briefcase, ChevronDown, Download, FileText, GraduationCap, Languages, Newspaper, Quote, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -39,6 +39,28 @@ interface LeadMagnetValues {
 }
 
 const GUIDE_URL = '/guides/guide-etudes-etranger.pdf';
+
+interface Testimonial {
+  name: string;
+  destination: string;
+  quote: string;
+}
+
+interface PartnerLogo {
+  name: string;
+  logoUrl: string;
+}
+
+/**
+ * Volontairement vides : un témoignage attribué à une personne qui n'existe pas, ou un logo
+ * d'université affiché sans accord réel, sont des contenus trompeurs — on ne les invente jamais,
+ * même pour « faire complet ». Les deux sections ci-dessous sont prêtes côté code (elles restent
+ * masquées tant que ces tableaux sont vides, comme pour le blog) : dès que Mohamed fournit de
+ * vrais témoignages ou les logos de partenaires réels, il suffit de compléter ces tableaux —
+ * aucun autre changement de code n'est nécessaire.
+ */
+const TESTIMONIALS: Testimonial[] = [];
+const PARTNER_LOGOS: PartnerLogo[] = [];
 
 const SERVICES = [
   { key: 'visa', icon: GraduationCap, accent: '#064BB5' },
@@ -154,6 +176,21 @@ export function PublicLandingPage() {
         </section>
       )}
 
+      {/* PARTENAIRES — masqué tant qu'aucun logo réel n'est renseigné (voir PARTNER_LOGOS ci-dessus). */}
+      {!!PARTNER_LOGOS.length && (
+        <section className="bg-white py-10">
+          <div className="mx-auto max-w-5xl px-6">
+            <p className="text-center text-sm font-medium uppercase tracking-wide text-muted-foreground">{t('partnersSection.title')}</p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-6 grayscale">
+              {PARTNER_LOGOS.map((partner) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={partner.name} src={partner.logoUrl} alt={partner.name} className="h-10 w-auto object-contain opacity-70" />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* SERVICES */}
       <section className="mx-auto max-w-6xl px-6 py-16">
         <Reveal className="mx-auto max-w-2xl text-center">
@@ -208,6 +245,30 @@ export function PublicLandingPage() {
           <JourneyTimeline steps={JOURNEY_KEYS.map((key) => ({ title: t(`journey.${key}.title`), description: t(`journey.${key}.description`) }))} />
         </Reveal>
       </section>
+
+      {/* TÉMOIGNAGES — masqué tant qu'aucun témoignage réel n'est renseigné (voir TESTIMONIALS ci-dessus). */}
+      {!!TESTIMONIALS.length && (
+        <section className="bg-white py-16">
+          <div className="mx-auto max-w-6xl px-6">
+            <Reveal className="mx-auto max-w-2xl text-center">
+              <h2 className="font-poppins text-3xl font-bold text-navy">{t('testimonialsSection.title')}</h2>
+              <p className="mt-2 text-muted-foreground">{t('testimonialsSection.subtitle')}</p>
+            </Reveal>
+            <RevealGroup className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {TESTIMONIALS.map((testimonial) => (
+                <RevealItem key={testimonial.name}>
+                  <div className="flex h-full flex-col rounded-organic border border-primary/10 bg-white p-6 shadow-[0_10px_35px_-18px_rgba(7,44,122,0.35)]">
+                    <Quote className="h-6 w-6 text-sw-sky" aria-hidden />
+                    <p className="mt-3 flex-1 text-sm text-muted-foreground">{testimonial.quote}</p>
+                    <p className="mt-4 font-poppins font-semibold text-navy">{testimonial.name}</p>
+                    <p className="text-xs text-muted-foreground">{testimonial.destination}</p>
+                  </div>
+                </RevealItem>
+              ))}
+            </RevealGroup>
+          </div>
+        </section>
+      )}
 
       {/* GUIDE TÉLÉCHARGEABLE (lead magnet) — capte les visiteurs pas encore prêts à remplir le
           formulaire de contact complet. Contenu basé uniquement sur ce qui est déjà publié sur
