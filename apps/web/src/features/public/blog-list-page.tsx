@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/empty-state';
 import { Link } from '@/i18n/navigation';
 import { api } from '@/lib/api';
 import type { Paginated, PublicBlogPost } from '@/lib/types';
-import { Reveal, RevealGroup, RevealItem } from './design-system';
+import { RevealGroup, RevealItem, PublicPageHero } from './design-system';
 import { PublicShell } from './public-shell';
 
 export function BlogListPage() {
@@ -18,14 +18,8 @@ export function BlogListPage() {
 
   return (
     <PublicShell>
-      <section className="mx-auto max-w-6xl px-6 py-14">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Newspaper className="h-5 w-5" aria-hidden />
-          </span>
-          <h1 className="mt-3 font-poppins text-3xl font-bold text-navy">{t('blogTitle')}</h1>
-          <p className="mt-2 text-muted-foreground">{t('blogSubtitle')}</p>
-        </Reveal>
+      <PublicPageHero title={t('blogTitle')} subtitle={t('blogSubtitle')} />
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
 
         {query.isLoading ? (
           <p role="status" className="mt-10 text-center text-sm text-muted-foreground">{tc('loading')}</p>
@@ -35,17 +29,17 @@ export function BlogListPage() {
           <RevealGroup className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((post) => (
               <RevealItem key={post.id}>
-                <Link href={`/blog/${post.slug}`} className="group flex h-full flex-col overflow-hidden rounded-organic bg-white shadow-[0_10px_35px_-18px_rgba(7,44,122,0.35)] transition-transform hover:-translate-y-1">
+                <Link href={`/blog/${post.slug}`} className="pop pop-hover group flex h-full flex-col overflow-hidden rounded-tile bg-card">
                   {post.coverImageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={post.coverImageUrl} alt="" className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   ) : (
-                    <div className="flex h-44 w-full items-center justify-center bg-gradient-to-br from-navy to-primary">
+                    <div className="flex h-44 w-full items-center justify-center border-b-2 border-ink bg-primary">
                       <Newspaper className="h-8 w-8 text-white/70" aria-hidden />
                     </div>
                   )}
                   <div className="flex flex-1 flex-col p-5">
-                    <p className="font-poppins font-semibold text-navy">{post.title}</p>
+                    <p className="font-display font-extrabold text-ink">{post.title}</p>
                     <p className="mt-1.5 flex-1 text-sm text-muted-foreground">{post.excerpt}</p>
                     {post.publishedAt && <p className="mt-3 text-xs text-muted-foreground">{new Date(post.publishedAt).toLocaleDateString()}</p>}
                   </div>

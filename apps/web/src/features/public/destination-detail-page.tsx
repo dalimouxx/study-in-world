@@ -6,7 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { api } from '@/lib/api';
 import type { Country } from '@/lib/types';
 import { useErrorMessage } from '@/lib/use-error-message';
-import { countryAccentColor, destinationHeroImage, FlagBadge, Reveal, RevealGroup, RevealItem, StudyWorldButton } from './design-system';
+import { countryAccentColor, destinationHeroImage, FlagBadge, MorphBlob, Reveal, RevealGroup, RevealItem, StudyWorldButton } from './design-system';
 import { PublicShell } from './public-shell';
 
 const SECTIONS = ['advantages', 'costOfLiving', 'admissionConditions', 'visaInfo', 'housingInfo', 'studentWorkInfo'] as const;
@@ -27,18 +27,24 @@ export function DestinationDetailPage({ slug }: { slug: string }) {
   return (
     <PublicShell>
       {/* HERO */}
-      <section className="relative flex min-h-[280px] items-end overflow-hidden">
+      <section className="mx-auto max-w-6xl px-3 pt-6 sm:px-6">
+        <div className="pop relative flex min-h-[320px] items-end overflow-hidden rounded-tile">
         {hero ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hero} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
         ) : (
-          <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, hsl(var(--navy)), ${accent})` }} />
+          <div className="absolute inset-0 overflow-hidden bg-primary">
+            <MorphBlob className="-bottom-24 -end-16 h-80 w-80" />
+            <MorphBlob className="end-1/3 top-8 h-28 w-28 [animation-duration:11s]" />
+            {c.flagEmoji && <span aria-hidden className="absolute end-10 top-1/2 -translate-y-1/2 text-[120px] leading-none sm:text-[160px]">{c.flagEmoji}</span>}
+          </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/10 to-transparent" aria-hidden />
+        {hero && <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/10 to-transparent" aria-hidden />}
         <Reveal className="relative z-10 px-6 pb-8 sm:px-10">
           <FlagBadge flag={c.flagEmoji} name={c.name} />
-          <h1 className="mt-3 font-poppins text-4xl font-bold text-white sm:text-5xl">{c.name}</h1>
+          <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-white sm:text-6xl">{c.name}</h1>
         </Reveal>
+        </div>
       </section>
 
       <section className="mx-auto max-w-4xl px-6 py-12">
@@ -47,8 +53,8 @@ export function DestinationDetailPage({ slug }: { slug: string }) {
         <RevealGroup className="mt-8 grid gap-4 sm:grid-cols-2">
           {SECTIONS.filter((k) => c[k]).map((k) => (
             <RevealItem key={k}>
-              <div className="h-full rounded-organic border border-primary/10 bg-white p-5 shadow-sm">
-                <h2 className="font-poppins font-semibold text-navy">{t(`destinationSections.${k}`)}</h2>
+              <div className="h-full pop rounded-tile bg-card p-5">
+                <h2 className="font-display font-extrabold text-ink">{t(`destinationSections.${k}`)}</h2>
                 <p className="mt-1.5 whitespace-pre-line text-sm text-muted-foreground">{c[k]}</p>
               </div>
             </RevealItem>
@@ -57,11 +63,11 @@ export function DestinationDetailPage({ slug }: { slug: string }) {
 
         {!!c.universities?.length && (
           <div className="mt-12">
-            <Reveal><h2 className="mb-4 font-poppins text-xl font-bold text-navy">{t('universitiesIn', { country: c.name })}</h2></Reveal>
+            <Reveal><h2 className="mb-4 font-display text-xl font-extrabold tracking-tight text-ink">{t('universitiesIn', { country: c.name })}</h2></Reveal>
             <RevealGroup className="grid gap-3 sm:grid-cols-2">
               {c.universities.map((u) => (
                 <RevealItem key={u.id}>
-                  <Link href={`/universities/${u.slug}`} className="block rounded-organic border border-primary/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+                  <Link href={`/universities/${u.slug}`} className="block pop pop-hover rounded-tile bg-card p-4">
                     <p className="font-medium text-navy">{u.name}</p>
                     <p className="text-sm text-muted-foreground">{u.city}</p>
                   </Link>

@@ -349,7 +349,7 @@ export function AnimatedFrame({ children, sticker, className, delay = 0 }: { chi
 export function PublicPageHero({ eyebrow, title, subtitle, children }: { eyebrow?: string; title: string; subtitle?: string; children?: ReactNode }) {
   return (
     <section className="mx-auto max-w-6xl px-3 pt-6 sm:px-6">
-      <div className="pop relative overflow-hidden rounded-tile bg-primary px-6 pb-12 pt-10 text-white sm:px-10">
+      <div className="pop relative overflow-hidden rounded-tile bg-primary px-6 pb-16 pt-10 text-white sm:px-10">
         <MorphBlob className="-bottom-24 -end-16 h-72 w-72" />
         <MorphBlob className="end-1/3 top-4 h-24 w-24 [animation-duration:11s]" />
         <div className="relative max-w-2xl">

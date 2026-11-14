@@ -26,13 +26,13 @@ export function BlogDetailPage({ slug }: { slug: string }) {
       <article className="mx-auto max-w-2xl px-6 py-14">
         <Reveal>
           {post.publishedAt && <p className="text-sm text-muted-foreground">{new Date(post.publishedAt).toLocaleDateString(locale)}</p>}
-          <h1 className="mt-1 font-poppins text-3xl font-bold text-navy">{post.title}</h1>
+          <h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight text-ink">{post.title}</h1>
           <p className="mt-3 text-lg text-muted-foreground">{post.excerpt}</p>
         </Reveal>
         {post.coverImageUrl && (
           <Reveal delay={0.1}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={post.coverImageUrl} alt="" className="mt-6 w-full rounded-organic object-cover shadow-lg" />
+            <img src={post.coverImageUrl} alt="" className="mt-6 w-full pop rounded-tile object-cover" />
           </Reveal>
         )}
         <Reveal delay={0.15} className="prose prose-navy mt-8 max-w-none whitespace-pre-line text-foreground">

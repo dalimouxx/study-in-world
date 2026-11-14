@@ -20,7 +20,7 @@ const ONLY = arg('--only', null);
 const ADMIN_EMAIL = process.env.VISUAL_ADMIN_EMAIL ?? 'admin@demo.local';
 const ADMIN_PASSWORD = process.env.VISUAL_ADMIN_PASSWORD ?? 'LocalTest-2026-Pass';
 
-const PUBLIC_PAGES = ['/', '/destinations', '/programs', '/login', '/portal/login', '/partner-portal/login'];
+const PUBLIC_PAGES = ['/', '/destinations', '/programs', '/eligibility', '/blog', '/login', '/portal/login', '/partner-portal/login'];
 const ADMIN_PAGES = ['/dashboard', '/candidates', '/settings'];
 const PORTAL_EMAIL = process.env.VISUAL_PORTAL_EMAIL ?? 'yasmine@demo.local';
 const LOCALES = ['fr', 'ar'];
