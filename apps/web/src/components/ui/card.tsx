@@ -2,28 +2,25 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  /** Lève légèrement la carte au survol avec une ombre plus marquée — réservé aux cartes cliquables (liens, listes). */
+  /** Carte cliquable : style Pop qui se soulève au survol, sur toutes les surfaces. */
   hoverable?: boolean;
+  /**
+   * Force l'intensité. Sans valeur, elle suit le cadre (data-surface) : Pop complet sur le site public,
+   * adouci (contour fin, sans ombre) dans l'admin et les portails.
+   */
+  variant?: 'pop' | 'soft';
 }
 
-export function Card({ className, hoverable, ...p }: CardProps) {
-  return (
-    <div
-      className={cn(
-        'rounded-lg border border-border bg-card shadow-sm shadow-black/[0.03] transition-all duration-200',
-        hoverable && 'hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md hover:shadow-primary/[0.08]',
-        className,
-      )}
-      {...p}
-    />
-  );
+export function Card({ className, hoverable, variant, ...p }: CardProps) {
+  const style = hoverable || variant === 'pop' ? 'pop' : variant === 'soft' ? 'pop-soft' : 'card-auto';
+  return <div className={cn('rounded-tile bg-card', style, hoverable && 'pop-hover cursor-pointer', className)} {...p} />;
 }
 
 export function CardHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
       <div>
-        <h2 className="text-base font-semibold">{title}</h2>
+        <h2 className="font-display text-base font-bold tracking-tight">{title}</h2>
         {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
       </div>
       {action}

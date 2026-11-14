@@ -75,3 +75,15 @@ body { background: hsl(var(--background)); color: hsl(var(--foreground)); font-f
 
 h1, h2, h3, .font-display { font-family: var(--font-display), var(--font-sans), system-ui, sans-serif; }
 .tabular-nums, table { font-variant-numeric: tabular-nums; }
+
+/* Intensité automatique des cartes selon le cadre (data-surface posé par chaque shell) :
+   Pop complet sur le site public, adouci dans l'admin, les portails et les fenêtres. */
+@layer components {
+  .card-auto { border: 1px solid hsl(var(--border)); }
+  [data-surface='public'] .card-auto {
+    border: 2px solid hsl(var(--ink));
+    box-shadow: calc(var(--pop-x) * 4px) 4px 0 hsl(var(--ink));
+  }
+  /* Champs : 1px dans l'app, 2px encre sur le site public. */
+  [data-surface='public'] .field-auto:not([aria-invalid='true']) { border-width: 2px; border-color: hsl(var(--ink)); }
+}

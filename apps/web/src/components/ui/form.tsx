@@ -1,8 +1,9 @@
 import { forwardRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
+// Contour fin dans l'app (2px encre sur le site public via .field-auto) ; focus = contour bleu 2px + petite ombre.
 const field =
-  'w-full rounded-md border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:border-ring disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-70 aria-[invalid=true]:border-destructive';
+  'field-auto w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground transition-[border-color,box-shadow] placeholder:text-muted-foreground/70 focus-visible:border-2 focus-visible:border-primary focus-visible:shadow-pop-primary focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-70 aria-[invalid=true]:border-2 aria-[invalid=true]:border-destructive';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...p }, ref) {
   return <input ref={ref} className={cn(field, 'h-10', className)} {...p} />;
@@ -33,7 +34,7 @@ interface FieldProps {
 export function Field({ label, htmlFor, error, hint, children, className }: FieldProps) {
   return (
     <div className={cn('space-y-1.5', className)}>
-      <label htmlFor={htmlFor} className="block text-sm font-medium">
+      <label htmlFor={htmlFor} className="block text-sm font-semibold">
         {label}
       </label>
       {children}
