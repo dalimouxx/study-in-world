@@ -1,9 +1,10 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Plane } from 'lucide-react';
 import { useLocale } from 'next-intl';
 import type { ReactNode } from 'react';
+import { SPRING } from '@/components/motion';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
@@ -13,15 +14,16 @@ import { cn } from '@/lib/utils';
  * ils sont petits, purement présentationnels et toujours utilisés ensemble sur les mêmes pages.
  */
 
-// ---------- Reveal : apparition progressive au défilement (section 14 du brief) ----------
+// ---------- Reveal : apparition au défilement (site public), sur les primitives partagées de motion.tsx ----------
 
 export function Reveal({ children, delay = 0, className }: { children: ReactNode; delay?: number; className?: string }) {
+  const reduce = useReducedMotion();
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
+      initial={reduce ? false : { opacity: 0.001, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-80px' }}
-      transition={{ duration: 0.5, delay, ease: 'easeOut' }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ ...SPRING, delay }}
       className={className}
     >
       {children}
@@ -31,12 +33,13 @@ export function Reveal({ children, delay = 0, className }: { children: ReactNode
 
 /** Grille dont les enfants apparaissent en cascade plutôt que tous en même temps. */
 export function RevealGroup({ children, className }: { children: ReactNode; className?: string }) {
+  const reduce = useReducedMotion();
   return (
     <motion.div
-      initial="hidden"
+      initial={reduce ? false : 'hidden'}
       whileInView="show"
-      viewport={{ once: true, margin: '-80px' }}
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
+      viewport={{ once: true, margin: '-60px' }}
+      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
       className={className}
     >
       {children}
@@ -46,7 +49,7 @@ export function RevealGroup({ children, className }: { children: ReactNode; clas
 
 export function RevealItem({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className={className}>
+    <motion.div variants={{ hidden: { opacity: 0.001, y: 16, scale: 0.98 }, show: { opacity: 1, y: 0, scale: 1 } }} transition={SPRING} className={className}>
       {children}
     </motion.div>
   );
