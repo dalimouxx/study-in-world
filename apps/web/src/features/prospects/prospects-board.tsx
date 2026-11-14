@@ -50,11 +50,11 @@ export function ProspectsBoard() {
             if (id && dragging) move.mutate({ id, status: column });
             setDragging(null);
           }}
-          className={cn('flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3 transition-colors', overColumn === column && 'border-primary bg-primary-soft/40')}
+          className={cn('flex flex-col gap-3 rounded-tile border-2 border-border bg-muted/60 p-3 transition-colors', overColumn === column && 'border-dashed border-primary bg-primary-soft/60')}
         >
           <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm font-semibold">{t(`statuses.${column}`)}</h3>
-            <span className="text-xs text-muted-foreground">{byColumn(column).length}</span>
+            <h3 className="font-display text-base font-extrabold text-ink">{t(`statuses.${column}`)}</h3>
+            <Badge tone="primary">{byColumn(column).length}</Badge>
           </div>
           <div className="flex-1 space-y-2">
             {byColumn(column).map((p) => (
@@ -63,10 +63,12 @@ export function ProspectsBoard() {
                 draggable
                 onDragStart={(e) => { e.dataTransfer.setData('text/plain', p.id); setDragging(p.id); }}
                 onDragEnd={() => setDragging(null)}
-                className={cn('cursor-grab select-none p-3 active:cursor-grabbing', dragging === p.id && 'opacity-50')}
+                // Carte en cours de déplacement : penchée et soulevée (purement visuel, la logique de glisser-déposer est inchangée).
+                variant="pop"
+                className={cn('pop-hover cursor-grab select-none p-3 transition-transform active:cursor-grabbing', dragging === p.id && 'rotate-2 scale-[1.02] opacity-80 shadow-pop-lg')}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium">{p.firstName} {p.lastName}</p>
+                  <p className="text-sm font-bold text-ink">{p.firstName} {p.lastName}</p>
                   <Badge tone={CATEGORY_TONE[p.category]}>{p.score}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground" dir="ltr">{p.phone}</p>
