@@ -22,6 +22,7 @@ const ADMIN_PASSWORD = process.env.VISUAL_ADMIN_PASSWORD ?? 'LocalTest-2026-Pass
 
 const PUBLIC_PAGES = ['/', '/destinations', '/programs', '/login', '/portal/login', '/partner-portal/login'];
 const ADMIN_PAGES = ['/dashboard', '/candidates', '/settings'];
+const PORTAL_EMAIL = process.env.VISUAL_PORTAL_EMAIL ?? 'yasmine@demo.local';
 const LOCALES = ['fr', 'ar'];
 const WIDTHS = [1280, 390];
 
@@ -40,19 +41,63 @@ async function apiUp() {
   }
 }
 
-async function login(context) {
+async function login(context, kind = 'admin') {
   const page = await context.newPage();
-  await page.goto(`${BASE}/fr/login`, { waitUntil: 'networkidle' });
-  await page.fill('#email', ADMIN_EMAIL);
+  const portal = kind === 'portal';
+  await page.goto(`${BASE}/fr/${portal ? 'portal/' : ''}login`, { waitUntil: 'networkidle' });
+  await page.fill('#email', portal ? PORTAL_EMAIL : ADMIN_EMAIL);
   await page.fill('#password', ADMIN_PASSWORD);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/(dashboard|account)/, { timeout: 20000 });
+  await page.waitForURL(portal ? /\/portal\/dashboard/ : /\/(dashboard|account)/, { timeout: 20000 });
   await page.close();
 }
 
-async function checkPage(page, path, locale, width) {
+// Barre du bas du portail (téléphone) : 4 rubriques fixes + « Plus » qui donne accès aux 5 autres ; Échap ferme.
+async function checkPortalBottomNav(page, locale) {
+  const ctx = `/portal/dashboard ${locale} 390`;
+  await hideDevOverlay(page);
+  const nav = page.locator('nav.fixed');
+  const visible = await nav.isVisible().catch(() => false);
+  report(visible, 'portal-bottom-nav', ctx);
+  if (!visible) return;
+  const pinned = await nav.locator('a').count();
+  await nav.locator('button').click();
+  const sheet = page.getByRole('dialog');
+  const others = await sheet.locator('a').count();
+  report(pinned === 4 && others === 5, 'portal-all-sections', ctx, `${pinned} + ${others}`);
+  await page.keyboard.press('Escape');
+  report(await sheet.isHidden(), 'portal-sheet-escape', ctx);
+}
+
+// Le portail perd sa session sur un rechargement complet ou un changement de langue (comportement existant,
+// antérieur à Bento Pop) : on se connecte donc directement dans chaque langue, sans recharger ensuite.
+async function checkPortal(browser, width) {
+  for (const locale of LOCALES) {
+    const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 }, deviceScaleFactor: 1 });
+    const page = await context.newPage();
+    try {
+      await page.goto(`${BASE}/${locale}/portal/login`, { waitUntil: 'networkidle' });
+      await page.fill('#email', PORTAL_EMAIL);
+      await page.fill('#password', ADMIN_PASSWORD);
+      await page.click('button[type="submit"]');
+      await page.waitForURL(/\/portal\/dashboard/, { timeout: 20000 });
+      await page.waitForLoadState('networkidle');
+      await checkPage(page, '/portal/dashboard', locale, width, { navigate: false });
+      if (width === 390) await checkPortalBottomNav(page, locale);
+    } catch (e) {
+      report(false, 'load', `/portal/dashboard ${locale} ${width}`, e.message.split('\n')[0]);
+    }
+    await context.close();
+  }
+}
+
+// Le badge de développement de Next.js (absent en production) recouvre le coin bas de l'écran.
+const hideDevOverlay = (page) => page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' }).catch(() => {});
+
+async function checkPage(page, path, locale, width, { navigate = true } = {}) {
   const ctx = `${path} ${locale} ${width}`;
-  await page.goto(`${BASE}/${locale}${path === '/' ? '' : path}`, { waitUntil: 'networkidle', timeout: 60000 });
+  if (navigate) await page.goto(`${BASE}/${locale}${path === '/' ? '' : path}`, { waitUntil: 'networkidle', timeout: 60000 });
+  await hideDevOverlay(page);
   await page.waitForTimeout(700); // laisse finir les animations d'entrée
 
   const m = await page.evaluate(() => {
@@ -109,13 +154,13 @@ const keep = (p) => !ONLY || p === ONLY;
 // les pages admin dans un contexte connecté séparé.
 const groups = [
   { pages: PUBLIC_PAGES.filter(keep), auth: false },
-  { pages: withApi ? ADMIN_PAGES.filter(keep) : [], auth: true },
+  { pages: withApi ? ADMIN_PAGES.filter(keep) : [], auth: 'admin' },
 ];
 
 for (const width of WIDTHS) for (const { pages, auth } of groups) {
   if (!pages.length) continue;
   const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 }, deviceScaleFactor: 1 });
-  if (auth) await login(context);
+  if (auth) await login(context, auth);
   const page = await context.newPage();
   for (const locale of LOCALES) for (const path of pages) {
     try {
@@ -126,6 +171,7 @@ for (const width of WIDTHS) for (const { pages, auth } of groups) {
   }
   await context.close();
 }
+if (withApi && (!ONLY || ONLY.startsWith('/portal/'))) for (const width of WIDTHS) await checkPortal(browser, width);
 await browser.close();
 console.log(failures ? `\n${failures} échec(s)` : '\nTout passe');
 process.exit(failures ? 1 : 0);

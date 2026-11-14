@@ -1293,7 +1293,9 @@
       "CANCELLED": "Annulé"
     },
     "signContract": "Signer",
-    "contractSigned": "Contrat signé."
+    "contractSigned": "Contrat signé.",
+    "more": "Plus",
+    "moreTitle": "Toutes les rubriques"
   },
   "reports": {
     "title": "Rapports",

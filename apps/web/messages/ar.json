@@ -1293,7 +1293,9 @@
       "CANCELLED": "ملغى"
     },
     "signContract": "توقيع",
-    "contractSigned": "تم توقيع العقد."
+    "contractSigned": "تم توقيع العقد.",
+    "more": "المزيد",
+    "moreTitle": "كل الأقسام"
   },
   "reports": {
     "title": "التقارير",
