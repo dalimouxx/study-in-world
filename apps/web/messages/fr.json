@@ -1296,7 +1296,14 @@
     "signContract": "Signer",
     "contractSigned": "Contrat signé.",
     "more": "Plus",
-    "moreTitle": "Toutes les rubriques"
+    "moreTitle": "Toutes les rubriques",
+    "completionLabel": "Dossier complété",
+    "journeyTitle": "Votre parcours",
+    "journeyAdmission": "Admission",
+    "journeyVisa": "Visa",
+    "journeyDeparture": "Départ",
+    "outstandingTitle": "Reste à payer",
+    "nothingToPay": "Tout est réglé"
   },
   "reports": {
     "title": "Rapports",

@@ -27,7 +27,7 @@ export function PortalBottomNav({ items }: { items: PortalNavItem[] }) {
 
   const tab = (active: boolean) =>
     cn(
-      'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[11px] font-semibold transition-colors',
+      'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 text-[10px] font-semibold leading-tight transition-colors',
       active ? 'bg-primary text-white' : 'text-ink/70 hover:bg-primary-soft hover:text-primary',
     );
 
@@ -43,14 +43,14 @@ export function PortalBottomNav({ items }: { items: PortalNavItem[] }) {
           return (
             <Link key={href} href={href} aria-current={active ? 'page' : undefined} className={tab(active)}>
               <Icon className="h-5 w-5" aria-hidden />
-              <span className="max-w-full truncate">{t(labelKey)}</span>
+              <span className="line-clamp-2 max-w-full text-center">{t(labelKey)}</span>
             </Link>
           );
         })}
         <D.Root open={open} onOpenChange={setOpen}>
           <D.Trigger className={tab(otherActive)}>
             <LayoutGrid className="h-5 w-5" aria-hidden />
-            <span className="max-w-full truncate">{t('more')}</span>
+            <span className="line-clamp-2 max-w-full text-center">{t('more')}</span>
           </D.Trigger>
           <D.Portal>
             <D.Overlay className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm data-[state=open]:animate-fade-in" />

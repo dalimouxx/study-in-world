@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
  */
 export function StudyWorldLogo({ tagline = false, className }: { tagline?: boolean; className?: string }) {
   return (
-    <span className={cn('inline-flex flex-col', className)}>
+    // Nom de marque latin : toujours lu de gauche à droite, même dans la version arabe.
+    <span dir="ltr" className={cn('inline-flex flex-col', className)}>
       <span className="inline-flex items-center gap-1.5 font-display font-extrabold leading-none tracking-tight">
         <GlobeCapMark className="h-7 w-7 shrink-0" />
         <span className="text-navy">Study</span>
