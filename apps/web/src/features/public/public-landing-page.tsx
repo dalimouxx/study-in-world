@@ -16,7 +16,7 @@ import { siteUrl } from '@/lib/site-url';
 import type { Country, LandingPagePublicData, Paginated, PublicBlogPost } from '@/lib/types';
 import { useErrorMessage } from '@/lib/use-error-message';
 import { useAgency } from '@/features/auth/use-agency';
-import { BrushTitle, DestinationCard, HandwrittenTagline, JourneyTimeline, PlaneTrail, Reveal, RevealGroup, RevealItem, ServiceCard, StudyWorldButton } from './design-system';
+import { AnimatedFrame, BentoTile, BrushTitle, DestinationCard, HandwrittenTagline, JourneyTimeline, Marquee, MorphBlob, Reveal, RevealGroup, RevealItem, SectionTitle, ServiceCard, StatTile, Sticker, StudyWorldButton } from './design-system';
 import { PublicShell } from './public-shell';
 
 /** Choisit le texte arabe traduit automatiquement s'il existe, sinon retombe toujours sur le français saisi par le Super Admin. */
@@ -128,74 +128,70 @@ export function PublicLandingPage() {
         />
       )}
 
-      {/* HERO */}
-      <section className="relative overflow-hidden pb-16 pt-12 sm:pt-16">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 lg:grid-cols-2">
-          <Reveal>
-            <PlaneTrail />
-            {(() => {
-              const heroTitle = pick(locale, content?.heroTitleFr, content?.heroTitleAr);
-              return heroTitle ? (
-                <h1 className="mt-3 font-poppins text-4xl font-bold leading-[1.1] text-navy sm:text-5xl">{heroTitle}</h1>
-              ) : (
-                <h1 className="mt-3 font-poppins text-4xl font-bold leading-[1.1] text-navy sm:text-5xl">
-                  {t('heroTitleLine1')} <BrushTitle color="hsl(var(--sw-sky))">{t('heroTitleHighlight')}</BrushTitle>
-                </h1>
-              );
-            })()}
-            <p className="mt-5 max-w-md text-lg text-muted-foreground">{pick(locale, content?.heroSubtitleFr, content?.heroSubtitleAr) ?? t('heroSubtitle')}</p>
-            <HandwrittenTagline className="mt-4">{t('taglineMain')}</HandwrittenTagline>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <StudyWorldButton href="/destinations">{t('ctaDestinations')}</StudyWorldButton>
-              <StudyWorldButton href="/eligibility" variant="secondary">{t('ctaEligibility')}</StudyWorldButton>
+      {/* ACCROCHE EN GRILLE BENTO — le titre, le sous-titre et l'image restent pilotés par le CMS (Super Admin),
+          avec repli sur les textes par défaut ; les chiffres clés sont toujours des données réelles du catalogue. */}
+      <section className="mx-auto max-w-6xl px-3 pt-6 sm:px-6">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Reveal className="col-span-2 lg:row-span-2">
+            <div className="pop relative flex h-full flex-col justify-between gap-8 overflow-hidden rounded-tile bg-primary p-6 text-white sm:p-8">
+              <MorphBlob className="-bottom-24 -end-20 h-80 w-80" />
+              <MorphBlob className="end-1/3 top-6 h-24 w-24 [animation-duration:11s]" />
+              <div className="relative">
+                <Sticker>{t('heroSticker')}</Sticker>
+                {(() => {
+                  const heroTitle = pick(locale, content?.heroTitleFr, content?.heroTitleAr);
+                  return heroTitle ? (
+                    <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.02] tracking-tight sm:text-5xl lg:text-6xl">{heroTitle}</h1>
+                  ) : (
+                    <h1 className="mt-5 font-display text-4xl font-extrabold leading-[1.02] tracking-tight sm:text-5xl lg:text-6xl">
+                      {t('heroTitleLine1')} <BrushTitle color="rgb(255 255 255 / 0.25)">{t('heroTitleHighlight')}</BrushTitle>
+                    </h1>
+                  );
+                })()}
+                <p className="mt-5 max-w-md text-lg text-white/90">{pick(locale, content?.heroSubtitleFr, content?.heroSubtitleAr) ?? t('heroSubtitle')}</p>
+                <HandwrittenTagline className="mt-3 text-white">{t('taglineMain')}</HandwrittenTagline>
+              </div>
+              <div className="relative flex flex-wrap gap-3">
+                <StudyWorldButton href="/destinations" variant="secondary">{t('ctaDestinations')}</StudyWorldButton>
+                <StudyWorldButton href="/eligibility" variant="secondary" className="!bg-primary !text-white">{t('ctaEligibility')}</StudyWorldButton>
+              </div>
             </div>
           </Reveal>
-          <Reveal delay={0.15} className="relative">
-            <div className="absolute -inset-4 -z-10 rounded-organic bg-sw-sky/20" aria-hidden />
-            <div className="relative aspect-[4/5] overflow-hidden rounded-organic shadow-2xl sm:aspect-[5/6]">
-              {content?.heroImageUrl ? (
-                // Image hébergée par le Super Admin (domaine non connu à l'avance) : <img> plutôt que next/image.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={content.heroImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-              ) : (
-                <Image
-                  src="/images/destinations/bresil-hero.jpg"
-                  alt=""
-                  fill
-                  priority
-                  sizes="(min-width: 1024px) 480px, 100vw"
-                  className="object-cover"
-                />
-              )}
-            </div>
+          <Reveal delay={0.1} className="col-span-2">
+            <AnimatedFrame sticker={t('heroImageSticker')} className="h-full">
+              <div className="relative aspect-[16/10] h-full min-h-56 w-full">
+                {content?.heroImageUrl ? (
+                  // Image hébergée par le Super Admin (domaine non connu à l'avance) : <img> plutôt que next/image.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={content.heroImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  <Image src="/images/destinations/bresil-hero.jpg" alt="" fill priority sizes="(min-width: 1024px) 560px, 100vw" className="object-cover object-top" />
+                )}
+              </div>
+            </AnimatedFrame>
           </Reveal>
+          {stats.data && (
+            <>
+              <Reveal delay={0.15}>
+                <BentoTile className="h-full"><StatTile value={stats.data.countries} suffix="+" label={t('stats.countriesLabel')} /></BentoTile>
+              </Reveal>
+              <Reveal delay={0.2}>
+                <BentoTile className="h-full"><StatTile value={stats.data.programs} suffix="+" label={t('stats.programsLabel')} /></BentoTile>
+              </Reveal>
+            </>
+          )}
         </div>
       </section>
 
-      {/* CHIFFRES CLÉS — toujours des données réelles du catalogue, jamais de chiffres inventés. */}
-      {stats.data && (
-        <section className="border-y border-primary/10 bg-white py-10">
-          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 px-6 text-center sm:grid-cols-3">
-            {([
-              ['countries', stats.data.countries],
-              ['universities', stats.data.universities],
-              ['programs', stats.data.programs],
-            ] as const).map(([key, value]) => (
-              <div key={key}>
-                <p className="font-poppins text-4xl font-bold text-primary">{value}+</p>
-                <p className="mt-1 text-sm text-muted-foreground">{t(`stats.${key}Label`)}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Bandeau défilant des destinations réelles du catalogue */}
+      {!!destinations.data?.length && <Marquee items={destinations.data.map((c) => c.name)} className="mt-10" />}
 
       {/* PARTENAIRES — masqué tant qu'aucun logo réel n'est renseigné depuis la page « Page d'accueil ». */}
       {!!partnerLogos.length && (
-        <section className="bg-white py-10">
+        <section className="py-10">
           <div className="mx-auto max-w-5xl px-6">
             <p className="text-center text-sm font-medium uppercase tracking-wide text-muted-foreground">{t('partnersSection.title')}</p>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-6 grayscale">
+            <div className="pop mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-6 rounded-tile bg-card px-6 py-6 grayscale">
               {partnerLogos.map((partner) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img key={partner.id} src={partner.logoUrl} alt={partner.name} className="h-10 w-auto object-contain opacity-70" />
@@ -207,10 +203,7 @@ export function PublicLandingPage() {
 
       {/* SERVICES — le CMS (Super Admin) prend le relais dès qu'il contient au moins un service ; sinon, repli sur l'offre par défaut. */}
       <section className="mx-auto max-w-6xl px-6 py-16">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="font-poppins text-3xl font-bold text-navy">{t('servicesTitle')}</h2>
-          <p className="mt-2 text-muted-foreground">{t('servicesSubtitle')}</p>
-        </Reveal>
+        <SectionTitle title={t('servicesTitle')} subtitle={t('servicesSubtitle')} />
         <RevealGroup className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {dynamicServices.length
             ? dynamicServices.map((service, i) => (
@@ -242,16 +235,13 @@ export function PublicLandingPage() {
 
       {/* DESTINATIONS */}
       {!!destinations.data?.length && (
-        <section className="bg-white py-16">
+        <section className="py-16">
           <div className="mx-auto max-w-6xl px-6">
-            <Reveal className="mx-auto max-w-2xl text-center">
-              <h2 className="font-poppins text-3xl font-bold text-navy">{t('exploreDestinations')}</h2>
-              <p className="mt-2 text-muted-foreground">{t('exploreDestinationsSubtitle')}</p>
-            </Reveal>
+            <SectionTitle title={t('exploreDestinations')} subtitle={t('exploreDestinationsSubtitle')} />
             <RevealGroup className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {destinations.data.slice(0, 6).map((c) => (
+              {destinations.data.slice(0, 6).map((c, i) => (
                 <RevealItem key={c.id}>
-                  <DestinationCard name={c.name} slug={c.slug} flag={c.flagEmoji} tagline={t('destinationCardFallback')} />
+                  <DestinationCard name={c.name} slug={c.slug} flag={c.flagEmoji} tagline={t('destinationCardFallback')} animated delay={i * 0.4} />
                 </RevealItem>
               ))}
             </RevealGroup>
@@ -264,10 +254,7 @@ export function PublicLandingPage() {
 
       {/* COMMENT ÇA MARCHE */}
       <section className="mx-auto max-w-6xl px-6 py-16">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="font-poppins text-3xl font-bold text-navy">{t('howItWorksTitle')}</h2>
-          <p className="mt-2 text-muted-foreground">{t('howItWorksSubtitle')}</p>
-        </Reveal>
+        <SectionTitle title={t('howItWorksTitle')} subtitle={t('howItWorksSubtitle')} />
         <Reveal delay={0.1} className="mt-12">
           <JourneyTimeline steps={JOURNEY_KEYS.map((key) => ({ title: t(`journey.${key}.title`), description: t(`journey.${key}.description`) }))} />
         </Reveal>
@@ -275,19 +262,16 @@ export function PublicLandingPage() {
 
       {/* TÉMOIGNAGES — masqué tant qu'aucun témoignage réel n'est saisi depuis la page « Page d'accueil ». */}
       {!!testimonials.length && (
-        <section className="bg-white py-16">
+        <section className="py-16">
           <div className="mx-auto max-w-6xl px-6">
-            <Reveal className="mx-auto max-w-2xl text-center">
-              <h2 className="font-poppins text-3xl font-bold text-navy">{t('testimonialsSection.title')}</h2>
-              <p className="mt-2 text-muted-foreground">{t('testimonialsSection.subtitle')}</p>
-            </Reveal>
+            <SectionTitle title={t('testimonialsSection.title')} subtitle={t('testimonialsSection.subtitle')} />
             <RevealGroup className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {testimonials.map((testimonial) => (
                 <RevealItem key={testimonial.id}>
-                  <div className="flex h-full flex-col rounded-organic border border-primary/10 bg-white p-6 shadow-[0_10px_35px_-18px_rgba(7,44,122,0.35)]">
-                    <Quote className="h-6 w-6 text-sw-sky" aria-hidden />
+                  <div className="pop pop-hover flex h-full flex-col rounded-tile bg-card p-6">
+                    <Quote className="h-7 w-7 text-primary" aria-hidden />
                     <p className="mt-3 flex-1 text-sm text-muted-foreground">{pick(locale, testimonial.quoteFr, testimonial.quoteAr) ?? testimonial.quoteFr}</p>
-                    <p className="mt-4 font-poppins font-semibold text-navy">{testimonial.name}</p>
+                    <p className="mt-4 font-display font-extrabold text-ink">{testimonial.name}</p>
                     {testimonial.destination && <p className="text-xs text-muted-foreground">{testimonial.destination}</p>}
                   </div>
                 </RevealItem>
@@ -300,24 +284,24 @@ export function PublicLandingPage() {
       {/* GUIDE TÉLÉCHARGEABLE (lead magnet) — capte les visiteurs pas encore prêts à remplir le
           formulaire de contact complet. Contenu basé uniquement sur ce qui est déjà publié sur
           le site (parcours, services) ; aucun chiffre ni témoignage inventé. */}
-      <section className="bg-sw-sky/10 py-16">
-        <div className="mx-auto grid max-w-5xl items-center gap-10 px-6 lg:grid-cols-2">
+      <section className="mx-auto max-w-6xl px-3 py-16 sm:px-6">
+        <div className="pop grid items-center gap-10 rounded-tile bg-primary-soft p-6 sm:p-10 lg:grid-cols-2">
           <Reveal>
-            <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border-pop border-ink bg-primary text-white shadow-pop-sm">
               <Download className="h-5 w-5" aria-hidden />
             </span>
             <p className="mt-3 text-sm font-semibold uppercase tracking-wide text-primary">{t('leadMagnet.eyebrow')}</p>
-            <h2 className="mt-2 font-poppins text-3xl font-bold text-navy">{t('leadMagnet.title')}</h2>
+            <h2 className="mt-2 font-display text-4xl font-extrabold tracking-tight text-ink">{t('leadMagnet.title')}</h2>
             <p className="mt-3 max-w-md text-muted-foreground">{t('leadMagnet.subtitle')}</p>
           </Reveal>
           <Reveal delay={0.1}>
             {guideUnlocked ? (
-              <div className="rounded-organic border border-primary/10 bg-white p-6 text-center shadow-[0_8px_30px_-15px_rgba(7,44,122,0.2)]">
-                <p className="font-poppins font-semibold text-navy">{t('leadMagnet.success')}</p>
+              <div className="pop rounded-tile bg-card p-6 text-center">
+                <p className="font-display text-lg font-extrabold text-ink">{t('leadMagnet.success')}</p>
                 <a
                   href={GUIDE_URL}
                   download
-                  className="mt-4 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-white hover:bg-primary/90"
+                  className="pop pop-hover mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-white"
                 >
                   <Download className="h-4 w-4" aria-hidden /> {t('leadMagnet.downloadButton')}
                 </a>
@@ -326,7 +310,7 @@ export function PublicLandingPage() {
               <form
                 onSubmit={leadMagnetForm.handleSubmit((v) => leadMagnetSubmit.mutate(v))}
                 noValidate
-                className="space-y-4 rounded-organic border border-primary/10 bg-white p-6 shadow-[0_8px_30px_-15px_rgba(7,44,122,0.2)]"
+                className="pop space-y-4 rounded-tile bg-card p-6"
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label={t('firstName')} htmlFor="guide-first" error={leadMagnetForm.formState.errors.firstName?.message}>
@@ -339,7 +323,7 @@ export function PublicLandingPage() {
                 <Field label={t('phone')} htmlFor="guide-phone" error={leadMagnetForm.formState.errors.phone?.message}>
                   <Input id="guide-phone" dir="ltr" aria-invalid={!!leadMagnetForm.formState.errors.phone} {...leadMagnetForm.register('phone', { required: tc('required') })} />
                 </Field>
-                <Button type="submit" className="w-full !rounded-full" loading={leadMagnetSubmit.isPending}>{t('leadMagnet.cta')}</Button>
+                <Button type="submit" className="w-full" loading={leadMagnetSubmit.isPending}>{t('leadMagnet.cta')}</Button>
               </form>
             )}
           </Reveal>
@@ -347,67 +331,63 @@ export function PublicLandingPage() {
       </section>
 
       {/* QUI SOMMES-NOUS */}
-      <section className="bg-navy py-16 text-white">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 lg:grid-cols-2">
-          <Reveal className="order-2 lg:order-1">
-            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/10">
-              <Users className="h-6 w-6 text-sw-sky" aria-hidden />
+      <section className="mx-auto max-w-6xl px-3 py-16 sm:px-6">
+        <div className="pop relative grid items-center gap-10 overflow-hidden rounded-tile bg-primary p-6 text-white sm:p-10 lg:grid-cols-2">
+          <MorphBlob className="-bottom-24 -start-20 h-72 w-72" />
+          <Reveal className="relative order-2 lg:order-1">
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-xl border-pop border-ink bg-white text-primary shadow-pop-sm">
+              <Users className="h-6 w-6" aria-hidden />
             </span>
-            <h2 className="mt-4 font-poppins text-3xl font-bold">{pick(locale, content?.aboutTitleFr, content?.aboutTitleAr) ?? t('aboutTitle')}</h2>
-            <p className="mt-4 max-w-lg text-white/80">{pick(locale, content?.aboutTextFr, content?.aboutTextAr) ?? t('aboutText')}</p>
+            <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight">{pick(locale, content?.aboutTitleFr, content?.aboutTitleAr) ?? t('aboutTitle')}</h2>
+            <p className="mt-4 max-w-lg text-white/90">{pick(locale, content?.aboutTextFr, content?.aboutTextAr) ?? t('aboutText')}</p>
             <div className="mt-6 grid grid-cols-3 gap-4">
               {(['value1', 'value2', 'value3'] as const).map((v) => (
-                <div key={v} className="rounded-xl bg-white/5 p-3 text-center text-sm font-medium">{t(`about.${v}`)}</div>
+                <div key={v} className="pop rounded-xl bg-white p-3 text-center text-sm font-bold text-ink">{t(`about.${v}`)}</div>
               ))}
             </div>
           </Reveal>
-          <Reveal delay={0.15} className="relative order-1 aspect-[5/4] overflow-hidden rounded-organic shadow-2xl lg:order-2">
-            {content?.aboutImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={content.aboutImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            ) : (
-              <Image
-                src="/images/destinations/lituanie-hero.jpg"
-                alt=""
-                fill
-                sizes="(min-width: 1024px) 560px, 100vw"
-                className="object-cover"
-              />
-            )}
+          <Reveal delay={0.15} className="relative order-1 lg:order-2">
+            <AnimatedFrame delay={0.8}>
+              <div className="relative aspect-[5/4] w-full bg-white">
+                {content?.aboutImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={content.aboutImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  <Image src="/images/destinations/lituanie-hero.jpg" alt="" fill sizes="(min-width: 1024px) 560px, 100vw" className="object-cover" />
+                )}
+              </div>
+            </AnimatedFrame>
           </Reveal>
         </div>
       </section>
 
       {/* BLOG — n'apparaît que s'il existe des articles publiés, jamais une section vide. */}
       {!!latestPosts.data?.items.length && (
-        <section className="bg-white py-16">
+        <section className="py-16">
           <div className="mx-auto max-w-6xl px-6">
-            <Reveal className="mx-auto max-w-2xl text-center">
-              <h2 className="font-poppins text-3xl font-bold text-navy">{t('blogSection.title')}</h2>
-              <p className="mt-2 text-muted-foreground">{t('blogSection.subtitle')}</p>
-            </Reveal>
+            <SectionTitle title={t('blogSection.title')} subtitle={t('blogSection.subtitle')} />
             <RevealGroup className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {latestPosts.data.items.map((post) => (
                 <RevealItem key={post.id}>
                   <Link
                     href={`/blog/${post.slug}`}
-                    className="group flex h-full flex-col overflow-hidden rounded-organic bg-white shadow-[0_10px_35px_-18px_rgba(7,44,122,0.35)] transition-transform hover:-translate-y-1"
+                    className="pop pop-hover group flex h-full flex-col overflow-hidden rounded-tile bg-card"
                   >
                     {post.coverImageUrl ? (
                       // Couverture hébergée par l'admin (URL dynamique, domaine non connu à l'avance) :
                       // on garde un <img> classique plutôt que next/image, qui exige de déclarer les
                       // domaines externes autorisés à l'avance.
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={post.coverImageUrl} alt="" className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <img src={post.coverImageUrl} alt="" className="h-44 w-full border-b-2 border-ink object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
-                      <div className="flex h-44 w-full items-center justify-center bg-gradient-to-br from-navy to-primary">
+                      <div className="flex h-44 w-full items-center justify-center border-b-2 border-ink bg-primary">
                         <Newspaper className="h-8 w-8 text-white/70" aria-hidden />
                       </div>
                     )}
                     <div className="flex flex-1 flex-col p-5">
-                      <p className="font-poppins font-semibold text-navy">{post.title}</p>
+                      <p className="font-display text-lg font-extrabold leading-snug text-ink">{post.title}</p>
                       <p className="mt-1.5 flex-1 text-sm text-muted-foreground">{post.excerpt}</p>
-                      <p className="mt-3 text-xs font-medium text-primary">{t('blogSection.readMore')}</p>
+                      <p className="mt-3 text-sm font-bold text-primary">{t('blogSection.readMore')}</p>
                     </div>
                   </Link>
                 </RevealItem>
@@ -422,21 +402,18 @@ export function PublicLandingPage() {
 
       {/* FAQ */}
       <section className="mx-auto max-w-3xl px-6 py-16">
-        <Reveal className="text-center">
-          <h2 className="font-poppins text-3xl font-bold text-navy">{t('faq.title')}</h2>
-          <p className="mt-2 text-muted-foreground">{t('faq.subtitle')}</p>
-        </Reveal>
+        <SectionTitle title={t('faq.title')} subtitle={t('faq.subtitle')} />
         <Reveal delay={0.1} className="mt-10 space-y-3">
           {faqItems.length
             ? faqItems.map((item) => {
                 const isOpen = openFaq === item.id;
                 return (
-                  <div key={item.id} className="overflow-hidden rounded-organic border border-primary/10 bg-white">
+                  <div key={item.id} className={`overflow-hidden rounded-xl bg-card transition-shadow ${isOpen ? 'pop' : 'pop-soft'}`}>
                     <button
                       type="button"
                       onClick={() => setOpenFaq(isOpen ? null : item.id)}
                       aria-expanded={isOpen}
-                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-poppins font-medium text-navy"
+                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-start font-display font-bold text-ink"
                     >
                       {pick(locale, item.questionFr, item.questionAr) ?? item.questionFr}
                       <ChevronDown className={`h-5 w-5 shrink-0 text-primary transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
@@ -448,12 +425,12 @@ export function PublicLandingPage() {
             : FAQ_KEYS.map((key) => {
                 const isOpen = openFaq === key;
                 return (
-                  <div key={key} className="overflow-hidden rounded-organic border border-primary/10 bg-white">
+                  <div key={key} className={`overflow-hidden rounded-xl bg-card transition-shadow ${isOpen ? 'pop' : 'pop-soft'}`}>
                     <button
                       type="button"
                       onClick={() => setOpenFaq(isOpen ? null : key)}
                       aria-expanded={isOpen}
-                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-poppins font-medium text-navy"
+                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-start font-display font-bold text-ink"
                     >
                       {t(`faq.items.${key}.question`)}
                       <ChevronDown className={`h-5 w-5 shrink-0 text-primary transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden />
@@ -466,22 +443,22 @@ export function PublicLandingPage() {
       </section>
 
       {/* CONTACT */}
-      <section id="contact" className="mx-auto max-w-md px-6 py-16">
+      <section id="contact" className="mx-auto max-w-md scroll-mt-28 px-4 py-16">
         <Reveal className="text-center">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl border-pop border-ink bg-primary text-white shadow-pop-sm">
             <Sparkles className="h-5 w-5" aria-hidden />
           </span>
-          <h2 className="mt-3 font-poppins text-2xl font-bold text-navy">{t('contactTitle')}</h2>
+          <h2 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-ink">{t('contactTitle')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{t('contactSubtitle')}</p>
         </Reveal>
 
         {isSubmitSuccessful && submit.isSuccess ? (
-          <p role="status" className="mt-6 rounded-organic border border-success/40 bg-success-soft px-4 py-3 text-center text-sm text-success">
+          <p role="status" className="pop mt-6 rounded-xl bg-success-soft px-4 py-3 text-center text-sm font-semibold text-success">
             {t('contactSent')}
           </p>
         ) : (
           <Reveal delay={0.1}>
-            <form onSubmit={handleSubmit((v) => submit.mutate(v))} noValidate className="mt-6 space-y-4 rounded-organic border border-primary/10 bg-white p-6 shadow-[0_8px_30px_-15px_rgba(7,44,122,0.2)]">
+            <form onSubmit={handleSubmit((v) => submit.mutate(v))} noValidate className="pop mt-6 space-y-4 rounded-tile bg-card p-6">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t('firstName')} htmlFor="pub-first" error={errors.firstName?.message}>
                   <Input id="pub-first" aria-invalid={!!errors.firstName} {...register('firstName', { required: tc('required') })} />
@@ -499,7 +476,7 @@ export function PublicLandingPage() {
               <Field label={t('message')} htmlFor="pub-message">
                 <Textarea id="pub-message" rows={3} {...register('message')} />
               </Field>
-              <Button type="submit" className="w-full !rounded-full" loading={submit.isPending}>{t('contactSubmit')}</Button>
+              <Button type="submit" className="w-full" loading={submit.isPending}>{t('contactSubmit')}</Button>
             </form>
           </Reveal>
         )}

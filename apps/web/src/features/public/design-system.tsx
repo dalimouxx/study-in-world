@@ -178,13 +178,16 @@ export function ServiceCard({
 // ---------- DestinationCard : reprend directement la bannière de l'affiche quand elle existe ----------
 
 export function DestinationCard({
-  name, slug, flag, tagline,
-}: { name: string; slug: string; flag?: string | null; tagline: string }) {
+  name, slug, flag, tagline, animated = false, delay = 0,
+}: { name: string; slug: string; flag?: string | null; tagline: string; animated?: boolean; delay?: number }) {
   const hero = destinationHeroImage(name);
 
   return (
-    <Link href={`/destinations/${slug}`} className="pop pop-hover group block overflow-hidden rounded-tile bg-card">
-      <div className="relative aspect-[4/3] overflow-hidden">
+    <Link href={`/destinations/${slug}`} className={cn('pop pop-hover group block overflow-hidden rounded-tile bg-card', animated && hero && 'p-3')}>
+      <div
+        className={cn('relative aspect-[4/3] overflow-hidden', animated && hero && 'animate-breathe rounded-xl border-[3px] border-ink')}
+        style={animated && hero ? { animationDelay: `${delay}s` } : undefined}
+      >
         {hero ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={hero} alt={name} className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105" />
@@ -290,7 +293,7 @@ export function BentoTile({
 export function StatTile({ value, label, suffix }: { value: number; label: string; suffix?: string }) {
   return (
     <div>
-      <p className="font-display text-5xl font-extrabold leading-none tracking-tight text-primary">
+      <p className="font-display text-4xl font-extrabold leading-none tracking-tight text-primary sm:text-5xl">
         <CountUp value={value} />
         {suffix}
       </p>
@@ -310,7 +313,9 @@ export function Sticker({ children, className }: { children: ReactNode; classNam
 
 /** Bandeau défilant (contenu doublé pour une boucle sans saut), en pause au survol. */
 export function Marquee({ items, className }: { items: string[]; className?: string }) {
-  const row = [...items, ...items];
+  // Assez d'éléments pour remplir une largeur d'écran même avec une seule destination, puis doublés pour la boucle.
+  const base = items.length ? Array.from({ length: Math.max(1, Math.ceil(8 / items.length)) }, () => items).flat() : [];
+  const row = [...base, ...base];
   return (
     <div className={cn('group overflow-hidden border-y-2 border-ink bg-card py-3', className)}>
       <div className="flex w-max animate-marquee gap-8 group-hover:[animation-play-state:paused] rtl:[animation-direction:reverse]">
@@ -322,5 +327,48 @@ export function Marquee({ items, className }: { items: string[]; className?: str
         ))}
       </div>
     </div>
+  );
+}
+
+// ---------- AnimatedFrame : cadre « Pop qui respire » des images de l'accueil (choix du propriétaire, option C) ----------
+
+/** Contour encre épais, double ombre encre + bleue qui grandit puis revient, légère inclinaison ; autocollant optionnel. */
+export function AnimatedFrame({ children, sticker, className, delay = 0 }: { children: ReactNode; sticker?: string; className?: string; delay?: number }) {
+  return (
+    <div className={cn('relative', className)}>
+      <div className="relative h-full overflow-hidden rounded-tile border-[3px] border-ink animate-breathe" style={{ animationDelay: `${delay}s` }}>
+        {children}
+      </div>
+      {sticker && <Sticker className="absolute -end-3 -top-3 z-10">{sticker}</Sticker>}
+    </div>
+  );
+}
+
+// ---------- PublicPageHero : en-tête des pages publiques (grand bloc bleu Pop) ----------
+
+export function PublicPageHero({ eyebrow, title, subtitle, children }: { eyebrow?: string; title: string; subtitle?: string; children?: ReactNode }) {
+  return (
+    <section className="mx-auto max-w-6xl px-3 pt-6 sm:px-6">
+      <div className="pop relative overflow-hidden rounded-tile bg-primary px-6 pb-12 pt-10 text-white sm:px-10">
+        <MorphBlob className="-bottom-24 -end-16 h-72 w-72" />
+        <MorphBlob className="end-1/3 top-4 h-24 w-24 [animation-duration:11s]" />
+        <div className="relative max-w-2xl">
+          {eyebrow && <Sticker className="mb-4">{eyebrow}</Sticker>}
+          <h1 className="font-display text-4xl font-extrabold leading-[1.02] tracking-tight sm:text-5xl">{title}</h1>
+          {subtitle && <p className="mt-3 text-lg text-white/85">{subtitle}</p>}
+        </div>
+      </div>
+      {children && <div className="relative -mt-8 px-2 sm:px-6">{children}</div>}
+    </section>
+  );
+}
+
+/** Titre de section du site public (centré, police de titre). */
+export function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <Reveal className="mx-auto max-w-2xl text-center">
+      <h2 className="font-display text-4xl font-extrabold tracking-tight text-ink">{title}</h2>
+      {subtitle && <p className="mt-2 text-muted-foreground">{subtitle}</p>}
+    </Reveal>
   );
 }

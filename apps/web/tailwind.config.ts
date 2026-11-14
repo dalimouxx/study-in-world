@@ -46,6 +46,10 @@ const config: Config = {
           '50%': { borderRadius: '63% 37% 41% 59% / 58% 61% 39% 42%', transform: 'rotate(30deg)' },
         },
         marquee: { to: { transform: 'translateX(-50%)' } },
+        breathe: {
+          '0%, 100%': { transform: 'translate(0, 0) rotate(-1deg)', boxShadow: 'calc(var(--pop-x) * 4px) 4px 0 hsl(var(--ink)), calc(var(--pop-x) * 4px) 4px 0 3px hsl(var(--primary))' },
+          '50%': { transform: 'translate(calc(var(--pop-x) * -3px), -3px) rotate(1deg)', boxShadow: 'calc(var(--pop-x) * 10px) 10px 0 hsl(var(--ink)), calc(var(--pop-x) * 10px) 10px 0 3px hsl(var(--primary))' },
+        },
         hop: { '0%, 100%': { transform: 'translateY(0) rotate(0deg)' }, '40%': { transform: 'translateY(-8px) rotate(-8deg)' } },
         'loader-fill': { '0%': { transform: 'scaleX(0.05)' }, '80%, 100%': { transform: 'scaleX(1)' } },
       },
@@ -55,6 +59,7 @@ const config: Config = {
         wiggle: 'wiggle 2.5s ease-in-out infinite',
         morph: 'morph 8s ease-in-out infinite',
         marquee: 'marquee 24s linear infinite',
+        breathe: 'breathe 2.6s ease-in-out infinite',
         hop: 'hop 1s cubic-bezier(0.3, 1.6, 0.5, 1) infinite',
         'loader-fill': 'loader-fill 1.8s ease-in-out infinite',
       },
