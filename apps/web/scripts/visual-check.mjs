@@ -200,6 +200,61 @@ for (const width of WIDTHS) for (const { pages, auth } of groups) {
   }
   await context.close();
 }
+// Régressions relevées en relecture : chacune reproduite ici avant d'être corrigée.
+async function checkRegressions(browser) {
+  if (ONLY) return;
+  const ctxDesk = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+  const page = await ctxDesk.newPage();
+
+  // 1. Champ du site public : au focus, le contour devient bleu (et non encre).
+  await page.goto(`${BASE}/fr/eligibility`, { waitUntil: 'networkidle' });
+  await hideDevOverlay(page);
+  const field = page.locator('main input, main select').first();
+  await field.focus();
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(400); // la couleur du contour est animée (transition)
+  const border = await page.evaluate(() => getComputedStyle(document.activeElement).borderTopColor);
+  report(border === 'rgb(36, 87, 255)', 'public-field-focus', '/eligibility fr 1280', border);
+
+  // 2. Focus visible sur fond bleu (pied de page) : le contour ne doit pas avoir la couleur du fond.
+  await page.goto(`${BASE}/fr`, { waitUntil: 'networkidle' });
+  await hideDevOverlay(page);
+  const link = page.locator('footer nav a').first();
+  await link.focus();
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  const ring = await page.evaluate(() => {
+    const el = document.activeElement;
+    let bg = 'rgba(0, 0, 0, 0)';
+    for (let n = el; n && bg === 'rgba(0, 0, 0, 0)'; n = n.parentElement) bg = getComputedStyle(n).backgroundColor;
+    return { outline: getComputedStyle(el).outlineColor, style: getComputedStyle(el).outlineStyle, bg };
+  });
+  report(ring.style !== 'none' && ring.outline !== ring.bg, 'focus-on-blue', '/ fr 1280', `${ring.outline} sur ${ring.bg}`);
+  await ctxDesk.close();
+
+  // 3. Moins de mouvement : les animations en boucle s'arrêtent (une seule itération), pas de saut aléatoire.
+  const ctxCalm = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+  const calm = await ctxCalm.newPage();
+  await calm.goto(`${BASE}/fr`, { waitUntil: 'networkidle' });
+  const iter = await calm.evaluate(() => getComputedStyle(document.querySelector('.animate-morph')).animationIterationCount);
+  report(iter === '1', 'reduced-motion-loops', '/ fr 1280', `iteration-count=${iter}`);
+  await ctxCalm.close();
+
+  // 4. Menu mobile du site public : se ferme quand on choisit un lien, même une ancre de la même page.
+  const ctxPhone = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const phone = await ctxPhone.newPage();
+  await phone.goto(`${BASE}/fr`, { waitUntil: 'networkidle' });
+  await hideDevOverlay(phone);
+  await phone.locator('header button[aria-expanded]').click();
+  await phone.locator('header nav a[href$="#contact"]').filter({ visible: true }).first().click();
+  await phone.waitForTimeout(600);
+  const expanded = await phone.locator('header button[aria-expanded]').getAttribute('aria-expanded');
+  report(expanded === 'false', 'public-menu-closes', '/ fr 390', `aria-expanded=${expanded}`);
+  await ctxPhone.close();
+}
+await checkRegressions(browser);
+
 if (withApi && (!ONLY || ONLY.startsWith('/portal/'))) for (const width of WIDTHS) await checkPortal(browser, width);
 await browser.close();
 console.log(failures ? `\n${failures} échec(s)` : '\nTout passe');

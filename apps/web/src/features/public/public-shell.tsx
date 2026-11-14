@@ -21,6 +21,12 @@ export function PublicShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
 
   const links = [
     { href: '/destinations' as const, label: t('navDestinations') },
@@ -39,7 +45,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <Link href="/" aria-label={agencyName ?? 'Study in World'} className="shrink-0">
               <StudyWorldLogo />
             </Link>
-            <nav className="hidden items-center gap-1 text-sm font-semibold xl:flex">
+            <nav aria-label={tn('main')} className="hidden items-center gap-1 text-sm font-semibold xl:flex">
               {links.map((l) => (
                 <Link key={l.href} href={l.href} className="whitespace-nowrap rounded-xl px-3 py-1.5 text-ink/75 transition-colors hover:bg-primary-soft hover:text-primary">
                   {l.label}
@@ -57,6 +63,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 className="pop pop-hover rounded-xl bg-card p-2 xl:hidden"
                 aria-label={open ? tc('close') : tn('openMenu')}
                 aria-expanded={open}
+                aria-controls="public-mobile-menu"
                 onClick={() => setOpen((v) => !v)}
               >
                 {open ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
@@ -66,6 +73,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
           <AnimatePresence initial={false}>
             {open && (
               <motion.nav
+                id="public-mobile-menu"
+                aria-label={tn('main')}
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
@@ -74,7 +83,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               >
                 <div className="grid gap-2 p-4 sm:grid-cols-2">
                   {links.map((l) => (
-                    <Link key={l.href} href={l.href} className="pop pop-hover rounded-xl bg-card px-4 py-3 font-display text-lg font-bold text-ink">
+                    <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="pop pop-hover rounded-xl bg-card px-4 py-3 font-display text-lg font-bold text-ink">
                       {l.label}
                     </Link>
                   ))}
@@ -111,7 +120,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 </a>
               )}
             </div>
-            <nav className="flex flex-col gap-2 text-sm font-semibold text-white/90">
+            <nav aria-label={t('footerNav')} className="flex flex-col gap-2 text-sm font-semibold text-white/90">
               {links.map((l) => (
                 <Link key={l.href} href={l.href} className="w-fit underline-offset-4 hover:underline">{l.label}</Link>
               ))}
@@ -132,7 +141,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           rel="noopener noreferrer"
           aria-label={t('whatsappCta')}
           title={t('whatsappCta')}
-          className="pop pop-hover fixed bottom-5 end-5 z-50 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#25D366] text-white"
+          className="pop pop-hover fixed bottom-5 end-5 z-50 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#25D366] text-white focus-visible:outline-4 focus-visible:outline-ink"
         >
           <MessageCircle className="h-7 w-7" aria-hidden />
         </a>
