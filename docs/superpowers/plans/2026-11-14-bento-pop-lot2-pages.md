@@ -103,6 +103,24 @@
 - [ ] **Step 5 :** Typecheck, i18n et tests unitaires ; `visual-check --only /portal/dashboard` PASS (fr/ar, 1280/390).
 - [ ] **Step 6 :** Commit `feat(web): tableau de bord bento du portail candidat`.
 
+### Task 2b: Écran de chargement avec le logo (choix du propriétaire : option 1 « Logo qui saute »)
+
+Maquette de référence : https://claude.ai/artifact/NPaHg9LUytYdPTFuwujfpn (option 1).
+
+**Files:**
+- Create: `apps/web/src/components/page-loader.tsx`, `apps/web/src/app/[locale]/loading.tsx`
+- Modify: `apps/web/src/components/{auth-guard,portal-auth-guard,partner-auth-guard}.tsx`, `apps/web/tailwind.config.ts` (keyframes `hop`, `loader-fill`)
+
+**Interfaces — Produces:** `PageLoader({ fullscreen?: boolean = true })`.
+- C'est un écran centré sur fond `bg-background`. On y voit le logo de l'agence : `agency.data.logoUrl` s'il existe (en `<img>` de hauteur 48 px, avec le nom de l'agence en `alt`), sinon `StudyWorldLogo`, dont le badge « in » saute grâce à l'animation `hop` (1 s, ressort).
+- Dessous, une barre Pop de 180 × 14 px : contour encre 2 px, ombre `shadow-pop-sm`, remplissage bleu qui avance en boucle (`loader-fill`, 1,8 s). C'est une boucle, autorisée ici parce qu'il n'y a aucune donnée à côté.
+- `role="status"` avec le texte caché `common.loading`. En mouvement réduit, il n'y a ni saut ni défilement : la barre reste remplie à moitié.
+- L'écran ne s'affiche qu'après 150 ms (`animation-delay` sur l'opacité), pour éviter un flash sur les chargements très rapides.
+- [ ] **Step 1 :** Ajouter la prop `animated?: boolean` à `StudyWorldLogo`, qui met la classe `animate-hop` sur le badge « in ».
+- [ ] **Step 2 :** Implémenter `PageLoader`. `app/[locale]/loading.tsx` rend `<PageLoader />`. Les trois gardes d'authentification remplacent leur `LoaderCircle` + texte par `<PageLoader />`, avec la même condition d'affichage.
+- [ ] **Step 3 :** Gate. Test Playwright ajouté à `visual-check` (`page-loader`) : en interceptant `**/api/auth/refresh` avec un délai de 2 s, `/fr/dashboard` affiche `[role=status]` contenant le logo, puis l'écran disparaît. PASS.
+- [ ] **Step 4 :** Commit `feat(web): écran de chargement avec le logo de l'agence`.
+
 ### Task 3: Accueil du site public en bento
 
 **Files:**
@@ -112,7 +130,8 @@
 
 - [ ] **Step 1 : Accroche en grille bento** (`max-w-6xl`, `grid gap-3 lg:grid-cols-4 lg:grid-rows-[auto_auto]`).
   - **Grand bloc bleu** (`lg:col-span-2 lg:row-span-2`) : les deux `MorphBlob`, un `Sticker` avec `public.heroSticker` (« Rentrée 2027 » / « دخول 2027 »), le titre CMS ou de repli (mêmes branches `pick(...)`, avec `BrushTitle` en blanc sur bleu : `color="rgb(255 255 255 / 0.25)"`), le sous-titre, et les deux CTA existants (primary en blanc, texte bleu).
-  - **Bloc image** (`lg:col-span-2`) : image CMS ou repli, dans un cadre `.pop`.
+  - **Bloc image** (`lg:col-span-2`) : image CMS ou repli, dans un `AnimatedFrame` (voir ci-dessous) avec l'autocollant `public.heroImageSticker` (« Destination de rêve ✈ » / « وجهة الأحلام ✈ »).
+  - **`AnimatedFrame({ children, sticker?: string, className })`** dans `design-system.tsx` (choix du propriétaire : option C « Pop qui respire », même maquette) : contour encre 3 px et double ombre encre + bleu qui grandit de 4 px à 10 px et revient (keyframes `breathe`, 2,6 s). L'image se penche de −1° à +1° pendant le cycle. Un `Sticker` optionnel est posé dans le coin supérieur de fin (`-top-3 -end-3`). Il est utilisé pour **toutes les images de l'accueil** : l'accroche, les cartes destinations qui ont une photo, et l'image « Qui sommes-nous ». Le décalage de l'ombre suit `--pop-x` (RTL). En mouvement réduit, le cadre reste fixe avec une ombre de 4 px.
   - **Deux tuiles** : `StatTile` pays et programmes (données réelles `stats`, suffixe « + ») ; masquées tant que `stats.data` est absent (comportement existant).
 - [ ] **Step 2 :** `Marquee` des noms de destinations (`destinations.data`), sous l'accroche ; masqué si la liste est vide.
 - [ ] **Step 3 :** Sections suivantes restylées sans changer leur contenu ni leurs conditions d'affichage.
