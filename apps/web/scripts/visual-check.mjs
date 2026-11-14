@@ -21,7 +21,7 @@ const ADMIN_EMAIL = process.env.VISUAL_ADMIN_EMAIL ?? 'admin@demo.local';
 const ADMIN_PASSWORD = process.env.VISUAL_ADMIN_PASSWORD ?? 'LocalTest-2026-Pass';
 
 const PUBLIC_PAGES = ['/', '/destinations', '/programs', '/eligibility', '/blog', '/login', '/portal/login', '/partner-portal/login'];
-const ADMIN_PAGES = ['/dashboard', '/candidates', '/settings'];
+const ADMIN_PAGES = ['/dashboard', '/candidates', '/candidates/:first', '/settings'];
 const PORTAL_EMAIL = process.env.VISUAL_PORTAL_EMAIL ?? 'yasmine@demo.local';
 const LOCALES = ['fr', 'ar'];
 const WIDTHS = [1280, 390];
@@ -96,7 +96,15 @@ const hideDevOverlay = (page) => page.addStyleTag({ content: 'nextjs-portal { di
 
 async function checkPage(page, path, locale, width, { navigate = true } = {}) {
   const ctx = `${path} ${locale} ${width}`;
-  if (navigate) await page.goto(`${BASE}/${locale}${path === '/' ? '' : path}`, { waitUntil: 'networkidle', timeout: 60000 });
+  let target = path;
+  if (path.endsWith('/:first')) {
+    // Premier élément de la liste parente (ex. premier candidat) : l'identifiant change d'une base à l'autre.
+    const list = path.replace('/:first', '');
+    await page.goto(`${BASE}/${locale}${list}`, { waitUntil: 'networkidle', timeout: 60000 });
+    const href = await page.locator(`main a[href*="${list}/"]`).first().getAttribute('href');
+    target = href.replace(/^\/(fr|ar)/, '');
+  }
+  if (navigate) await page.goto(`${BASE}/${locale}${target === '/' ? '' : target}`, { waitUntil: 'networkidle', timeout: 60000 });
   await hideDevOverlay(page);
   await page.waitForTimeout(700); // laisse finir les animations d'entrée
 
@@ -149,7 +157,7 @@ async function checkPage(page, path, locale, width, { navigate = true } = {}) {
       window.scrollTo(0, 0);
     });
     await page.waitForTimeout(400);
-    const name = `${path.replace(/\//g, '_') || '_home'}-${locale}-${width}`.replace(/^_/, '');
+    const name = `${path.replace(/[/:]/g, '_') || '_home'}-${locale}-${width}`.replace(/^_/, '');
     await page.screenshot({ path: `.visual/${name || 'home'}.png`, fullPage: true });
   }
 }

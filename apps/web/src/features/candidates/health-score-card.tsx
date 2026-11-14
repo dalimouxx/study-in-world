@@ -5,12 +5,15 @@ import { AlertTriangle, CheckCircle2, Info, ShieldAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { ProgressRing } from '@/components/progress-ring';
 import { Card } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import type { HealthCategory, HealthScore, IssueSeverity } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 const CATEGORY_TONE: Record<HealthCategory, 'success' | 'primary' | 'danger'> = { good: 'success', watch: 'primary', risk: 'danger' };
+/** Couleur d'état de l'anneau (signal, pas décoration) : suit la catégorie calculée par l'API. */
+const RING_COLOR: Record<HealthCategory, 'success' | 'primary' | 'destructive'> = { good: 'success', watch: 'primary', risk: 'destructive' };
 const SEVERITY_ICON: Record<IssueSeverity, typeof AlertTriangle> = { CRITICAL: ShieldAlert, IMPORTANT: AlertTriangle, ATTENTION: AlertTriangle, INFO: Info };
 const SEVERITY_COLOR: Record<IssueSeverity, string> = { CRITICAL: 'text-destructive', IMPORTANT: 'text-destructive', ATTENTION: 'text-primary', INFO: 'text-muted-foreground' };
 
@@ -25,16 +28,16 @@ export function HealthScoreCard({ candidateId }: { candidateId: string }) {
   const visible = expanded ? issues : issues.slice(0, 3);
 
   return (
-    <Card className="mb-6 p-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {category === 'good' ? <CheckCircle2 className="h-5 w-5 text-success" aria-hidden /> : <ShieldAlert className={cn('h-5 w-5', category === 'risk' ? 'text-destructive' : 'text-primary')} aria-hidden />}
-          <div>
-            <p className="text-sm font-medium">{t('healthScore')}</p>
-            <p className="text-xs text-muted-foreground">{t(`healthCategory.${category}`)}</p>
+    <Card className="h-full p-5">
+      <div className="flex items-center gap-4">
+        <ProgressRing value={score} label={t('healthScore')} color={RING_COLOR[category]} size={84} />
+        <div className="min-w-0">
+          <p className="font-display text-lg font-extrabold text-ink">{t('healthScore')}</p>
+          <div className="mt-1 flex items-center gap-2">
+            {category === 'good' ? <CheckCircle2 className="h-4 w-4 text-success" aria-hidden /> : <ShieldAlert className={cn('h-4 w-4', category === 'risk' ? 'text-destructive' : 'text-primary')} aria-hidden />}
+            <Badge tone={CATEGORY_TONE[category]}>{t(`healthCategory.${category}`)}</Badge>
           </div>
         </div>
-        <Badge tone={CATEGORY_TONE[category]}>{score}/100</Badge>
       </div>
       {issues.length > 0 && (
         <ul className="mt-4 space-y-2 border-t border-border pt-4">

@@ -5,7 +5,6 @@ import { MessageCircle, Send } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { PageHeader } from '@/components/page-header';
 import { RequirePermission } from '@/components/require-permission';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -63,21 +62,28 @@ function Content({ candidateId }: { candidateId: string }) {
 
   return (
     <>
-      <PageHeader
-        title={`${c.firstName} ${c.lastName}`}
-        description={[c.phone, c.email].filter(Boolean).join(' · ')}
-        action={
-          <div className="flex items-center gap-2">
+      {/* En-tête bento : identité du candidat + Health Score côte à côte. */}
+      <div className="mb-6 grid gap-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <Card variant="pop" className="flex flex-col justify-between gap-5 p-5 sm:p-6">
+          <div className="flex items-start gap-4">
+            <span aria-hidden className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-pop border-ink bg-primary font-display text-xl font-extrabold text-white shadow-pop-sm">
+              {`${c.firstName[0] ?? ''}${c.lastName[0] ?? ''}`.toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-ink">{`${c.firstName} ${c.lastName}`}</h1>
+              <p className="mt-1 break-words text-sm text-muted-foreground" dir="auto">{[c.phone, c.email].filter(Boolean).join(' · ')}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={STATUS_TONE[c.status]}>{t(`statuses.${c.status}`)}</Badge>
             <AiSummaryButton candidateId={candidateId} />
             <Button variant="secondary" size="sm" onClick={() => window.open(whatsappLink(c.phone), '_blank')}>
               <MessageCircle className="h-4 w-4 text-success" aria-hidden />{t('whatsapp')}
             </Button>
-            <Badge tone={STATUS_TONE[c.status]}>{t(`statuses.${c.status}`)}</Badge>
           </div>
-        }
-      />
-
-      <HealthScoreCard candidateId={candidateId} />
+        </Card>
+        <HealthScoreCard candidateId={candidateId} />
+      </div>
 
       <Card className="mb-6 grid gap-3 p-5 text-sm sm:grid-cols-4">
         <div><dt className="text-muted-foreground">{t('nationality')}</dt><dd>{c.nationality ?? '–'}</dd></div>
@@ -109,7 +115,7 @@ function Content({ candidateId }: { candidateId: string }) {
         </div>
       </Card>
 
-      <div role="tablist" aria-label={t('title')} className="mb-4 flex gap-1 overflow-x-auto rounded-md border border-border bg-card p-1 text-sm">
+      <div role="tablist" aria-label={t('title')} className="mb-4 flex gap-2 overflow-x-auto p-1 pb-2 text-sm">
         {TABS.map((key) => (
           <button
             key={key}
@@ -119,7 +125,7 @@ function Content({ candidateId }: { candidateId: string }) {
             aria-controls={`panel-${key}`}
             type="button"
             onClick={() => setTab(key)}
-            className={cn('shrink-0 rounded px-3 py-1.5 whitespace-nowrap', tab === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')}
+            className={cn('shrink-0 whitespace-nowrap rounded-xl border-2 px-3.5 py-1.5 font-semibold transition-all', tab === key ? 'border-ink bg-primary text-white shadow-pop-sm' : 'border-border bg-card text-ink/75 hover:border-primary/40 hover:bg-primary-soft hover:text-primary')}
           >
             {t(`tabs.${key}`)}
           </button>
