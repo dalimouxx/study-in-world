@@ -25,7 +25,7 @@ export function ExportButtons({ path, filenameBase }: { path: string; filenameBa
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-2">
       <Button variant="secondary" size="sm" loading={loading === 'xlsx'} onClick={() => run('xlsx')}>
         <FileSpreadsheet className="h-4 w-4" aria-hidden /> Excel
       </Button>

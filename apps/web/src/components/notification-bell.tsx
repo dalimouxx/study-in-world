@@ -42,17 +42,17 @@ export function NotificationBell() {
 
   return (
     <D.Root>
-      <D.Trigger className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted" aria-label={t('title')}>
+      <D.Trigger className="relative flex h-9 w-9 items-center justify-center rounded-xl text-ink transition-colors hover:bg-primary-soft hover:text-primary" aria-label={t('title')}>
         <Bell className="h-4 w-4" aria-hidden />
         {count > 0 && (
-          <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border-[1.5px] border-ink bg-destructive px-1 text-[10px] font-bold text-white">
             {count > 9 ? '9+' : count}
           </span>
         )}
       </D.Trigger>
       <D.Portal>
         <D.Overlay className="fixed inset-0 z-40" />
-        <D.Content className="fixed end-4 top-16 z-50 w-80 overflow-hidden rounded-lg border border-border bg-card shadow-xl">
+        <D.Content className="fixed end-4 top-16 z-50 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-tile border-pop border-ink bg-card shadow-pop-lg data-[state=open]:animate-pop-in">
           <D.Title className="sr-only">{t('title')}</D.Title>
           <D.Description className="sr-only">{t('title')}</D.Description>
           <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
@@ -72,7 +72,7 @@ export function NotificationBell() {
                   key={n.id}
                   href={n.link ?? '/dashboard'}
                   onClick={() => !n.readAt && markRead.mutate(n.id)}
-                  className={cn('block border-b border-border px-4 py-3 text-sm last:border-0 hover:bg-muted', !n.readAt && 'bg-primary-soft/40')}
+                  className={cn('block border-b border-border px-4 py-3 text-sm transition-colors last:border-0 hover:bg-primary-soft/60', !n.readAt && 'bg-primary-soft/40')}
                 >
                   <p className="font-medium text-navy">{n.title}</p>
                   <p className="mt-0.5 text-muted-foreground">{n.body}</p>

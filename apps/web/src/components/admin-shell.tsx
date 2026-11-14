@@ -28,8 +28,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center border-b border-border px-5">
-        <span className="truncate text-base font-semibold tracking-tight text-navy">{agency.data?.name ?? 'Study in World'}</span>
+      <div className="flex h-16 items-center gap-2.5 border-b border-border px-5">
+        <span aria-hidden className="h-6 w-6 shrink-0 rounded-lg border-pop border-ink bg-primary shadow-pop-sm" />
+        <span className="truncate font-display text-lg font-extrabold tracking-tight text-ink">{agency.data?.name ?? 'Study in World'}</span>
       </div>
 
       <nav aria-label={t('main')} className="flex-1 space-y-1 overflow-y-auto p-3">
@@ -42,8 +43,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               onClick={onNavigate}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'group relative flex items-center gap-3 rounded-full px-3.5 py-2 text-sm transition-all duration-200',
-                active ? 'bg-primary font-medium text-white shadow-sm shadow-primary/25' : 'text-foreground/75 hover:bg-primary-soft hover:text-primary',
+                'group relative flex items-center gap-3 rounded-xl border-2 px-3.5 py-2 text-sm transition-all duration-200',
+                active
+                  ? 'border-ink bg-primary font-semibold text-white shadow-pop-sm'
+                  : 'border-transparent text-foreground/75 hover:translate-x-0.5 hover:bg-primary-soft hover:text-primary rtl:hover:-translate-x-0.5',
               )}
             >
               <Icon className={cn('h-4 w-4 shrink-0 transition-transform duration-200', !active && 'group-hover:scale-110')} aria-hidden />
@@ -54,19 +57,19 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="border-t border-border p-3">
-        <Link href="/account" onClick={onNavigate} className="flex items-center gap-3 rounded-full px-3 py-2 transition-colors hover:bg-muted">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary">
+        <Link href="/account" onClick={onNavigate} className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2 transition-colors hover:border-primary/40 hover:bg-primary-soft">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-[1.5px] border-ink bg-primary text-white">
             <UserRound className="h-4 w-4" aria-hidden />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-medium">{user?.firstName} {user?.lastName}</span>
+            <span className="block truncate text-sm font-semibold">{user?.firstName} {user?.lastName}</span>
             <span className="block truncate text-xs text-muted-foreground">{user?.roleName}</span>
           </span>
         </Link>
         <button
           type="button"
           onClick={() => void logout()}
-          className="mt-1 flex w-full items-center gap-3 rounded-full px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <LogOut className="h-4 w-4 rtl:rotate-180" aria-hidden />
           {tc('logout')}
@@ -86,8 +89,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const current = NAV_ITEMS.find((i) => pathname === i.href || pathname.startsWith(`${i.href}/`));
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-screen border-e border-border bg-card lg:block">
+    <div data-surface="app" className="min-h-screen bg-background lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-screen border-e-2 border-ink bg-card lg:block">
         <SidebarContent />
       </aside>
 
@@ -99,7 +102,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-navy/50"
+              className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
               aria-label={tc('close')}
               onClick={() => setOpen(false)}
             />
@@ -108,7 +111,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'tween', duration: 0.25, ease: 'easeOut' }}
-              className="absolute inset-y-0 start-0 w-72 max-w-[85%] bg-card shadow-xl [html[dir=rtl]_&]:right-0"
+              className="absolute inset-y-0 start-0 w-72 max-w-[85%] border-e-2 border-ink bg-card shadow-pop-lg [html[dir=rtl]_&]:right-0"
             >
               <SidebarContent onNavigate={() => setOpen(false)} />
             </motion.div>
@@ -117,22 +120,22 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </AnimatePresence>
 
       <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-background/90 px-4 backdrop-blur sm:px-8">
-          <div className="flex items-center gap-2">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-2 border-b border-border bg-background/90 px-3 backdrop-blur sm:gap-3 sm:px-8">
+          <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
-              className="rounded-md p-2 hover:bg-muted lg:hidden"
+              className="rounded-xl border-pop border-ink bg-card p-2 shadow-pop-sm lg:hidden"
               aria-label={open ? tc('close') : t('openMenu')}
               aria-expanded={open}
               onClick={() => setOpen((v) => !v)}
             >
               {open ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
             </button>
-            <nav aria-label={t('breadcrumb')} className="text-sm text-muted-foreground">
+            <nav aria-label={t('breadcrumb')} className="truncate font-display text-sm font-bold text-ink">
               {current ? t(current.labelKey) : pathname.startsWith('/account') ? t('account') : ''}
             </nav>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <CommandPalette />
             <NotificationBell />
             <LanguageSwitcher />
@@ -142,7 +145,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           key={pathname}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
           className="flex-1 px-4 py-8 sm:px-8"
         >
           {children}

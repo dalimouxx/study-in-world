@@ -65,15 +65,15 @@ export function CommandPalette() {
 
   return (
     <D.Root open={open} onOpenChange={setOpen}>
-      <D.Trigger className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-card px-3 text-sm text-muted-foreground hover:bg-muted">
+      <D.Trigger className="inline-flex h-9 items-center gap-2 rounded-xl border-2 border-ink/80 bg-card px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-ink hover:text-ink">
         <Search className="h-4 w-4" aria-hidden />
         <span className="hidden sm:inline">{t('search')}</span>
-        <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium sm:inline">Ctrl K</kbd>
+        <kbd className="hidden rounded-md border-[1.5px] border-ink bg-primary-soft px-1.5 py-0.5 text-[10px] font-bold text-ink sm:inline">Ctrl K</kbd>
       </D.Trigger>
       <D.Portal>
-        <D.Overlay className="fixed inset-0 z-40 bg-navy/50" />
+        <D.Overlay className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm data-[state=open]:animate-fade-in" />
         <D.Content
-          className="fixed start-1/2 top-24 z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-organic border border-border bg-card shadow-2xl rtl:translate-x-1/2"
+          className="fixed start-1/2 top-24 z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-tile border-pop border-ink bg-card shadow-pop-lg rtl:translate-x-1/2"
           onOpenAutoFocus={(e) => { e.preventDefault(); inputRef.current?.focus(); }}
         >
           <D.Title className="sr-only">{t('search')}</D.Title>

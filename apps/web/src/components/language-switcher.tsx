@@ -13,7 +13,7 @@ export function LanguageSwitcher({ className, dark }: { className?: string; dark
   const pathname = usePathname();
 
   return (
-    <div role="group" aria-label={t('language')} className={cn('inline-flex rounded-md border p-0.5 text-sm', dark ? 'border-white/25' : 'border-border bg-card', className)}>
+    <div role="group" aria-label={t('language')} className={cn('inline-flex rounded-xl border-2 p-0.5 text-sm font-semibold', dark ? 'border-white/40' : 'border-ink bg-card', className)}>
       {(['fr', 'ar'] as const).map((l) => (
         <button
           key={l}
@@ -22,7 +22,7 @@ export function LanguageSwitcher({ className, dark }: { className?: string; dark
           aria-pressed={locale === l}
           onClick={() => router.replace(pathname, { locale: l })}
           className={cn(
-            'rounded px-2.5 py-1 transition-colors',
+            'rounded-lg px-2.5 py-1 transition-colors',
             locale === l
               ? dark ? 'bg-white text-navy' : 'bg-primary text-primary-foreground'
               : dark ? 'text-white/80 hover:bg-white/10' : 'text-muted-foreground hover:bg-muted',
