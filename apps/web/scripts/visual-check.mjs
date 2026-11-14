@@ -202,7 +202,7 @@ for (const width of WIDTHS) for (const { pages, auth } of groups) {
 }
 // Régressions relevées en relecture : chacune reproduite ici avant d'être corrigée.
 async function checkRegressions(browser) {
-  if (ONLY) return;
+  if (ONLY && ONLY !== 'regressions') return; // --only regressions : seulement ce bloc
   const ctxDesk = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
   const page = await ctxDesk.newPage();
 
@@ -240,6 +240,23 @@ async function checkRegressions(browser) {
   const iter = await calm.evaluate(() => getComputedStyle(document.querySelector('.animate-morph')).animationIterationCount);
   report(iter === '1', 'reduced-motion-loops', '/ fr 1280', `iteration-count=${iter}`);
   await ctxCalm.close();
+
+  // 5. Écran de chargement : pendant la vérification de session (réponse ralentie), le logo s'affiche dans un
+  //    [role=status] Pop, puis disparaît une fois la vérification terminée.
+  const ctxLoad = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const load = await ctxLoad.newPage();
+  await load.route('**/api/auth/refresh', async (route) => {
+    await new Promise((r) => setTimeout(r, 2500));
+    await route.continue();
+  });
+  await load.goto(`${BASE}/fr/dashboard`, { waitUntil: 'domcontentloaded' });
+  const loader = load.locator('[role="status"][data-page-loader]');
+  const shown = await loader.waitFor({ state: 'visible', timeout: 2000 }).then(() => true, () => false);
+  const hasLogo = shown && (await loader.locator('img, [data-logo]').count()) > 0;
+  report(shown && hasLogo, 'page-loader-shown', '/dashboard fr 1280');
+  const gone = await loader.waitFor({ state: 'detached', timeout: 15000 }).then(() => true, () => false);
+  report(gone, 'page-loader-gone', '/dashboard fr 1280');
+  await ctxLoad.close();
 
   // 4. Menu mobile du site public : se ferme quand on choisit un lien, même une ancre de la même page.
   const ctxPhone = await browser.newContext({ viewport: { width: 390, height: 844 } });
