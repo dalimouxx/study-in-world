@@ -39,22 +39,22 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <Link href="/" aria-label={agencyName ?? 'Study in World'} className="shrink-0">
               <StudyWorldLogo />
             </Link>
-            <nav className="hidden items-center gap-1 text-sm font-semibold lg:flex">
+            <nav className="hidden items-center gap-1 text-sm font-semibold xl:flex">
               {links.map((l) => (
-                <Link key={l.href} href={l.href} className="rounded-xl px-3 py-1.5 text-ink/75 transition-colors hover:bg-primary-soft hover:text-primary">
+                <Link key={l.href} href={l.href} className="whitespace-nowrap rounded-xl px-3 py-1.5 text-ink/75 transition-colors hover:bg-primary-soft hover:text-primary">
                   {l.label}
                 </Link>
               ))}
             </nav>
             <div className="flex items-center gap-2">
               <LanguageSwitcher className="hidden sm:inline-flex" />
-              <Link href="/login" className="hidden h-9 items-center rounded-xl px-3 text-sm font-semibold text-ink/75 transition-colors hover:bg-primary-soft hover:text-primary md:inline-flex">
+              <Link href="/login" className="hidden h-9 items-center whitespace-nowrap rounded-xl px-3 text-sm font-semibold text-ink/75 transition-colors hover:bg-primary-soft hover:text-primary xl:inline-flex">
                 {t('employeeLogin')}
               </Link>
               <StudyWorldButton href="/eligibility" className="hidden h-9 px-4 text-xs sm:inline-flex">{t('ctaStartProject')}</StudyWorldButton>
               <button
                 type="button"
-                className="pop pop-hover rounded-xl bg-card p-2 lg:hidden"
+                className="pop pop-hover rounded-xl bg-card p-2 xl:hidden"
                 aria-label={open ? tc('close') : tn('openMenu')}
                 aria-expanded={open}
                 onClick={() => setOpen((v) => !v)}
@@ -70,9 +70,9 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={SPRING}
-                className="overflow-hidden border-t-2 border-ink lg:hidden"
+                className="overflow-hidden border-t-2 border-ink xl:hidden"
               >
-                <div className="grid gap-2 p-4">
+                <div className="grid gap-2 p-4 sm:grid-cols-2">
                   {links.map((l) => (
                     <Link key={l.href} href={l.href} className="pop pop-hover rounded-xl bg-card px-4 py-3 font-display text-lg font-bold text-ink">
                       {l.label}

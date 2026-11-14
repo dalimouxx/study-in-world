@@ -25,7 +25,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
           <ol className="space-y-2" aria-label={t('journeyLabel')}>
             {journey.map((d) => (
               <li key={d} className="flex items-center gap-4 font-display text-4xl font-extrabold leading-tight tracking-tight">
-                <span aria-hidden className="h-3 w-3 shrink-0 rounded-[3px] border-[1.5px] border-ink bg-white" />
+                <span aria-hidden className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-ink bg-white shadow-pop-sm" />
                 {d}
               </li>
             ))}

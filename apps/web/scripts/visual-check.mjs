@@ -140,9 +140,38 @@ async function checkPage(page, path, locale, width, { navigate = true } = {}) {
   }
 
   if (SHOTS) {
+    // Les sections du site public apparaissent au défilement : on parcourt la page avant la capture pleine page.
+    await page.evaluate(async () => {
+      for (let y = 0; y < document.body.scrollHeight; y += 500) {
+        window.scrollTo(0, y);
+        await new Promise((r) => setTimeout(r, 120));
+      }
+      window.scrollTo(0, 0);
+    });
+    await page.waitForTimeout(400);
     const name = `${path.replace(/\//g, '_') || '_home'}-${locale}-${width}`.replace(/^_/, '');
     await page.screenshot({ path: `.visual/${name || 'home'}.png`, fullPage: true });
   }
+}
+
+// Contraste WCAG des paires de couleurs de la charte (cible AA : 4,5:1 pour le texte normal).
+const lum = (hex) => {
+  const c = hex.match(/\w\w/g).map((h) => parseInt(h, 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+};
+const contrast = (a, b) => {
+  const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
+  return (x + 0.05) / (y + 0.05);
+};
+for (const [fg, bg, label] of [
+  ['#2457FF', '#FFFFFF', 'bleu sur blanc'],
+  ['#FFFFFF', '#2457FF', 'blanc sur bleu'],
+  ['#4B5478', '#F3F6FF', 'texte secondaire sur fond'],
+  ['#0B1230', '#F3F6FF', 'encre sur fond'],
+  ['#2457FF', '#E4EBFF', 'bleu sur bleu pâle (badges)'],
+]) {
+  const r = contrast(fg, bg);
+  report(r >= 4.5, 'contrast', label, r.toFixed(2));
 }
 
 const browser = await chromium.launch();
