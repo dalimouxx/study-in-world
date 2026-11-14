@@ -8,10 +8,10 @@ import { cn } from '@/lib/utils';
 export function StudyWorldLogo({ tagline = false, className }: { tagline?: boolean; className?: string }) {
   return (
     <span className={cn('inline-flex flex-col', className)}>
-      <span className="inline-flex items-center gap-1.5 font-poppins font-semibold leading-none">
+      <span className="inline-flex items-center gap-1.5 font-display font-extrabold leading-none tracking-tight">
         <GlobeCapMark className="h-7 w-7 shrink-0" />
         <span className="text-navy">Study</span>
-        <span className="rounded-md bg-primary px-1.5 py-0.5 text-white">in</span>
+        <span className="rounded-md border-[1.5px] border-ink bg-primary px-1.5 py-0.5 text-white shadow-pop-sm">in</span>
         <span className="text-navy">World</span>
       </span>
       {tagline && <span className="mt-0.5 text-[11px] font-medium text-navy/70">Bureau de consulting &amp; préparation dossiers de visa</span>}

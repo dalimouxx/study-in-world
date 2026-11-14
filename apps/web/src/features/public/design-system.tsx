@@ -142,14 +142,17 @@ export function PlaneTrail({ className }: { className?: string }) {
 export function StudyWorldButton({
   href, children, variant = 'primary', accent, className,
 }: { href: string; children: ReactNode; variant?: 'primary' | 'secondary'; accent?: string; className?: string }) {
-  const style = accent && variant === 'primary' ? { backgroundColor: accent } : undefined;
+  // Bento Pop : une seule couleur de marque, l'accent par pays n'est plus appliqué (prop gardée pour compatibilité).
+  void accent;
+  const style = undefined;
   return (
     <Link
       href={href}
       style={style}
+      data-variant={variant}
       className={cn(
-        'group inline-flex h-12 items-center gap-2 rounded-full px-7 text-sm font-semibold transition-transform hover:-translate-y-0.5',
-        variant === 'primary' ? 'bg-primary text-white shadow-lg shadow-primary/25 hover:shadow-xl' : 'border-2 border-primary bg-white text-primary hover:bg-primary/5',
+        'pop pop-hover group inline-flex h-12 items-center gap-2 whitespace-nowrap rounded-xl px-6 text-sm font-bold',
+        variant === 'primary' ? 'bg-primary text-white' : 'bg-card text-ink',
         className,
       )}
     >
@@ -284,4 +287,10 @@ export function TravelSignpost({ items }: { items: string[] }) {
       ))}
     </div>
   );
+}
+
+// ---------- MorphBlob : forme translucide qui se déforme lentement (fonds des grands blocs bleus) ----------
+
+export function MorphBlob({ className }: { className?: string }) {
+  return <span aria-hidden className={cn('pointer-events-none absolute block animate-morph bg-white/15', className)} />;
 }
