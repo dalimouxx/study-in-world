@@ -306,6 +306,26 @@ async function checkRegressions(browser) {
   report(gone, 'page-loader-gone', '/dashboard fr 1280');
   await ctxLoad.close();
 
+  // 6. Menu mobile de l'admin en arabe : le panneau est collé à droite et glisse depuis la droite (jamais à travers l'écran).
+  if (await apiUp()) {
+    const ctxDrawer = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await login(ctxDrawer);
+    const dr = await ctxDrawer.newPage();
+    await dr.goto(`${BASE}/ar/dashboard`, { waitUntil: 'networkidle' });
+    await hideDevOverlay(dr);
+    await dr.locator('header button[class*="lg:hidden"]').click();
+    const panel = dr.locator('[role="dialog"] > div').last();
+    await panel.waitFor({ state: 'attached' });
+    await dr.waitForTimeout(60);
+    const mid = await panel.boundingBox();
+    await dr.waitForTimeout(700);
+    const end = await panel.boundingBox();
+    const docked = end && Math.abs(end.x + end.width - 390) <= 1;
+    const fromRight = mid && end && mid.x >= end.x - 1;
+    report(!!docked && !!fromRight, 'admin-drawer-rtl', '/dashboard ar 390', `milieu x=${mid && Math.round(mid.x)}, fin x=${end && Math.round(end.x)}`);
+    await ctxDrawer.close();
+  }
+
   // 4. Menu mobile du site public : se ferme quand on choisit un lien, même une ancre de la même page.
   const ctxPhone = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const phone = await ctxPhone.newPage();
