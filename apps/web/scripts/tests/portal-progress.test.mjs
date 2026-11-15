@@ -64,3 +64,11 @@ test('candidateJourney : acceptée et visa approuvé → départ en cours', () =
 test('candidateJourney : visa approuvé sans candidature acceptée → départ en cours', () => {
   assert.deepEqual(candidateJourney([], [{ status: 'APPROVED' }]), { admission: 'done', visa: 'done', departure: 'current' });
 });
+
+test('outstanding : arrondi des décimales (0,1 + 0,2 payé 0,3) → rien à payer', () => {
+  assert.deepEqual(outstandingBalance([inv('ISSUED', 'TND', [[1, 0.1], [1, 0.2]], [0.3])]), []);
+});
+
+test('outstanding : garde les millimes (3 décimales)', () => {
+  assert.deepEqual(outstandingBalance([inv('ISSUED', 'TND', [[1, 12.345]])]), [{ currency: 'TND', amount: 12.345 }]);
+});

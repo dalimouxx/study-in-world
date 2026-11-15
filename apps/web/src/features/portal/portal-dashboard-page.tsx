@@ -7,7 +7,6 @@ import type { ReactNode } from 'react';
 import { CountUp, StaggerGroup, StaggerItem } from '@/components/motion';
 import { ProgressRing } from '@/components/progress-ring';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MorphBlob } from '@/features/public/design-system';
 import { Link } from '@/i18n/navigation';
 import { candidateJourney, checklistCompletion, outstandingBalance, type StepState } from '@/lib/portal-progress';
 import { portalApi } from '@/lib/portal-api';
@@ -68,8 +67,9 @@ export function PortalDashboardPage() {
   const invoices = useQuery({ queryKey: ['portal', 'invoices'], queryFn: () => portalApi<Invoice[]>('/portal/invoices') });
 
   const pendingChecklist = checklist.data?.filter((i) => i.status === 'PENDING').length ?? 0;
-  const completion = checklistCompletion(checklist.data ?? []);
-  const journey = candidateJourney(applications.data ?? [], visaFiles.data ?? []);
+  const completion = checklist.data ? checklistCompletion(checklist.data) : null;
+  // Parcours affiché seulement si candidatures et visas ont été chargés (sinon un « Admission en cours » serait faux).
+  const journey = applications.data && visaFiles.data ? candidateJourney(applications.data, visaFiles.data) : null;
   const balance = outstandingBalance(invoices.data ?? []);
   const upcomingAppointment = appointments.data?.[0];
   const name = candidate?.firstName ?? profile.data?.firstName ?? '';
@@ -92,7 +92,6 @@ export function PortalDashboardPage() {
       {/* Grand bloc bleu : accueil + complétude du dossier */}
       <StaggerItem className="col-span-2 lg:row-span-2">
         <div className="pop relative flex h-full flex-col justify-between gap-6 overflow-hidden rounded-tile bg-primary p-6 text-white">
-          <MorphBlob className="-bottom-20 -end-16 h-64 w-64" />
           <div className="relative">
             <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">{t('welcome', { name })}</h1>
             <p className="mt-1 text-white/85">{t('dashboardSubtitle')}</p>
@@ -113,11 +112,15 @@ export function PortalDashboardPage() {
       <StaggerItem className="col-span-2">
         <Link href="/portal/applications" className="pop pop-hover block h-full rounded-tile bg-card p-5">
           <p className="mb-4 font-display text-lg font-extrabold text-ink">{t('journeyTitle')}</p>
-          <ol className="flex items-start gap-2">
-            <JourneyStep state={journey.admission} index={1} label={t('journeyAdmission')} />
-            <JourneyStep state={journey.visa} index={2} label={t('journeyVisa')} />
-            <JourneyStep state={journey.departure} index={3} label={t('journeyDeparture')} />
-          </ol>
+          {journey ? (
+            <ol className="flex items-start gap-2">
+              <JourneyStep state={journey.admission} index={1} label={t('journeyAdmission')} />
+              <JourneyStep state={journey.visa} index={2} label={t('journeyVisa')} />
+              <JourneyStep state={journey.departure} index={3} label={t('journeyDeparture')} />
+            </ol>
+          ) : (
+            <p className="font-display text-xl font-extrabold text-ink">–</p>
+          )}
         </Link>
       </StaggerItem>
 
@@ -135,10 +138,13 @@ export function PortalDashboardPage() {
         <Tile href="/portal/finance">
           <TileIcon icon={Wallet} />
           <span className="text-sm text-muted-foreground">{t('outstandingTitle')}</span>
-          {balance.length ? (
+          {/* « Tout est réglé » seulement si les factures ont bien été chargées : en cas d'erreur, « – ». */}
+          {invoices.isError ? (
+            <span className="font-display text-xl font-extrabold text-ink">–</span>
+          ) : balance.length ? (
             balance.map((b) => (
               <span key={b.currency} className="font-display text-xl font-extrabold text-ink">
-                <CountUp value={b.amount} format={(n) => n.toLocaleString(locale)} /> <span className="text-sm">{b.currency}</span>
+                <CountUp value={b.amount} format={(n) => n.toLocaleString(locale, { maximumFractionDigits: 3 })} /> <span className="text-sm">{b.currency}</span>
               </span>
             ))
           ) : (
@@ -150,7 +156,7 @@ export function PortalDashboardPage() {
       <StaggerItem>
         <Tile href="/portal/applications">
           <TileIcon icon={FileText} />
-          <span className="font-display text-3xl font-extrabold text-ink"><CountUp value={applications.data?.length ?? 0} /></span>
+          <span className="font-display text-3xl font-extrabold text-ink">{applications.data ? <CountUp value={applications.data.length} /> : '–'}</span>
           <span className="text-sm text-muted-foreground">{t('applicationsCount')}</span>
         </Tile>
       </StaggerItem>
@@ -158,7 +164,7 @@ export function PortalDashboardPage() {
       <StaggerItem>
         <Tile href="/portal/visa">
           <TileIcon icon={Plane} />
-          <span className="font-display text-3xl font-extrabold text-ink"><CountUp value={visaFiles.data?.length ?? 0} /></span>
+          <span className="font-display text-3xl font-extrabold text-ink">{visaFiles.data ? <CountUp value={visaFiles.data.length} /> : '–'}</span>
           <span className="text-sm text-muted-foreground">{t('visaFilesCount')}</span>
         </Tile>
       </StaggerItem>

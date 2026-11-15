@@ -9,7 +9,6 @@ import { Link } from '@/i18n/navigation';
 import { partnerPortalApi } from '@/lib/partner-portal-api';
 import type { Commission, PartnerPortalCandidate, PartnerPortalProfile } from '@/lib/types';
 import { usePartnerAuth } from '@/features/partner-auth/partner-auth-context';
-import { MorphBlob } from '@/features/public/design-system';
 
 export function PartnerDashboardPage() {
   const t = useTranslations('partnerPortal');
@@ -30,7 +29,6 @@ export function PartnerDashboardPage() {
   return (
     <>
       <div className="pop relative overflow-hidden rounded-tile bg-primary p-6 text-white sm:p-8">
-        <MorphBlob className="-bottom-20 -end-16 h-64 w-64" />
         <h1 className="relative font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{t('welcome', { name: partnerUser?.firstName ?? '' })}</h1>
         <p className="relative mt-1 text-white/85">{profile.data?.companyName ?? ''}</p>
       </div>

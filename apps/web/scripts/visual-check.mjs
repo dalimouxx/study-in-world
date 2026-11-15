@@ -220,6 +220,30 @@ for (const width of WIDTHS) for (const { pages, auth } of groups) {
   }
   await context.close();
 }
+// Portail candidat : données en erreur ou vides ne doivent jamais afficher une fausse information.
+async function checkPortalRegressions(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await ctx.newPage();
+  await page.route('**/api/portal/invoices', (r) => r.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"boom"}' }));
+  await page.route('**/api/portal/checklist', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 'x', label: 'Passeport', status: 'PENDING', note: null, position: 0 }]) }),
+  );
+  await page.goto(`${BASE}/fr/portal/login`, { waitUntil: 'networkidle' });
+  await page.fill('#email', PORTAL_EMAIL);
+  await page.fill('#password', ADMIN_PASSWORD);
+  await page.click('button[type="submit"]');
+  await page.waitForURL(/\/portal\/dashboard/, { timeout: 20000 });
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(1500);
+  const settled = await page.getByText('Tout est réglé').count();
+  report(settled === 0, 'portal-invoices-error', '/portal/dashboard fr 1280', `« Tout est réglé » affiché ${settled} fois`);
+  const arcs = await page.locator('[role="img"] svg circle').count();
+  report(arcs === 1, 'portal-ring-zero', '/portal/dashboard fr 1280', `${arcs} cercle(s) à 0 %`);
+  const loops = await page.locator('main .animate-morph').count();
+  report(loops === 0, 'portal-no-loops', '/portal/dashboard fr 1280', `${loops} forme(s) en boucle`);
+  await ctx.close();
+}
+
 // Régressions relevées en relecture : chacune reproduite ici avant d'être corrigée.
 async function checkRegressions(browser) {
   if (ONLY && ONLY !== 'regressions') return; // --only regressions : seulement ce bloc
@@ -291,6 +315,7 @@ async function checkRegressions(browser) {
   await ctxPhone.close();
 }
 await checkRegressions(browser);
+if (withApi && (!ONLY || ONLY === 'regressions')) await checkPortalRegressions(browser);
 
 if (withApi && (!ONLY || ONLY.startsWith('/portal/'))) for (const width of WIDTHS) await checkPortal(browser, width);
 await browser.close();

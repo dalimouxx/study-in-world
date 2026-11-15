@@ -22,7 +22,8 @@ export function ProgressRing({
     <div role="img" aria-label={`${label} : ${value === null ? '–' : `${value} %`}`} className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
-        {value !== null && (
+        {/* À 0 %, aucun arc : un trait de longueur nulle aux bouts arrondis dessinerait un point isolé. */}
+        {value !== null && pct > 0 && (
           <motion.circle
             cx={size / 2}
             cy={size / 2}

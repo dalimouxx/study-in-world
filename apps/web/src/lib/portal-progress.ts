@@ -25,11 +25,12 @@ export function outstandingBalance(invoices: InvoiceLike[]): { currency: string;
     if (inv.status !== 'ISSUED' && inv.status !== 'PARTIALLY_PAID') continue;
     const total = inv.items.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
     const paid = inv.payments.reduce((s, p) => s + p.amount, 0);
-    const rest = total - paid;
+    // Arrondi au millime (3 décimales, comme le reste de l'application) : évite les restes fantômes des nombres flottants.
+    const rest = Math.round((total - paid) * 1000) / 1000;
     if (rest > 0) byCurrency.set(inv.currency, (byCurrency.get(inv.currency) ?? 0) + rest);
   }
   return [...byCurrency.entries()]
-    .map(([currency, amount]) => ({ currency, amount }))
+    .map(([currency, amount]) => ({ currency, amount: Math.round(amount * 1000) / 1000 }))
     .sort((a, b) => a.currency.localeCompare(b.currency));
 }
 

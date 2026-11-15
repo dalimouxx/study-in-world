@@ -91,6 +91,6 @@ export function CountUp({ value, durationMs = 900, format }: { value: number; du
     return () => controls.stop();
   }, [value, durationMs, reduce]);
 
-  const rounded = Number.isInteger(value) ? Math.round(shown) : Math.round(shown * 100) / 100;
+  const rounded = Number.isInteger(value) ? Math.round(shown) : Math.round(shown * 1000) / 1000;
   return <span className="tabular-nums">{format ? format(rounded) : rounded.toLocaleString()}</span>;
 }
