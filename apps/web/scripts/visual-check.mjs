@@ -309,11 +309,22 @@ async function checkRegressions(browser) {
   // 6. Menu mobile de l'admin en arabe : le panneau est collé à droite et glisse depuis la droite (jamais à travers l'écran).
   if (await apiUp()) {
     const ctxDrawer = await browser.newContext({ viewport: { width: 390, height: 844 } });
-    await login(ctxDrawer);
+    // Connexion directement en arabe, sans recharger ensuite : l'API limite le rafraîchissement de session à
+    // 30 requêtes par minute et par IP, seuil que la suite complète (une seule IP) peut atteindre.
     const dr = await ctxDrawer.newPage();
-    await dr.goto(`${BASE}/ar/dashboard`, { waitUntil: 'networkidle' });
+    await dr.goto(`${BASE}/ar/login`, { waitUntil: 'networkidle' });
+    await dr.fill('#email', ADMIN_EMAIL);
+    await dr.fill('#password', ADMIN_PASSWORD);
+    await dr.click('button[type="submit"]');
+    await dr.waitForURL(/\/ar\/dashboard/, { timeout: 20000 });
+    await dr.waitForLoadState('networkidle');
     await hideDevOverlay(dr);
-    await dr.locator('header button[class*="lg:hidden"]').click();
+    const opened = await dr.locator('header button[class*="lg:hidden"]').click({ timeout: 15000 }).then(() => true, () => false);
+    if (!opened) {
+      await dr.screenshot({ path: '.visual/debug-admin-drawer.png' });
+      report(false, 'admin-drawer-rtl', '/dashboard ar 390', `bouton du menu introuvable sur ${dr.url()}`);
+      await ctxDrawer.close();
+    } else {
     const panel = dr.locator('[role="dialog"] > div').last();
     await panel.waitFor({ state: 'attached' });
     await dr.waitForTimeout(60);
@@ -324,6 +335,7 @@ async function checkRegressions(browser) {
     const fromRight = mid && end && mid.x >= end.x - 1;
     report(!!docked && !!fromRight, 'admin-drawer-rtl', '/dashboard ar 390', `milieu x=${mid && Math.round(mid.x)}, fin x=${end && Math.round(end.x)}`);
     await ctxDrawer.close();
+    }
   }
 
   // 4. Menu mobile du site public : se ferme quand on choisit un lien, même une ancre de la même page.
