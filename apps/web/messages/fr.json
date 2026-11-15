@@ -727,7 +727,20 @@
     "ocrBirthDate": "Date de naissance",
     "ocrExpirationDate": "Date d’expiration du passeport",
     "ocrChecksumFailed": "Non vérifié",
-    "ocrApply": "Appliquer"
+    "ocrApply": "Appliquer",
+    "healthIssues": {
+      "PROFILE_INCOMPLETE": "Profil incomplet ({count, plural, one {# champ manquant} other {# champs manquants}})",
+      "DOCUMENT_MISSING": "Document manquant : {type}",
+      "DOCUMENT_REJECTED": "Document rejeté : {label}",
+      "DOCUMENT_EXPIRED": "{label} expiré depuis {days, plural, one {# jour} other {# jours}}",
+      "DOCUMENT_EXPIRING": "{label} expire dans {days, plural, one {# jour} other {# jours}}",
+      "NO_APPLICATION": "Aucune candidature créée",
+      "APPLICATION_DEADLINE_PASSED": "Date limite dépassée : {university}",
+      "APPLICATION_DEADLINE_SOON": "Date limite dans {days, plural, one {# jour} other {# jours}} : {university}",
+      "VISA_APPOINTMENT_PASSED": "Rendez-vous visa ({country}) dépassé sans mise à jour du statut",
+      "INVOICE_OVERDUE": "Facture {number} en retard de paiement",
+      "TASKS_OVERDUE": "{count, plural, one {# tâche en retard} other {# tâches en retard}}"
+    }
   },
   "tasks": {
     "title": "Tâches",

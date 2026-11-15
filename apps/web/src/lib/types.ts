@@ -638,6 +638,7 @@ export interface HealthIssue {
   severity: IssueSeverity;
   code: string;
   message: string;
+  params?: Record<string, string | number>;
 }
 
 export interface HealthScore {
