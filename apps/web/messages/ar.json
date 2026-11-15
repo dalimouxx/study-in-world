@@ -727,7 +727,20 @@
     "ocrBirthDate": "تاريخ الميلاد",
     "ocrExpirationDate": "تاريخ انتهاء صلاحية الجواز",
     "ocrChecksumFailed": "غير مُتحقَّق منه",
-    "ocrApply": "تطبيق"
+    "ocrApply": "تطبيق",
+    "healthIssues": {
+      "PROFILE_INCOMPLETE": "الملف الشخصي غير مكتمل ({count, plural, one {حقل واحد ناقص} two {حقلان ناقصان} few {# حقول ناقصة} many {# حقلًا ناقصًا} other {# حقل ناقص}})",
+      "DOCUMENT_MISSING": "وثيقة ناقصة: {type}",
+      "DOCUMENT_REJECTED": "وثيقة مرفوضة: {label}",
+      "DOCUMENT_EXPIRED": "انتهت صلاحية {label} منذ {days, plural, one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}",
+      "DOCUMENT_EXPIRING": "تنتهي صلاحية {label} خلال {days, plural, zero {أقل من يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}",
+      "NO_APPLICATION": "لم يتم إنشاء أي ترشح",
+      "APPLICATION_DEADLINE_PASSED": "انتهى الموعد النهائي: {university}",
+      "APPLICATION_DEADLINE_SOON": "الموعد النهائي خلال {days, plural, zero {أقل من يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}: {university}",
+      "VISA_APPOINTMENT_PASSED": "فات موعد التأشيرة ({country}) دون تحديث الحالة",
+      "INVOICE_OVERDUE": "الفاتورة {number} متأخرة الدفع",
+      "TASKS_OVERDUE": "{count, plural, one {مهمة واحدة متأخرة} two {مهمتان متأخرتان} few {# مهام متأخرة} many {# مهمة متأخرة} other {# مهمة متأخرة}}"
+    }
   },
   "tasks": {
     "title": "المهام",
