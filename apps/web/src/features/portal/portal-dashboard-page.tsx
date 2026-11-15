@@ -138,7 +138,7 @@ export function PortalDashboardPage() {
           {balance.length ? (
             balance.map((b) => (
               <span key={b.currency} className="font-display text-xl font-extrabold text-ink">
-                <CountUp value={b.amount} /> <span className="text-sm">{b.currency}</span>
+                <CountUp value={b.amount} format={(n) => n.toLocaleString(locale)} /> <span className="text-sm">{b.currency}</span>
               </span>
             ))
           ) : (

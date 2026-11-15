@@ -94,15 +94,27 @@ async function checkPortal(browser, width) {
 // Le badge de développement de Next.js (absent en production) recouvre le coin bas de l'écran.
 const hideDevOverlay = (page) => page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' }).catch(() => {});
 
+const firstItem = {};
+const API = process.env.VISUAL_API_URL ?? 'http://localhost:4000/api';
+async function firstIdFromApi(list) {
+  const login = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }) });
+  const { accessToken } = await login.json();
+  const res = await fetch(`${API}${list}?pageSize=1`, { headers: { authorization: `Bearer ${accessToken}` } });
+  const data = await res.json();
+  const id = (data.items ?? data)[0]?.id;
+  if (!id) throw new Error(`aucun élément dans ${list}`);
+  return id;
+}
+
 async function checkPage(page, path, locale, width, { navigate = true } = {}) {
   const ctx = `${path} ${locale} ${width}`;
   let target = path;
   if (path.endsWith('/:first')) {
     // Premier élément de la liste parente (ex. premier candidat) : l'identifiant change d'une base à l'autre.
+    // Identifiant du premier élément, résolu une fois auprès de l'API (plus fiable que de lire la liste affichée).
     const list = path.replace('/:first', '');
-    await page.goto(`${BASE}/${locale}${list}`, { waitUntil: 'networkidle', timeout: 60000 });
-    const href = await page.locator(`main a[href*="${list}/"]`).first().getAttribute('href');
-    target = href.replace(/^\/(fr|ar)/, '');
+    if (!firstItem[list]) firstItem[list] = `${list}/${await firstIdFromApi(list)}`;
+    target = firstItem[list];
   }
   if (navigate) await page.goto(`${BASE}/${locale}${target === '/' ? '' : target}`, { waitUntil: 'networkidle', timeout: 60000 });
   await hideDevOverlay(page);
