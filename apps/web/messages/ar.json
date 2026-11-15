@@ -1040,7 +1040,10 @@
     },
     "partnersSection": {
       "title": "يثقون بنا"
-    }
+    },
+    "footerNav": "روابط أسفل الصفحة",
+    "heroSticker": "دخول 2027",
+    "heroImageSticker": "وجهة الأحلام ✈"
   },
   "catalog": {
     "title": "الكتالوج",
@@ -1293,7 +1296,16 @@
       "CANCELLED": "ملغى"
     },
     "signContract": "توقيع",
-    "contractSigned": "تم توقيع العقد."
+    "contractSigned": "تم توقيع العقد.",
+    "more": "المزيد",
+    "moreTitle": "كل الأقسام",
+    "completionLabel": "اكتمال الملف",
+    "journeyTitle": "مسارك",
+    "journeyAdmission": "القبول",
+    "journeyVisa": "التأشيرة",
+    "journeyDeparture": "السفر",
+    "outstandingTitle": "المبلغ المتبقي",
+    "nothingToPay": "لا شيء للدفع"
   },
   "reports": {
     "title": "التقارير",

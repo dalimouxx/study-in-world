@@ -4,10 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Building2, CalendarDays, CheckSquare, UserPlus, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/page-header';
-import { StaggerGroup, StaggerItem } from '@/components/motion';
+import { CountUp, StaggerGroup, StaggerItem } from '@/components/motion';
 import { Card } from '@/components/ui/card';
 import { StatCardsSkeleton } from '@/components/ui/skeleton';
 import { Link } from '@/i18n/navigation';
+import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import type { Appointment, Branch, Employee, Paginated, Task } from '@/lib/types';
 import { useAuth } from '@/features/auth/auth-context';
@@ -60,21 +61,25 @@ export function DashboardPage() {
         <div className="mb-6"><StatCardsSkeleton count={4} /></div>
       ) : cards.length > 0 ? (
         <StaggerGroup className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {cards.map(({ href, icon: Icon, label, value }) => (
-            <StaggerItem key={href}>
-              <Link href={href}>
-                <Card hoverable className="flex items-center gap-4 p-5">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-soft text-primary">
+          {cards.map(({ href, icon: Icon, label, value }, i) => {
+            // La première tuile est mise en avant en bleu (grille bento) ; les autres restent blanches.
+            const lead = i === 0;
+            return (
+              <StaggerItem key={href}>
+                <Link href={href} className={cn('pop pop-hover flex h-full items-center gap-4 rounded-tile p-5', lead ? 'bg-primary text-white' : 'bg-card')}>
+                  <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-[1.5px] border-ink', lead ? 'bg-white text-primary' : 'bg-primary-soft text-primary')}>
                     <Icon className="h-5 w-5" aria-hidden />
                   </span>
-                  <span>
-                    <span className="block text-2xl font-semibold tabular-nums text-navy">{value ?? '–'}</span>
-                    <span className="text-sm text-muted-foreground">{label}</span>
+                  <span className="min-w-0">
+                    <span className={cn('block font-display text-3xl font-extrabold leading-none', lead ? 'text-white' : 'text-ink')}>
+                      {value === undefined ? '–' : <CountUp value={value} />}
+                    </span>
+                    <span className={cn('mt-1 block text-sm', lead ? 'text-white/85' : 'text-muted-foreground')}>{label}</span>
                   </span>
-                </Card>
-              </Link>
-            </StaggerItem>
-          ))}
+                </Link>
+              </StaggerItem>
+            );
+          })}
         </StaggerGroup>
       ) : (
         <Card className="mb-6 p-6 text-sm text-muted-foreground">{t('nothingYet')}</Card>

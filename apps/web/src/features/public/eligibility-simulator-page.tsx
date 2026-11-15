@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { CheckCircle2, Sparkles } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -12,7 +12,7 @@ import { Link } from '@/i18n/navigation';
 import { api } from '@/lib/api';
 import type { Country, Paginated, Program, ProgramLevel } from '@/lib/types';
 import { useErrorMessage } from '@/lib/use-error-message';
-import { Reveal, RevealGroup, RevealItem } from './design-system';
+import { Reveal, RevealGroup, RevealItem, PublicPageHero } from './design-system';
 import { PublicShell } from './public-shell';
 
 const LEVELS: ProgramLevel[] = ['LICENCE', 'MASTER', 'DOCTORAT', 'FOUNDATION', 'PREPA', 'FORMATION_PRO', 'FORMATION_PRIVEE', 'FORMATION_PUBLIQUE', 'SEJOUR_LINGUISTIQUE', 'COURS_DE_LANGUE', 'CERTIFICAT'];
@@ -76,19 +76,13 @@ export function EligibilitySimulatorPage() {
 
   return (
     <PublicShell>
-      <section className="mx-auto max-w-3xl px-6 py-14">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Sparkles className="h-6 w-6" aria-hidden />
-          </span>
-          <h1 className="mt-3 font-poppins text-3xl font-bold text-navy">{t('eligibilityTitle')}</h1>
-          <p className="mt-2 text-muted-foreground">{t('eligibilitySubtitle')}</p>
-        </Reveal>
+      <PublicPageHero title={t('eligibilityTitle')} subtitle={t('eligibilitySubtitle')} />
+      <section className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
 
         <Reveal delay={0.1}>
           <form
             onSubmit={handleCriteriaSubmit((v) => setCriteria(v))}
-            className="mx-auto mt-8 grid max-w-2xl gap-4 rounded-organic border border-primary/10 bg-white p-6 shadow-sm sm:grid-cols-2"
+            className="relative mx-auto -mt-14 grid max-w-2xl gap-4 pop rounded-tile bg-card p-6 sm:grid-cols-2"
           >
             <Field label={t('desiredDestination')} htmlFor="sim-country">
               <Select id="sim-country" {...registerCriteria('countryId')}>
@@ -122,11 +116,11 @@ export function EligibilitySimulatorPage() {
               <p className="text-center text-sm text-muted-foreground">{t('noEligibleResults')}</p>
             ) : (
               <>
-                <Reveal><h2 className="mb-4 text-center font-poppins text-lg font-bold text-navy">{t('eligibleResultsTitle', { count: results.data?.total ?? items.length })}</h2></Reveal>
+                <Reveal><h2 className="mb-4 text-center font-display text-lg font-extrabold tracking-tight text-ink">{t('eligibleResultsTitle', { count: results.data?.total ?? items.length })}</h2></Reveal>
                 <RevealGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {items.map((p) => (
                     <RevealItem key={p.id}>
-                      <div className="rounded-organic border border-primary/10 bg-white p-4 shadow-sm">
+                      <div className="pop rounded-tile bg-card p-4">
                         <p className="text-xs text-muted-foreground">{p.university?.country?.flagEmoji} {p.university?.name}</p>
                         <Link href={`/programs/${p.slug}`} className="mt-1 block font-medium text-navy hover:text-primary">{p.name}</Link>
                         <p className="mt-1 text-sm text-muted-foreground">{t(`levels.${p.level}`)}{p.tuitionFees ? ` · ${p.tuitionFees} ${p.currency}` : ''}</p>
@@ -137,7 +131,7 @@ export function EligibilitySimulatorPage() {
               </>
             )}
 
-            <Reveal delay={0.1} className="mt-8 rounded-organic border border-primary/10 bg-white p-6 text-center shadow-sm">
+            <Reveal delay={0.1} className="mt-8 pop rounded-tile bg-card p-6 text-center">
               <p className="text-sm text-muted-foreground">{t('eligibilityDisclaimer')}</p>
               {!leadOpen && !isSubmitSuccessful && (
                 <Button className="mt-4 !rounded-full" onClick={() => setLeadOpen(true)}>{t('getPersonalizedHelp')}</Button>

@@ -1,7 +1,6 @@
 'use client';
 
-import { LoaderCircle } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { PageLoader } from './page-loader';
 import { useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/features/auth/auth-context';
 import { usePathname, useRouter } from '@/i18n/navigation';
@@ -11,7 +10,6 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   const { status, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const t = useTranslations('common');
 
   useEffect(() => {
     if (status === 'anonymous') router.replace('/login');
@@ -19,12 +17,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   }, [status, user, pathname, router]);
 
   if (status !== 'authenticated' || (user?.mustChangePassword && pathname !== '/account')) {
-    return (
-      <div role="status" className="flex min-h-screen items-center justify-center gap-2 text-sm text-muted-foreground">
-        <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />
-        {t('loading')}
-      </div>
-    );
+    return <PageLoader />;
   }
   return <>{children}</>;
 }

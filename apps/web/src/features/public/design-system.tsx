@@ -1,9 +1,9 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Plane } from 'lucide-react';
-import { useLocale } from 'next-intl';
 import type { ReactNode } from 'react';
+import { CountUp, SPRING } from '@/components/motion';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
@@ -13,15 +13,16 @@ import { cn } from '@/lib/utils';
  * ils sont petits, purement présentationnels et toujours utilisés ensemble sur les mêmes pages.
  */
 
-// ---------- Reveal : apparition progressive au défilement (section 14 du brief) ----------
+// ---------- Reveal : apparition au défilement (site public), sur les primitives partagées de motion.tsx ----------
 
 export function Reveal({ children, delay = 0, className }: { children: ReactNode; delay?: number; className?: string }) {
+  const reduce = useReducedMotion();
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
+      initial={reduce ? false : { opacity: 0.001, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-80px' }}
-      transition={{ duration: 0.5, delay, ease: 'easeOut' }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ ...SPRING, delay }}
       className={className}
     >
       {children}
@@ -31,12 +32,13 @@ export function Reveal({ children, delay = 0, className }: { children: ReactNode
 
 /** Grille dont les enfants apparaissent en cascade plutôt que tous en même temps. */
 export function RevealGroup({ children, className }: { children: ReactNode; className?: string }) {
+  const reduce = useReducedMotion();
   return (
     <motion.div
-      initial="hidden"
+      initial={reduce ? false : 'hidden'}
       whileInView="show"
-      viewport={{ once: true, margin: '-80px' }}
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
+      viewport={{ once: true, margin: '-60px' }}
+      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
       className={className}
     >
       {children}
@@ -46,7 +48,7 @@ export function RevealGroup({ children, className }: { children: ReactNode; clas
 
 export function RevealItem({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className={className}>
+    <motion.div variants={{ hidden: { opacity: 0.001, y: 16, scale: 0.98 }, show: { opacity: 1, y: 0, scale: 1 } }} transition={SPRING} className={className}>
       {children}
     </motion.div>
   );
@@ -64,15 +66,6 @@ const DESTINATION_HEROES: Record<string, string> = {
   lituanie: '/images/destinations/lituanie-hero.jpg',
 };
 
-const COUNTRY_ACCENTS: Record<string, string> = {
-  bresil: '#0F9D58',
-  malte: '#CF142B',
-  albanie: '#E41E20',
-  lituanie: '#FDB913',
-  hongrie: '#CE2939',
-  italie: '#009246',
-};
-
 const normalize = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
 
@@ -80,48 +73,34 @@ export function destinationHeroImage(countryName: string): string | null {
   return DESTINATION_HEROES[normalize(countryName)] ?? null;
 }
 
-export function countryAccentColor(countryName: string): string {
-  return COUNTRY_ACCENTS[normalize(countryName)] ?? 'hsl(var(--sw-sky))';
+/** Bento Pop : une seule couleur de marque partout — les couleurs par pays ne sont plus utilisées. */
+export function countryAccentColor(_countryName: string): string {
+  return 'hsl(var(--primary))';
 }
 
-// ---------- BrushTitle : grand titre avec un large trait de peinture derrière, comme sur les affiches ----------
+// ---------- BrushTitle : surlignage bleu plat derrière le mot important ----------
 
-export function BrushTitle({ children, color = 'hsl(var(--sw-sky))', className }: { children: ReactNode; color?: string; className?: string }) {
+export function BrushTitle({ children, color = 'hsl(var(--primary) / 0.22)', className }: { children: ReactNode; color?: string; className?: string }) {
   return (
     <span className={cn('relative inline-block', className)}>
-      <span
-        aria-hidden
-        className="absolute -inset-x-2 inset-y-1 -z-10 -rotate-1 rounded-[2rem] opacity-25 blur-[1px]"
-        style={{ background: color }}
-      />
+      <span aria-hidden className="absolute -inset-x-1 bottom-[0.08em] -z-10 h-[0.42em] rounded-md" style={{ background: color }} />
       {children}
     </span>
   );
 }
 
-// ---------- HandwrittenTagline : annotation manuscrite façon affiche ----------
+// ---------- HandwrittenTagline : phrase d'accroche (police de titre, plus de manuscrit en Bento Pop) ----------
 
 export function HandwrittenTagline({ children, className }: { children: ReactNode; className?: string }) {
-  const locale = useLocale();
-  return (
-    <p
-      className={cn(
-        'text-navy',
-        locale === 'ar' ? 'text-xl font-bold italic' : 'font-handwritten text-3xl sm:text-4xl',
-        className,
-      )}
-    >
-      {children}
-    </p>
-  );
+  return <p className={cn('font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl', className)}>{children}</p>;
 }
 
 // ---------- PlaneTrail : petit avion avec une ligne de vol en pointillés ----------
 
 export function PlaneTrail({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 160 60" className={cn('h-10 w-24 text-primary', className)} fill="none" aria-hidden>
-      <path d="M4 50 C 50 10, 90 45, 156 8" stroke="currentColor" strokeWidth="2" strokeDasharray="1 7" strokeLinecap="round" />
+    <svg viewBox="0 0 160 60" className={cn('h-10 w-24 text-ink', className)} fill="none" aria-hidden>
+      <path d="M4 50 C 50 10, 90 45, 156 8" stroke="currentColor" strokeWidth="2.5" strokeDasharray="2 7" strokeLinecap="round" />
       <motion.g
         initial={{ x: 0, y: 0 }}
         animate={{ x: [0, 3, 0], y: [0, -3, 0] }}
@@ -139,14 +118,17 @@ export function PlaneTrail({ className }: { className?: string }) {
 export function StudyWorldButton({
   href, children, variant = 'primary', accent, className,
 }: { href: string; children: ReactNode; variant?: 'primary' | 'secondary'; accent?: string; className?: string }) {
-  const style = accent && variant === 'primary' ? { backgroundColor: accent } : undefined;
+  // Bento Pop : une seule couleur de marque, l'accent par pays n'est plus appliqué (prop gardée pour compatibilité).
+  void accent;
+  const style = undefined;
   return (
     <Link
       href={href}
       style={style}
+      data-variant={variant}
       className={cn(
-        'group inline-flex h-12 items-center gap-2 rounded-full px-7 text-sm font-semibold transition-transform hover:-translate-y-0.5',
-        variant === 'primary' ? 'bg-primary text-white shadow-lg shadow-primary/25 hover:shadow-xl' : 'border-2 border-primary bg-white text-primary hover:bg-primary/5',
+        'pop pop-hover group inline-flex h-12 items-center gap-2 whitespace-nowrap rounded-xl px-6 text-sm font-bold',
+        variant === 'primary' ? 'bg-primary text-white' : 'bg-card text-ink',
         className,
       )}
     >
@@ -159,7 +141,7 @@ export function StudyWorldButton({
 
 export function FlagBadge({ flag, name }: { flag?: string | null; name: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-sm font-medium text-navy shadow-sm">
+    <span className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-ink bg-white px-3 py-1 text-sm font-bold text-ink shadow-pop-sm">
       {flag && <span aria-hidden>{flag}</span>}
       {name}
     </span>
@@ -169,66 +151,62 @@ export function FlagBadge({ flag, name }: { flag?: string | null; name: string }
 // ---------- ServiceCard ----------
 
 export function ServiceCard({
-  icon: Icon, title, description, bullets, accent, href,
+  icon: Icon, title, description, bullets, accent: _accent, href,
 }: { icon: React.ComponentType<{ className?: string }>; title: string; description: string; bullets: string[]; accent: string; href: string }) {
   return (
-    <motion.div whileHover={{ y: -6 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
-      <Link
-        href={href}
-        className="group flex flex-col rounded-organic border border-border/60 bg-white p-6 shadow-[0_8px_30px_-15px_rgba(7,44,122,0.25)]"
-      >
-        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full text-white" style={{ backgroundColor: accent }}>
-          <Icon className="h-6 w-6" />
-        </span>
-        <h3 className="text-lg font-semibold text-navy">{title}</h3>
-        <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
-        <ul className="mt-4 space-y-1.5">
-          {bullets.map((b) => (
-            <li key={b} className="flex items-start gap-2 text-sm text-foreground">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: accent }} aria-hidden />
-              {b}
-            </li>
-          ))}
-        </ul>
-        <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary group-hover:gap-2">
-          → <span className="transition-all" />
-        </span>
-      </Link>
-    </motion.div>
+    <Link href={href} className="pop pop-hover group flex h-full flex-col rounded-tile bg-card p-6">
+      <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border-pop border-ink bg-primary text-white shadow-pop-sm transition-transform duration-300 group-hover:-rotate-6">
+        <Icon className="h-6 w-6" />
+      </span>
+      <h3 className="font-display text-xl font-extrabold tracking-tight text-ink">{title}</h3>
+      <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+      <ul className="mt-4 space-y-1.5">
+        {bullets.map((b) => (
+          <li key={b} className="flex items-start gap-2 text-sm text-foreground">
+            <span className="mt-1.5 h-2 w-2 shrink-0 rounded-[3px] border border-ink bg-primary" aria-hidden />
+            {b}
+          </li>
+        ))}
+      </ul>
+      <span className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-primary transition-all group-hover:gap-2" aria-hidden>
+        <span className="rtl:rotate-180">→</span>
+      </span>
+    </Link>
   );
 }
 
 // ---------- DestinationCard : reprend directement la bannière de l'affiche quand elle existe ----------
 
 export function DestinationCard({
-  name, slug, flag, tagline,
-}: { name: string; slug: string; flag?: string | null; tagline: string }) {
+  name, slug, flag, tagline, animated = false, delay = 0,
+}: { name: string; slug: string; flag?: string | null; tagline: string; animated?: boolean; delay?: number }) {
   const hero = destinationHeroImage(name);
-  const accent = countryAccentColor(name);
 
   return (
-    <motion.div whileHover={{ y: -6 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}>
-      <Link href={`/destinations/${slug}`} className="group block overflow-hidden rounded-organic bg-white shadow-[0_10px_35px_-18px_rgba(7,44,122,0.35)]">
-        <div className="relative aspect-[4/3] overflow-hidden">
-          {hero ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={hero} alt={name} className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center" style={{ background: `linear-gradient(135deg, hsl(var(--navy)), ${accent})` }}>
-              {flag && <span className="text-6xl" aria-hidden>{flag}</span>}
-            </div>
-          )}
-        </div>
-        {!hero && (
-          <div className="p-5">
-            <p className="flex items-center gap-2 text-lg font-semibold text-navy">
-              {flag && <span aria-hidden>{flag}</span>} {name}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">{tagline}</p>
+    <Link href={`/destinations/${slug}`} className={cn('pop pop-hover group block overflow-hidden rounded-tile bg-card', animated && hero && 'p-3')}>
+      <div
+        className={cn('relative aspect-[4/3] overflow-hidden', animated && hero && 'animate-breathe rounded-xl border-[3px] border-ink')}
+        style={animated && hero ? { animationDelay: `${delay}s` } : undefined}
+      >
+        {hero ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={hero} alt={name} className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105" />
+        ) : (
+          <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-primary">
+            <MorphBlob className="-bottom-10 -end-10 h-40 w-40" />
+            {flag && <span className="relative text-6xl" aria-hidden>{flag}</span>}
           </div>
         )}
-      </Link>
-    </motion.div>
+      </div>
+      {!hero && (
+        <div className="border-t-2 border-ink p-5">
+          <p className="flex items-center gap-2 font-display text-xl font-extrabold text-ink">
+            {flag && <span aria-hidden>{flag}</span>} {name}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{tagline}</p>
+        </div>
+      )}
+    </Link>
   );
 }
 
@@ -236,49 +214,161 @@ export function DestinationCard({
 
 export function PostcardCard({ image, caption, rotate = -2 }: { image: string; caption: string; rotate?: number }) {
   return (
-    <figure className="inline-block rounded-md bg-white p-2 pb-6 shadow-lg" style={{ transform: `rotate(${rotate}deg)` }}>
+    <figure className="pop inline-block rounded-xl bg-white p-2 pb-4" style={{ transform: `rotate(${rotate}deg)` }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={image} alt={caption} className="h-32 w-44 rounded-sm object-cover sm:h-40 sm:w-56" />
-      <figcaption className="mt-2 text-center font-handwritten text-lg text-navy">{caption}</figcaption>
+      <img src={image} alt={caption} className="h-32 w-44 rounded-lg border-[1.5px] border-ink object-cover sm:h-40 sm:w-56" />
+      <figcaption className="mt-2 text-center font-display text-base font-bold text-ink">{caption}</figcaption>
     </figure>
   );
 }
 
-// ---------- JourneyTimeline : parcours 01 → 07, ligne façon trajet d'avion ----------
+// ---------- JourneyTimeline : parcours en tuiles numérotées (l'ordre est l'information) ----------
 
 export function JourneyTimeline({ steps }: { steps: { title: string; description: string }[] }) {
   return (
-    <div className="relative">
-      <div className="absolute left-1/2 top-6 hidden h-px w-[calc(100%-4rem)] -translate-x-1/2 border-t-2 border-dashed border-primary/30 lg:block" aria-hidden />
-      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-        {steps.map((step, i) => (
-          <div key={step.title} className="relative flex flex-col items-center text-center">
-            <span className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full bg-primary font-poppins text-lg font-bold text-white shadow-md">
+    <RevealGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {steps.map((step, i) => (
+        <RevealItem key={step.title}>
+          <div className="pop pop-hover h-full rounded-tile bg-card p-5">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl border-pop border-ink bg-primary font-display text-lg font-extrabold text-white shadow-pop-sm">
               {String(i + 1).padStart(2, '0')}
             </span>
-            <p className="mt-3 font-semibold text-navy">{step.title}</p>
+            <p className="mt-4 font-display text-lg font-extrabold tracking-tight text-ink">{step.title}</p>
             <p className="mt-1 text-sm text-muted-foreground">{step.description}</p>
           </div>
+        </RevealItem>
+      ))}
+    </RevealGroup>
+  );
+}
+
+// ---------- TravelSignpost : liste de puces Pop légèrement décalées ----------
+
+export function TravelSignpost({ items }: { items: string[] }) {
+  return (
+    <div className="inline-flex flex-col items-start gap-2">
+      {items.map((item, i) => (
+        <span
+          key={item}
+          className="pop rounded-xl bg-card px-4 py-1.5 text-sm font-extrabold uppercase tracking-wide text-ink"
+          style={{ marginInlineStart: `${(i % 3) * 10}px`, transform: `rotate(${i % 2 ? 1.5 : -1.5}deg)` }}
+        >
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// ---------- MorphBlob : forme translucide qui se déforme lentement (fonds des grands blocs bleus) ----------
+
+export function MorphBlob({ className }: { className?: string }) {
+  return <span aria-hidden className={cn('pointer-events-none absolute block animate-morph bg-white/15', className)} />;
+}
+
+// ---------- Briques Bento ----------
+
+export function BentoGrid({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn('grid gap-3 sm:grid-cols-2 lg:grid-cols-4', className)}>{children}</div>;
+}
+
+export function BentoTile({
+  children, className, tone = 'white', span = 1,
+}: { children: ReactNode; className?: string; tone?: 'white' | 'blue'; span?: 1 | 2 }) {
+  return (
+    <div
+      className={cn(
+        'pop pop-hover relative overflow-hidden rounded-tile p-5',
+        tone === 'blue' ? 'bg-primary text-white' : 'bg-card text-ink',
+        span === 2 && 'lg:col-span-2',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Gros chiffre qui défile jusqu'à sa valeur, avec son libellé. */
+export function StatTile({ value, label, suffix }: { value: number; label: string; suffix?: string }) {
+  return (
+    <div>
+      <p className="font-display text-4xl font-extrabold leading-none tracking-tight text-primary sm:text-5xl">
+        <CountUp value={value} />
+        {suffix}
+      </p>
+      <p className="mt-2 text-sm text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+/** Pastille « autocollant » penchée qui gigote (site public uniquement). */
+export function Sticker({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <span className={cn('pop inline-block animate-wiggle rounded-full bg-card px-3 py-1 text-xs font-extrabold text-ink', className)}>
+      {children}
+    </span>
+  );
+}
+
+/** Bandeau défilant (contenu doublé pour une boucle sans saut), en pause au survol. */
+export function Marquee({ items, className }: { items: string[]; className?: string }) {
+  // Assez d'éléments pour remplir une largeur d'écran même avec une seule destination, puis doublés pour la boucle.
+  const base = items.length ? Array.from({ length: Math.max(1, Math.ceil(8 / items.length)) }, () => items).flat() : [];
+  const row = [...base, ...base];
+  return (
+    <div className={cn('group overflow-hidden border-y-2 border-ink bg-card py-3', className)}>
+      <div className="flex w-max animate-marquee gap-8 group-hover:[animation-play-state:paused] rtl:[animation-direction:reverse]">
+        {row.map((item, i) => (
+          <span key={i} aria-hidden={i >= items.length} className="flex items-center gap-8 font-display text-lg font-extrabold text-ink">
+            {item}
+            <span className="h-2.5 w-2.5 rounded-[3px] border-[1.5px] border-ink bg-primary" aria-hidden />
+          </span>
         ))}
       </div>
     </div>
   );
 }
 
-// ---------- TravelSignpost : petit panneau directionnel façon carnet de voyage ----------
+// ---------- AnimatedFrame : cadre « Pop qui respire » des images de l'accueil (choix du propriétaire, option C) ----------
 
-export function TravelSignpost({ items }: { items: string[] }) {
+/** Contour encre épais, double ombre encre + bleue qui grandit puis revient, légère inclinaison ; autocollant optionnel. */
+export function AnimatedFrame({ children, sticker, className, delay = 0 }: { children: ReactNode; sticker?: string; className?: string; delay?: number }) {
   return (
-    <div className="inline-flex flex-col gap-1.5 rounded-lg bg-navy p-3 text-white shadow-lg">
-      {items.map((item, i) => (
-        <span
-          key={item}
-          className="border-b border-white/15 px-4 py-1.5 text-sm font-semibold uppercase tracking-wide last:border-0"
-          style={{ marginInlineStart: `${(i % 3) * 6}px` }}
-        >
-          {item}
-        </span>
-      ))}
+    <div className={cn('relative', className)}>
+      <div className="relative h-full overflow-hidden rounded-tile border-[3px] border-ink animate-breathe" style={{ animationDelay: `${delay}s` }}>
+        {children}
+      </div>
+      {sticker && <Sticker className="absolute -end-3 -top-3 z-10">{sticker}</Sticker>}
     </div>
+  );
+}
+
+// ---------- PublicPageHero : en-tête des pages publiques (grand bloc bleu Pop) ----------
+
+export function PublicPageHero({ eyebrow, title, subtitle, children }: { eyebrow?: string; title: string; subtitle?: string; children?: ReactNode }) {
+  return (
+    <section className="mx-auto max-w-6xl px-3 pt-6 sm:px-6">
+      <div className="pop relative overflow-hidden rounded-tile bg-primary px-6 pb-16 pt-10 text-white sm:px-10">
+        <MorphBlob className="-bottom-24 -end-16 h-72 w-72" />
+        <MorphBlob className="end-1/3 top-4 h-24 w-24 [animation-duration:11s]" />
+        <div className="relative max-w-2xl">
+          {eyebrow && <Sticker className="mb-4">{eyebrow}</Sticker>}
+          <h1 className="font-display text-4xl font-extrabold leading-[1.02] tracking-tight sm:text-5xl">{title}</h1>
+          {subtitle && <p className="mt-3 text-lg text-white/85">{subtitle}</p>}
+        </div>
+      </div>
+      {children && <div className="relative -mt-8 px-2 sm:px-6">{children}</div>}
+    </section>
+  );
+}
+
+/** Titre de section du site public (centré, police de titre). */
+export function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <Reveal className="mx-auto max-w-2xl text-center">
+      <h2 className="font-display text-4xl font-extrabold tracking-tight text-ink">{title}</h2>
+      {subtitle && <p className="mt-2 text-muted-foreground">{subtitle}</p>}
+    </Reveal>
   );
 }

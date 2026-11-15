@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 
 /** Bloc de base : un rectangle qui pulse doucement, pour indiquer un contenu en cours de chargement. */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-md bg-muted', className)} />;
+  return <div className={cn('animate-pulse rounded-xl bg-primary-soft', className)} />;
 }
 
 /** Remplace une liste de lignes de tableau pendant le chargement (mêmes colonnes qu'un <Table>). */
@@ -25,7 +25,7 @@ export function StatCardsSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 rounded-lg border border-border bg-card p-5">
+        <div key={i} className="flex items-center gap-4 rounded-tile border border-border bg-card p-5">
           <Skeleton className="h-11 w-11 shrink-0 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-5 w-16" />
@@ -42,7 +42,7 @@ export function ListSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="space-y-3">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 rounded-lg border border-border bg-card p-4">
+        <div key={i} className="flex items-center gap-4 rounded-tile border border-border bg-card p-4">
           <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-1/3" />

@@ -1,12 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Compass } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { EmptyState } from '@/components/empty-state';
 import { api } from '@/lib/api';
 import type { Country } from '@/lib/types';
-import { DestinationCard, Reveal, RevealGroup, RevealItem } from './design-system';
+import { DestinationCard, RevealGroup, RevealItem, PublicPageHero } from './design-system';
 import { PublicShell } from './public-shell';
 
 export function DestinationsPage() {
@@ -16,14 +15,8 @@ export function DestinationsPage() {
 
   return (
     <PublicShell>
-      <section className="mx-auto max-w-6xl px-6 py-14">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Compass className="h-5 w-5" aria-hidden />
-          </span>
-          <h1 className="mt-3 font-poppins text-3xl font-bold text-navy">{t('destinationsTitle')}</h1>
-          <p className="mt-2 text-muted-foreground">{t('destinationsSubtitle')}</p>
-        </Reveal>
+      <PublicPageHero title={t('destinationsTitle')} subtitle={t('destinationsSubtitle')} />
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
 
         {query.isLoading ? (
           <p role="status" className="mt-10 text-center text-sm text-muted-foreground">{tc('loading')}</p>

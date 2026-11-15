@@ -13,7 +13,7 @@ export function Providers({ children, dir }: { children: ReactNode; dir: 'ltr' |
     <QueryClientProvider client={client}>
       <AuthProvider>
         {children}
-        <Toaster position={dir === 'rtl' ? 'bottom-left' : 'bottom-right'} dir={dir} richColors closeButton />
+        <Toaster position={dir === 'rtl' ? 'bottom-left' : 'bottom-right'} dir={dir} richColors closeButton mobileOffset={{ bottom: 96 }} toastOptions={{ classNames: { toast: 'pop !rounded-xl !font-sans' } }} />
       </AuthProvider>
     </QueryClientProvider>
   );

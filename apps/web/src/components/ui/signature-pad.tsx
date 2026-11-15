@@ -61,7 +61,7 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
         ref={canvasRef}
         width={500}
         height={180}
-        className="w-full touch-none rounded-md border border-border bg-white"
+        className="w-full touch-none rounded-xl border-pop border-ink bg-white shadow-pop-sm"
         onPointerDown={start}
         onPointerMove={move}
         onPointerUp={end}

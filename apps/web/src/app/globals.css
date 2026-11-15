@@ -3,35 +3,40 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 33% 97%;
-  --foreground: 213 45% 14%;
+  /* Identité « Bento Pop » (voir docs/superpowers/specs/2026-11-14-bento-pop-redesign-design.md) :
+     une seule couleur de marque (bleu #2457FF), une encre foncée pour les contours et ombres Pop,
+     des couleurs d'état (succès, danger, avertissement) jamais décoratives. */
+  --ink: 229 63% 12%; /* #0B1230 */
+  --background: 225 100% 98%; /* #F3F6FF */
+  --foreground: 229 63% 12%;
   --card: 0 0% 100%;
-  --muted: 210 25% 94%;
-  --muted-foreground: 213 16% 38%;
-  --border: 210 22% 86%;
-  /* Palette de marque « Study in World — Premium Travel Editorial » (brief fourni) :
-     navy #072C7A, royal #064BB5, sky #39A9ED, blanc, fond très clair #F5F9FF.
-     Le bleu Study in World reste la couleur qui unifie tout le site (public, portails, admin) ;
-     seules les destinations reçoivent une couleur d'accent ponctuelle (voir CountryAccent). */
-  --navy: 221 89% 25%; /* #072C7A */
-  --primary: 216 94% 37%; /* #064BB5 */
+  --muted: 224 60% 95%;
+  --muted-foreground: 228 23% 38%; /* #4B5478 */
+  --border: 224 47% 89%; /* #D5DCF0 */
+  --navy: 229 63% 12%; /* redirigé vers l'encre : les text-navy existants suivent */
+  --primary: 226 100% 57%; /* #2457FF */
   --primary-foreground: 0 0% 100%;
-  --primary-soft: 210 100% 95%;
-  --sw-sky: 203 83% 58%; /* #39A9ED */
-  --sw-bg-light: 216 100% 98%; /* #F5F9FF */
-  --ring: 216 94% 37%;
-  --accent: 39 92% 55%;
+  --primary-soft: 224 100% 95%; /* #E4EBFF */
+  --sw-sky: 226 100% 70%;
+  --sw-bg-light: 225 100% 98%;
+  --ring: 226 100% 57%;
+  --accent: 39 92% 55%; /* avertissement (ambre), pas une couleur décorative */
+  --warning: 39 92% 55%;
   --destructive: 0 68% 40%;
   --destructive-soft: 0 80% 96%;
   --success: 152 60% 26%;
   --success-soft: 152 45% 92%;
+  /* Sens de l'ombre Pop : vers la droite en LTR, vers la gauche en RTL. */
+  --pop-x: 1;
 }
+
+[dir='rtl'] { --pop-x: -1; }
 
 /* Bascule de police par langue : Poppins (identité Travel Editorial) pour le français, Readex Pro pour l'arabe
    — Poppins n'a pas de glyphes arabes, il ne faut jamais casser le rendu de la version arabe pour une identité
    visuelle qui, elle, est pensée pour du texte latin. */
-.lang-fr { --font-sans: var(--font-poppins); }
-.lang-ar { --font-sans: var(--font-arabic); }
+.lang-fr { --font-sans: var(--font-sora); --font-display: var(--font-bricolage); }
+.lang-ar { --font-sans: var(--font-arabic); --font-display: var(--font-arabic); }
 
 html { -webkit-text-size-adjust: 100%; }
 body { background: hsl(var(--background)); color: hsl(var(--foreground)); font-feature-settings: 'kern', 'liga'; }
@@ -39,5 +44,54 @@ body { background: hsl(var(--background)); color: hsl(var(--foreground)); font-f
 :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  /* Une seule itération : sinon les boucles infinies (bandeau, formes, autocollants) sauteraient au hasard. */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Sur un fond bleu de marque, le contour de focus bleu serait invisible : il passe en blanc. */
+.bg-primary :focus-visible, .bg-primary:focus-visible, footer :focus-visible { outline-color: #fff; }
+
+/* ---------- Briques Bento Pop ----------
+   .pop       : objet distinct (contour encre 2px + ombre décalée 4px)
+   .pop-hover : se soulève au survol, s'enfonce au clic (ressort CSS)
+   .pop-soft  : version adoucie (contour fin, sans ombre) pour l'admin et les portails */
+@layer components {
+  .pop {
+    border: 2px solid hsl(var(--ink));
+    box-shadow: calc(var(--pop-x) * 4px) 4px 0 hsl(var(--ink));
+  }
+  .pop-soft {
+    border: 1px solid hsl(var(--border));
+    box-shadow: none;
+  }
+  .pop-hover {
+    transition: transform 250ms cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 200ms ease;
+  }
+  .pop-hover:hover:not(:disabled) {
+    transform: translate(calc(var(--pop-x) * -3px), -3px);
+    box-shadow: calc(var(--pop-x) * 7px) 7px 0 hsl(var(--ink));
+  }
+  .pop-hover:active:not(:disabled) {
+    transform: translate(calc(var(--pop-x) * 2px), 2px);
+    box-shadow: calc(var(--pop-x) * 2px) 2px 0 hsl(var(--ink));
+  }
+}
+
+h1, h2, h3, .font-display { font-family: var(--font-display), var(--font-sans), system-ui, sans-serif; }
+.tabular-nums, table { font-variant-numeric: tabular-nums; }
+
+/* Intensité automatique des cartes selon le cadre (data-surface posé par chaque shell) :
+   Pop complet sur le site public, adouci dans l'admin, les portails et les fenêtres. */
+@layer components {
+  .card-auto { border: 1px solid hsl(var(--border)); }
+  [data-surface='public'] .card-auto {
+    border: 2px solid hsl(var(--ink));
+    box-shadow: calc(var(--pop-x) * 4px) 4px 0 hsl(var(--ink));
+  }
+  /* Champs : 1px dans l'app, 2px encre sur le site public. */
+  [data-surface='public'] .field-auto:not([aria-invalid='true']):not(:focus-visible) { border-width: 2px; border-color: hsl(var(--ink)); }
 }

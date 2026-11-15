@@ -5,13 +5,14 @@ import { cn } from '@/lib/utils';
  * "Study" + un badge bleu "in" + "World") — en SVG/texte plutôt qu'une image recadrée depuis une affiche :
  * ça reste net à toute taille et sans artefact de fond, ce qu'un recadrage raster ne peut pas garantir.
  */
-export function StudyWorldLogo({ tagline = false, className }: { tagline?: boolean; className?: string }) {
+export function StudyWorldLogo({ tagline = false, animated = false, className }: { tagline?: boolean; animated?: boolean; className?: string }) {
   return (
-    <span className={cn('inline-flex flex-col', className)}>
-      <span className="inline-flex items-center gap-1.5 font-poppins font-semibold leading-none">
+    // Nom de marque latin : toujours lu de gauche à droite, même dans la version arabe.
+    <span dir="ltr" className={cn('inline-flex flex-col', className)}>
+      <span className="inline-flex items-center gap-1.5 font-display font-extrabold leading-none tracking-tight">
         <GlobeCapMark className="h-7 w-7 shrink-0" />
         <span className="text-navy">Study</span>
-        <span className="rounded-md bg-primary px-1.5 py-0.5 text-white">in</span>
+        <span className={cn('inline-block rounded-md border-[1.5px] border-ink bg-primary px-1.5 py-0.5 text-white shadow-pop-sm', animated && 'animate-hop')}>in</span>
         <span className="text-navy">World</span>
       </span>
       {tagline && <span className="mt-0.5 text-[11px] font-medium text-navy/70">Bureau de consulting &amp; préparation dossiers de visa</span>}

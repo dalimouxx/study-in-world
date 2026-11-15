@@ -24,13 +24,13 @@ export function ProgramsComparePage({ ids }: { ids: string[] }) {
   return (
     <PublicShell>
       <section className="mx-auto max-w-5xl px-6 py-14">
-        <Reveal><h1 className="mb-6 font-poppins text-3xl font-bold text-navy">{t('compareTitle')}</h1></Reveal>
+        <Reveal><h1 className="mb-6 font-display text-3xl font-extrabold tracking-tight text-ink">{t('compareTitle')}</h1></Reveal>
         {query.isLoading ? (
           <p role="status" className="text-sm text-muted-foreground">{tc('loading')}</p>
         ) : programs.length === 0 ? (
           <EmptyState title={t('emptyCompare')} />
         ) : (
-          <Reveal delay={0.1} className="overflow-x-auto rounded-organic border border-primary/10 bg-white shadow-sm">
+          <Reveal delay={0.1} className="overflow-x-auto pop rounded-tile bg-card">
             <table className="w-full min-w-[600px] border-collapse text-sm">
               <thead>
                 <tr>

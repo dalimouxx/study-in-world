@@ -10,7 +10,7 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { Link } from '@/i18n/navigation';
 import { api } from '@/lib/api';
 import type { DeadlineItem, DeadlinesResponse, DeadlineUrgency } from '@/lib/types';
-import { formatDateTime } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 
 const ICON = { APPLICATION: FileText, VISA: Plane, TASK: UserCheck, APPOINTMENT: CalendarClock, INVOICE: Receipt, PROSPECT: UserPlus };
 const TONE: Record<DeadlineUrgency, 'danger' | 'primary' | 'neutral'> = { overdue: 'danger', today: 'danger', soon: 'primary', upcoming: 'neutral' };
@@ -40,9 +40,11 @@ export function DeadlinesWidget() {
             const href = hrefFor(item);
             const content: ReactNode = (
               <>
-                <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                <span className="flex-1">
-                  <span className="block text-sm">{item.label}</span>
+                <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-[1.5px]', item.urgency === 'overdue' ? 'border-destructive bg-destructive-soft text-destructive' : 'border-ink bg-primary-soft text-primary')}>
+                  <Icon className="h-4 w-4" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-ink">{item.label}</span>
                   <span className="block text-xs text-muted-foreground">{item.candidateName || '–'} · {formatDateTime(item.date, locale)}</span>
                 </span>
                 <Badge tone={TONE[item.urgency]}>{item.urgency === 'overdue' ? t('overdueLabel') : t('daysCount', { count: item.daysUntil })}</Badge>
@@ -51,7 +53,7 @@ export function DeadlinesWidget() {
             return (
               <li key={`${item.kind}-${item.id}`}>
                 {href ? (
-                  <Link href={href} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40">{content}</Link>
+                  <Link href={href} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-primary-soft/50">{content}</Link>
                 ) : (
                   <div className="flex items-center gap-3 px-5 py-3">{content}</div>
                 )}

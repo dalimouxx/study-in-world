@@ -1,7 +1,6 @@
 'use client';
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -12,7 +11,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { Link, useRouter } from '@/i18n/navigation';
 import { api } from '@/lib/api';
 import type { Country, Paginated, Program, ProgramLevel } from '@/lib/types';
-import { Reveal, RevealGroup, RevealItem } from './design-system';
+import { Reveal, RevealGroup, RevealItem, PublicPageHero } from './design-system';
 import { PublicShell } from './public-shell';
 
 const LEVELS: ProgramLevel[] = ['LICENCE', 'MASTER', 'DOCTORAT', 'FOUNDATION', 'PREPA', 'FORMATION_PRO', 'FORMATION_PRIVEE', 'FORMATION_PUBLIQUE', 'SEJOUR_LINGUISTIQUE', 'COURS_DE_LANGUE', 'CERTIFICAT'];
@@ -54,16 +53,10 @@ export function ProgramsSearchPage() {
 
   return (
     <PublicShell>
-      <section className="mx-auto max-w-6xl px-6 py-14">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Search className="h-5 w-5" aria-hidden />
-          </span>
-          <h1 className="mt-3 font-poppins text-3xl font-bold text-navy">{t('programsTitle')}</h1>
-          <p className="mt-2 text-muted-foreground">{t('programsSubtitle')}</p>
-        </Reveal>
+      <PublicPageHero title={t('programsTitle')} subtitle={t('programsSubtitle')} />
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
 
-        <Reveal delay={0.1} className="mt-8 grid gap-3 rounded-organic border border-primary/10 bg-white p-4 shadow-sm sm:grid-cols-4">
+        <Reveal delay={0.1} className="relative -mt-14 grid gap-3 pop rounded-tile bg-card p-4 sm:grid-cols-4">
           <Input placeholder={t('searchProgramPlaceholder')} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
           <Select aria-label={t('country')} value={countryId} onChange={(e) => { setCountryId(e.target.value); setPage(1); }}>
             <option value="">{t('allCountries')}</option>
@@ -86,7 +79,7 @@ export function ProgramsSearchPage() {
               <RevealGroup className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((p) => (
                   <RevealItem key={p.id}>
-                    <div className="rounded-organic border border-primary/10 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+                    <div className="pop pop-hover rounded-tile bg-card p-5">
                       <p className="text-xs text-muted-foreground">{p.university?.country?.flagEmoji} {p.university?.name} · {p.university?.city}</p>
                       <Link href={`/programs/${p.slug}`} className="mt-1 block font-semibold text-navy hover:text-primary">{p.name}</Link>
                       <p className="mt-1 text-sm text-muted-foreground">{t(`levels.${p.level}`)}{p.tuitionFees ? ` · ${p.tuitionFees} ${p.currency}` : ''}</p>
@@ -108,7 +101,7 @@ export function ProgramsSearchPage() {
 
       {compareIds.length >= 2 && (
         <div className="fixed inset-x-0 bottom-4 z-30 flex justify-center">
-          <div className="flex items-center gap-3 rounded-full border border-primary/15 bg-white px-5 py-2 shadow-lg">
+          <div className="flex items-center gap-3 pop rounded-xl bg-card px-5 py-2">
             <span className="text-sm text-navy">{t('compareCount', { count: compareIds.length })}</span>
             <Button size="sm" className="!rounded-full" onClick={() => router.push(`/programs/compare?ids=${compareIds.join(',')}`)}>{t('compareNow')}</Button>
           </div>
