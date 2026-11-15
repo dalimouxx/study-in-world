@@ -69,8 +69,7 @@ async function checkPortalBottomNav(page, locale) {
   report(await sheet.isHidden(), 'portal-sheet-escape', ctx);
 }
 
-// Le portail perd sa session sur un rechargement complet ou un changement de langue (comportement existant,
-// antérieur à Bento Pop) : on se connecte donc directement dans chaque langue, sans recharger ensuite.
+// Connexion directe dans chaque langue (le changement de langue est couvert par portal-session-reload).
 async function checkPortal(browser, width) {
   for (const locale of LOCALES) {
     const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 }, deviceScaleFactor: 1 });
@@ -239,6 +238,11 @@ async function checkPortalRegressions(browser) {
   report(settled === 0, 'portal-invoices-error', '/portal/dashboard fr 1280', `« Tout est réglé » affiché ${settled} fois`);
   const arcs = await page.locator('[role="img"] svg circle').count();
   report(arcs === 1, 'portal-ring-zero', '/portal/dashboard fr 1280', `${arcs} cercle(s) à 0 %`);
+  // Session conservée après un rechargement complet (le refresh par cookie ne doit pas être refusé).
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  report(/\/portal\/dashboard/.test(page.url()), 'portal-session-reload', '/portal/dashboard fr 1280', page.url());
   const loops = await page.locator('main .animate-morph').count();
   report(loops === 0, 'portal-no-loops', '/portal/dashboard fr 1280', `${loops} forme(s) en boucle`);
   await ctx.close();

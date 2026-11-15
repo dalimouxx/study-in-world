@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsString, MaxLength, MinLength, IsOptional } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -9,7 +9,8 @@ export class PartnerLoginDto {
 }
 
 export class PartnerRefreshDto {
-  @IsString() refreshToken?: string;
+  // Optionnel : le navigateur envoie le token dans le cookie httpOnly (corps vide), l'application mobile dans le corps.
+  @IsOptional() @IsString() refreshToken?: string;
 }
 
 export class PartnerForgotPasswordDto {
