@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
+import { DEFAULT_TEMPLATES } from '../message-templates/defaults';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { apiError } from '../common/errors/api-error';
@@ -55,6 +56,8 @@ export class PlatformAdminService {
       data: { name: dto.name, slug, plan: dto.plan ?? 'TRIAL' },
     });
     await this.prisma.agencySettings.create({ data: { organizationId: org.id, name: dto.name } });
+    // Modèles de messages par défaut (relances, documents à fournir…), modifiables ensuite par l'agence.
+    await this.prisma.messageTemplate.createMany({ data: DEFAULT_TEMPLATES.map((t) => ({ organizationId: org.id, ...t })), skipDuplicates: true });
     const branch = await this.prisma.branch.create({ data: { organizationId: org.id, code: 'MAIN', name: dto.name } });
     const role = await this.prisma.role.create({
       data: { organizationId: org.id, code: SUPER_ADMIN_ROLE, name: 'Super Admin', description: 'Accès total, non modifiable', isSystem: true },
