@@ -31,7 +31,7 @@ function build() {
   const timeline = { add: jest.fn().mockResolvedValue({}) };
   const templates = { renderFor: jest.fn().mockResolvedValue({ name: 'Rappel', body: 'x' }) };
   const service = new RemindersService(prisma as never, {} as never, {} as never, timeline as never, templates as never, { get: jest.fn() } as never);
-  return { service, prisma, timeline, logs };
+  return { service, prisma, timeline, templates, logs };
 }
 
 beforeEach(() => detect.mockReset());
@@ -43,6 +43,14 @@ describe('Relances du jour', () => {
     const out = await service.today(actor(), 'mine');
     expect(out.items.map((i) => i.entityId).sort()).toEqual(['a1', 'a3']);
     expect(out.items.find((i) => i.entityId === 'a3')!.unassigned).toBe(true);
+  });
+
+  it('chaque relance porte son message WhatsApp rempli, dans la langue de la personne', async () => {
+    const { service, templates } = build();
+    detect.mockResolvedValue([rem('a1', 'u1', { target: { ...rem('x', 'u1').target, preferredLanguage: 'ar' } })]);
+    const out = await service.today(actor(), 'mine');
+    expect(out.items[0].whatsappText).toBe('x');
+    expect(templates.renderFor).toHaveBeenCalledWith('orgA', 'APPOINTMENT_TOMORROW', 'WHATSAPP', 'ar', expect.objectContaining({ prenom: 'Y' }));
   });
 
   it('« all » renvoie toute l’agence', async () => {

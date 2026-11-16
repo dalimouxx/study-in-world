@@ -67,7 +67,8 @@
     "partners": "Partenaires",
     "blog": "Blog",
     "siteAdmin": "Page d’accueil",
-    "platformAdmin": "Gestion des agences"
+    "platformAdmin": "Gestion des agences",
+    "reminders": "Relances"
   },
   "auth": {
     "brandFallback": "Study in World",
@@ -1569,5 +1570,48 @@
     "title": "Notifications",
     "empty": "Aucune notification",
     "markAllRead": "Tout marquer comme lu"
+  },
+  "reminders": {
+    "title": "Relances du jour",
+    "subtitle": "Ce que la plateforme a repéré pour aujourd’hui. Un clic sur WhatsApp ouvre le message prêt à envoyer.",
+    "toDo": "À faire",
+    "unassigned": "Non assignées",
+    "doneToday": "Faites aujourd’hui",
+    "mine": "Mes relances",
+    "all": "Toute l’agence",
+    "counts": "{todo, plural, =0 {Rien à faire} one {# à faire} other {# à faire}} · {done, plural, =0 {aucune faite} one {# faite} other {# faites}}",
+    "empty": "Aucune relance aujourd’hui",
+    "emptyHint": "Les rendez-vous de demain, les prospects à relancer, les factures en retard et les documents rejetés apparaîtront ici.",
+    "whatsapp": "WhatsApp",
+    "noPhone": "Pas de numéro de téléphone",
+    "openFile": "Ouvrir le dossier",
+    "done": "Fait",
+    "kinds": {
+      "APPOINTMENT_TOMORROW": "Rendez-vous demain",
+      "VISA_APPOINTMENT_TOMORROW": "Rendez-vous visa demain",
+      "PROSPECT_FOLLOW_UP": "Prospect à relancer",
+      "INVOICE_OVERDUE": "Facture en retard",
+      "DOCUMENT_REJECTED": "Document à renvoyer"
+    },
+    "summary": {
+      "APPOINTMENT_TOMORROW": "Demain {date} à {heure}",
+      "VISA_APPOINTMENT_TOMORROW": "{pays} · demain {date} à {heure}",
+      "PROSPECT_FOLLOW_UP": "Relance prévue le {date}",
+      "INVOICE_OVERDUE": "{facture} · reste {montant} {devise}",
+      "DOCUMENT_REJECTED": "{document}"
+    },
+    "auto": {
+      "EMAIL_SENT": "E-mail envoyé",
+      "EMAIL_FAILED": "Échec de l’e-mail, nouvel essai demain",
+      "NOTIFICATION_SENT": "Conseiller prévenu",
+      "EMAIL_SKIPPED_NO_EMAIL": "E-mail non envoyé : pas d’adresse",
+      "EMAIL_SKIPPED_NO_SMTP": "E-mail non envoyé : envoi d’e-mails non configuré"
+    },
+    "nextFollowUpTitle": "Prochaine relance",
+    "nextFollowUpHint": "Quand faut-il relancer ce prospect ?",
+    "nextFollowUpNone": "Aucune relance prévue",
+    "save": "Enregistrer",
+    "widgetTitle": "Relances du jour",
+    "widgetCount": "{count, plural, =0 {Rien à faire aujourd’hui} one {# relance à faire} other {# relances à faire}}"
   }
 }

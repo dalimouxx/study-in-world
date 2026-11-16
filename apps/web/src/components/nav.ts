@@ -1,15 +1,17 @@
 import {
-  BarChart3, Building2, CalendarDays, CheckSquare, GraduationCap, Gauge, Handshake, KeyRound, LayoutDashboard,
+  BarChart3, BellRing, Building2, CalendarDays, CheckSquare, GraduationCap, Gauge, Handshake, KeyRound, LayoutDashboard,
   Newspaper, PiggyBank, ScrollText, Settings, ShieldCheck, Sparkles, UserPlus, Users, Wallet, Zap, type LucideIcon,
 } from 'lucide-react';
 
 export interface NavItem {
-  href: '/dashboard' | '/prospects' | '/candidates' | '/tasks' | '/appointments' | '/cashbox' | '/expenses'
+  href: '/dashboard' | '/reminders' | '/prospects' | '/candidates' | '/tasks' | '/appointments' | '/cashbox' | '/expenses'
     | '/catalog' | '/automation' | '/reports' | '/command-center' | '/partners' | '/employees' | '/roles'
     | '/branches' | '/settings' | '/logs' | '/blog-admin' | '/platform-admin' | '/site-admin';
   labelKey: string;
   icon: LucideIcon;
   permission?: string;
+  /** Visible si l'utilisateur a au moins une de ces permissions. */
+  anyPermission?: string[];
   /** Réservé à /platform-admin : n'apparaît que si l'utilisateur a isPlatformAdmin, jamais via le RBAC normal. */
   platformAdminOnly?: boolean;
   /** Réservé au rôle Super Admin (RBAC normal, mais exclusivement ce rôle) — voir SuperAdminGuard côté API. */
@@ -19,6 +21,7 @@ export interface NavItem {
 /** Seuls les modules réellement livrés apparaissent : aucun lien vers une page qui n'existe pas encore. */
 export const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', labelKey: 'dashboard', icon: LayoutDashboard },
+  { href: '/reminders', labelKey: 'reminders', icon: BellRing, anyPermission: ['candidate.view', 'prospect.view'] },
   { href: '/command-center', labelKey: 'commandCenter', icon: Gauge, permission: 'command_center.view' },
   { href: '/prospects', labelKey: 'prospects', icon: UserPlus, permission: 'prospect.view' },
   { href: '/candidates', labelKey: 'candidates', icon: Users, permission: 'candidate.view' },

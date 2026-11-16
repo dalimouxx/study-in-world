@@ -25,6 +25,8 @@ export type TodayReminder = {
   autoChannel: { channel: 'EMAIL' | 'NOTIFICATION'; status: 'SENT' | 'SKIPPED' | 'FAILED'; at: string; error: string | null } | null;
   assignedToId: string | null;
   unassigned: boolean;
+  /** Message WhatsApp déjà rempli, dans la langue de la personne (ouvert tel quel au clic, sans aller-retour). */
+  whatsappText: string;
 };
 
 export type RunSummary = { organizationId: string; counts: Record<string, { SENT: number; SKIPPED: number; FAILED: number }> };
@@ -163,6 +165,7 @@ export class RemindersService {
         autoChannel: auto ? { channel: auto.channel as 'EMAIL' | 'NOTIFICATION', status: auto.status, at: auto.createdAt.toISOString(), error: auto.error ?? null } : null,
         assignedToId: r.target.assignedToId,
         unassigned: !r.target.assignedToId,
+        whatsappText: (await this.templates.renderFor(actor.organizationId, r.kind, 'WHATSAPP', r.target.preferredLanguage, this.varsFor(r, tz))).body,
       };
       (logs.some((l) => l.dedupeKey === key && l.status === 'SENT') ? doneToday : items).push(row);
     }
