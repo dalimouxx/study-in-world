@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsEmail, IsIn, IsOptional, IsString, IsUrl, MaxLength, MinLength, ValidateIf, ValidateNested } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, IsUrl, MaxLength, MinLength, ValidateIf, ValidateNested, IsTimeZone } from 'class-validator';
 
 const url = { require_protocol: true, protocols: ['http', 'https'] };
 const notEmpty = (_: unknown, v: unknown) => v !== '';
@@ -33,7 +33,8 @@ export class UpdateAgencySettingsDto {
   @IsOptional() @IsString() @MaxLength(60) taxId?: string;
   @IsOptional() @IsString() @MaxLength(1000) bankDetails?: string;
   @IsOptional() @IsIn(['TND', 'EUR', 'USD']) currency?: string;
-  @IsOptional() @IsString() @MaxLength(60) timezone?: string;
+  /** Fuseau IANA (ex. Africa/Tunis) : sert aux dates « aujourd'hui / demain » et à l'heure de la tournée des relances. */
+  @IsOptional() @IsString() @MaxLength(60) @IsTimeZone() timezone?: string;
   @IsOptional() @IsString() @MaxLength(20000) privacyPolicy?: string;
   @IsOptional() @IsString() @MaxLength(20000) termsOfService?: string;
   @IsOptional() @IsString() @MaxLength(20000) legalNotice?: string;

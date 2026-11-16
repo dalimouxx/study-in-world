@@ -48,7 +48,18 @@ const AUTO_CHANNEL: Record<DetectedReminder['kind'], 'EMAIL' | 'NOTIFICATION'> =
   PROSPECT_FOLLOW_UP: 'NOTIFICATION',
 };
 
-const isUniqueViolation = (e: unknown) => (e as { code?: string })?.code === 'P2002';
+/** Fuseau de l'agence s'il est valide (IANA), sinon le fuseau par défaut : un réglage erroné ne casse aucun calcul. */
+export function safeTimeZone(tz: string | null | undefined): string {
+  if (!tz) return DEFAULT_TZ;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: tz });
+    return tz;
+  } catch {
+    return DEFAULT_TZ;
+  }
+}
+
+const isUniqueViolation =(e: unknown) => (e as { code?: string })?.code === 'P2002';
 
 /**
  * Tournée du matin des relances. Idempotente : seule une ligne SENT porte la clé exacte (contrainte d'unicité),
@@ -80,19 +91,26 @@ export class RemindersService {
   }
 
   async runDue(now: Date, mode: 'cron' | 'external'): Promise<RunSummary[]> {
-    const orgs = await this.prisma.organization.findMany({ select: { id: true, settings: { select: { timezone: true } } } });
+    const orgs = await this.prisma.organization.findMany({ where: { isActive: true }, select: { id: true, settings: { select: { timezone: true } } } });
     const out: RunSummary[] = [];
     for (const org of orgs) {
-      const tz = org.settings?.timezone || DEFAULT_TZ;
-      if (mode === 'cron' && localHour(now, tz) !== 7) continue;
-      out.push(await this.runForOrganization(org.id, now, tz));
+      // Chaque agence est isolée : une erreur (fuseau, base…) n'empêche jamais la tournée des suivantes.
+      try {
+        const tz = safeTimeZone(org.settings?.timezone);
+        const hour = localHour(now, tz);
+        // Réveil intégré : seulement à 07:xx. Réveil extérieur : à partir de 07:00, jamais la nuit (idempotent ensuite).
+        if (mode === 'cron' ? hour !== 7 : hour < 7) continue;
+        out.push(await this.runForOrganization(org.id, now, tz));
+      } catch (e) {
+        this.logger.error(`Tournée des relances de l'agence ${org.id} interrompue : ${(e as Error).message}`);
+      }
     }
     return out;
   }
 
   async timezoneOf(organizationId: string): Promise<string> {
     const s = await this.prisma.agencySettings.findUnique({ where: { organizationId }, select: { timezone: true } });
-    return s?.timezone || DEFAULT_TZ;
+    return safeTimeZone(s?.timezone);
   }
 
   async runForOrganization(organizationId: string, now: Date, timeZone?: string): Promise<RunSummary> {
@@ -181,6 +199,11 @@ export class RemindersService {
     const tz = await this.timezoneOf(actor.organizationId);
     const r = (await detectReminders(this.prisma, actor.organizationId, now, tz)).find((x) => dedupeKeyFor(x, 'WHATSAPP') === dto.key);
     if (!r || !this.visibleFor(actor, r)) throw apiError(HttpStatus.NOT_FOUND, 'REMINDER_NOT_FOUND', 'Relance introuvable');
+    // Repousser ou annuler la prochaine relance modifie le prospect : il faut le droit de gérer les prospects.
+    const changesFollowUp = r.kind === 'PROSPECT_FOLLOW_UP' && dto.nextFollowUpAt !== undefined;
+    if (changesFollowUp && !actor.permissions.includes('prospect.manage')) {
+      throw apiError(HttpStatus.FORBIDDEN, 'FORBIDDEN', 'Permission insuffisante pour modifier la prochaine relance');
+    }
 
     const created = await this.prisma.reminderLog
       .create({ data: { organizationId: actor.organizationId, kind: r.kind, entityType: r.entityType, entityId: r.entityId, channel: 'WHATSAPP', dedupeKey: dto.key, status: 'SENT', sentById: actor.id } })
@@ -230,6 +253,16 @@ export class RemindersService {
     await this.prisma.reminderLog.delete({ where: { organizationId_dedupeKey: { organizationId, dedupeKey: key } } });
   }
 
+  /** Après un échec survenu une fois la clé verrouillée : libère la clé (la relance sera retentée) et note l'échec. */
+  private async releaseAfterFailure(organizationId: string, r: DetectedReminder, channel: ReminderChannel, key: string, error: unknown) {
+    try {
+      await this.unlock(organizationId, key);
+    } catch (e) {
+      this.logger.error(`Impossible de libérer la clé ${key} : ${(e as Error).message}`);
+    }
+    await this.logAside(organizationId, r, channel, key, 'FAILED', (error as Error)?.message ?? String(error)).catch(() => undefined);
+  }
+
   private async emailOnce(organizationId: string, r: DetectedReminder, now: Date, tz: string): Promise<'SENT' | 'SKIPPED' | 'FAILED' | null> {
     const key = dedupeKeyFor(r, 'EMAIL');
     if (await this.alreadySent(organizationId, key)) return null;
@@ -249,12 +282,13 @@ export class RemindersService {
     }
     if (!(await this.lock(organizationId, r, 'EMAIL', key))) return null;
 
-    const msg = await this.templates.renderFor(organizationId, r.kind, 'EMAIL', r.target.preferredLanguage, this.varsFor(r, tz));
+    // Tout ce qui suit le verrouillage peut échouer (modèle, envoi) : la clé est alors libérée pour être retentée.
+    let msg: { name: string; subject?: string; body: string };
     try {
-      await this.mail.send(r.target.email, msg.subject ?? msg.name, msg.body, toHtml(msg.body, r.target.preferredLanguage));
+      msg = await this.templates.renderFor(organizationId, r.kind, 'EMAIL', r.target.preferredLanguage, this.varsFor(r, tz));
+      await this.mail.send(r.target.email, msg.subject || msg.name, msg.body, toHtml(msg.body, r.target.preferredLanguage));
     } catch (e) {
-      await this.unlock(organizationId, key);
-      await this.logAside(organizationId, r, 'EMAIL', key, 'FAILED', (e as Error).message);
+      await this.releaseAfterFailure(organizationId, r, 'EMAIL', key, e);
       return 'FAILED';
     }
     await this.timeline.add(organizationId, r.target.type, r.target.id, 'EMAIL', `Rappel envoyé par e-mail : ${msg.name}`);
@@ -267,7 +301,12 @@ export class RemindersService {
     if (await this.alreadySent(organizationId, key)) return null;
     if (!(await this.lock(organizationId, r, 'NOTIFICATION', key))) return null;
     const name = `${r.target.firstName} ${r.target.lastName}`.trim();
-    await this.notifications.notify(organizationId, r.target.assignedToId, 'REMINDER', `Prospect à relancer : ${name}`, 'Relance prévue aujourd’hui', '/prospects');
+    try {
+      await this.notifications.notify(organizationId, r.target.assignedToId, 'REMINDER', `Prospect à relancer : ${name}`, 'Relance prévue aujourd’hui', '/prospects');
+    } catch (e) {
+      await this.releaseAfterFailure(organizationId, r, 'NOTIFICATION', key, e);
+      throw e;
+    }
     return 'SENT';
   }
 
@@ -285,39 +324,61 @@ export class RemindersService {
     });
     const out: ('SENT' | 'SKIPPED')[] = [];
     for (const u of users) {
-      const mine = reminders.filter((r) => r.target.assignedToId === u.id);
-      const myTasks = tasks.filter((t) => t.assignedToId === u.id);
-      if (!mine.length && !myTasks.length) continue;
-      const lang = u.locale === 'ar' ? 'ar' : 'fr';
-      const lines = [
-        ...mine.map((r) => `• ${LABEL[lang][r.kind]} — ${r.target.firstName} ${r.target.lastName}`),
-        ...myTasks.map((t) => `• ${lang === 'ar' ? 'مهمة' : 'Tâche'} — ${t.title}`),
-      ];
-      const fake = { kind: 'DAILY_DIGEST', entityType: 'USER', entityId: u.id, cycle: day } as unknown as DetectedReminder;
+      // Chaque employé est isolé : une erreur pour l'un n'empêche pas le récapitulatif des autres.
+      try {
+        out.push(...(await this.digestFor(organizationId, u, reminders, tasks, now, tz, day)));
+      } catch (e) {
+        this.logger.error(`Récapitulatif de l'employé ${u.id} : ${(e as Error).message}`);
+      }
+    }
+    return out;
+  }
 
-      const notifKey = `DAILY_DIGEST:NOTIFICATION:${u.id}:${day}`;
-      if (!(await this.alreadySent(organizationId, notifKey)) && (await this.lock(organizationId, fake, 'NOTIFICATION', notifKey))) {
+  private async digestFor(
+    organizationId: string,
+    u: { id: string; firstName: string; email: string | null; locale: string | null },
+    reminders: DetectedReminder[],
+    tasks: { title: string; assignedToId: string | null }[],
+    now: Date,
+    tz: string,
+    day: string,
+  ): Promise<('SENT' | 'SKIPPED')[]> {
+    const out: ('SENT' | 'SKIPPED')[] = [];
+    const mine = reminders.filter((r) => r.target.assignedToId === u.id);
+    const myTasks = tasks.filter((t) => t.assignedToId === u.id);
+    if (!mine.length && !myTasks.length) return out;
+    const lang = u.locale === 'ar' ? 'ar' : 'fr';
+    const lines = [
+      ...mine.map((r) => `• ${LABEL[lang][r.kind]} — ${r.target.firstName} ${r.target.lastName}`),
+      ...myTasks.map((t) => `• ${lang === 'ar' ? 'مهمة' : 'Tâche'} — ${t.title}`),
+    ];
+    const fake = { kind: 'DAILY_DIGEST', entityType: 'USER', entityId: u.id, cycle: day } as unknown as DetectedReminder;
+
+    const notifKey = `DAILY_DIGEST:NOTIFICATION:${u.id}:${day}`;
+    if (!(await this.alreadySent(organizationId, notifKey)) && (await this.lock(organizationId, fake, 'NOTIFICATION', notifKey))) {
+      try {
         await this.notifications.notify(organizationId, u.id, 'DAILY_DIGEST', lang === 'ar' ? 'ملخص يومك' : 'Votre journée', lines.slice(0, 5).join('\n'), '/reminders');
         out.push('SENT');
+      } catch (e) {
+        await this.releaseAfterFailure(organizationId, fake, 'NOTIFICATION', notifKey, e);
       }
+    }
 
-      const mailKey = `DAILY_DIGEST:EMAIL:${u.id}:${day}`;
-      if (await this.alreadySent(organizationId, mailKey)) continue;
-      if (!u.email || !this.mail.isConfigured()) {
-        await this.logAside(organizationId, fake, 'EMAIL', mailKey, 'SKIPPED', !u.email ? 'Pas d’adresse e-mail' : 'SMTP non configuré');
-        out.push('SKIPPED');
-        continue;
-      }
-      if (!(await this.lock(organizationId, fake, 'EMAIL', mailKey))) continue;
+    const mailKey = `DAILY_DIGEST:EMAIL:${u.id}:${day}`;
+    if (await this.alreadySent(organizationId, mailKey)) return out;
+    if (!u.email || !this.mail.isConfigured()) {
+      await this.logAside(organizationId, fake, 'EMAIL', mailKey, 'SKIPPED', !u.email ? 'Pas d’adresse e-mail' : 'SMTP non configuré');
+      out.push('SKIPPED');
+      return out;
+    }
+    if (!(await this.lock(organizationId, fake, 'EMAIL', mailKey))) return out;
+    try {
       const msg = await this.templates.renderFor(organizationId, 'DAILY_DIGEST', 'EMAIL', lang, { prenom: u.firstName, date: formatDateFor(lang, now, tz).date });
       const body = `${msg.body}\n\n${lines.join('\n')}`;
-      try {
-        await this.mail.send(u.email, msg.subject ?? msg.name, body, toHtml(body, lang));
-        out.push('SENT');
-      } catch (e) {
-        await this.unlock(organizationId, mailKey);
-        await this.logAside(organizationId, fake, 'EMAIL', mailKey, 'FAILED', (e as Error).message);
-      }
+      await this.mail.send(u.email, msg.subject || msg.name, body, toHtml(body, lang));
+      out.push('SENT');
+    } catch (e) {
+      await this.releaseAfterFailure(organizationId, fake, 'EMAIL', mailKey, e);
     }
     return out;
   }
