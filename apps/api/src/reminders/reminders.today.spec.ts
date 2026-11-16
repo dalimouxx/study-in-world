@@ -96,11 +96,19 @@ describe('Relances du jour', () => {
     expect(timeline.add).toHaveBeenCalledWith('orgA', 'CANDIDATE', 'c-a1', 'NOTE', expect.stringContaining('WhatsApp'), 'u1');
   });
 
+  it('done refuse de modifier la prochaine relance sans la permission prospect.manage', async () => {
+    const { service, prisma } = build();
+    const p = rem('p1', 'u1', { kind: 'PROSPECT_FOLLOW_UP', entityType: 'PROSPECT', cycle: '2026-11-16', target: { ...rem('x', 'u1').target, type: 'PROSPECT', id: 'p1' } });
+    detect.mockResolvedValue([p]);
+    await expect(service.markDone(actor(['prospect.view']), { key: 'PROSPECT_FOLLOW_UP:WHATSAPP:p1:2026-11-16', nextFollowUpAt: null })).rejects.toMatchObject({ status: 403 });
+    expect(prisma.prospect.update).not.toHaveBeenCalled();
+  });
+
   it('done met à jour la prochaine relance du prospect (null = aucune)', async () => {
     const { service, prisma } = build();
     const p = rem('p1', 'u1', { kind: 'PROSPECT_FOLLOW_UP', entityType: 'PROSPECT', cycle: '2026-11-16', target: { ...rem('x', 'u1').target, type: 'PROSPECT', id: 'p1' } });
     detect.mockResolvedValue([p]);
-    await service.markDone(actor(), { key: 'PROSPECT_FOLLOW_UP:WHATSAPP:p1:2026-11-16', nextFollowUpAt: '2026-11-19T08:00:00.000Z' });
+    await service.markDone(actor(['prospect.view', 'prospect.manage']), { key: 'PROSPECT_FOLLOW_UP:WHATSAPP:p1:2026-11-16', nextFollowUpAt: '2026-11-19T08:00:00.000Z' });
     expect(prisma.prospect.update).toHaveBeenCalledWith({ where: { id: 'p1' }, data: { nextFollowUpAt: new Date('2026-11-19T08:00:00.000Z') } });
   });
 });

@@ -152,11 +152,67 @@ describe('RemindersService.runDue', () => {
     expect(out.map((r) => r.organizationId)).toEqual(['orgTunis']);
   });
 
-  it('le réveil extérieur traite toutes les agences', async () => {
+  it('le réveil extérieur traite toutes les agences dont la matinée a commencé (07:00 locale ou plus)', async () => {
     const { service, prisma } = build();
     prisma.organization.findMany.mockResolvedValue([{ id: 'a', settings: null }, { id: 'b', settings: { timezone: 'Asia/Tokyo' } }]);
     detect.mockResolvedValue([]);
     expect((await service.runDue(NOW, 'external')).map((r) => r.organizationId)).toEqual(['a', 'b']);
+  });
+
+  it('le réveil extérieur appelé la nuit (avant 07:00 locale) n’envoie rien', async () => {
+    const { service, prisma } = build();
+    prisma.organization.findMany.mockResolvedValue([{ id: 'a', settings: { timezone: 'Africa/Tunis' } }]);
+    detect.mockResolvedValue([appointment()]);
+    expect(await service.runDue(new Date('2026-11-16T03:00:00Z'), 'external')).toEqual([]); // 04:00 à Tunis
+  });
+
+  it('ignore les agences désactivées', async () => {
+    const { service, prisma } = build();
+    detect.mockResolvedValue([]);
+    await service.runDue(NOW, 'external');
+    expect(prisma.organization.findMany.mock.calls[0][0].where).toMatchObject({ isActive: true });
+  });
+
+  it('un fuseau invalide n’empêche pas la tournée des autres agences', async () => {
+    const { service, prisma } = build();
+    prisma.organization.findMany.mockResolvedValue([{ id: 'bad', settings: { timezone: 'Tunis' } }, { id: 'good', settings: { timezone: 'Africa/Tunis' } }]);
+    detect.mockResolvedValue([]);
+    const out = await service.runDue(NOW, 'external');
+    expect(out.map((r) => r.organizationId)).toContain('good');
+  });
+});
+
+describe('RemindersService — échec après le verrouillage', () => {
+  it('si la préparation du message échoue, la clé est libérée et l’e-mail repart à la tournée suivante', async () => {
+    const { service, mail, logs } = build();
+    const templates = (service as unknown as { templates: { renderFor: jest.Mock } }).templates;
+    templates.renderFor.mockRejectedValueOnce(new Error('base indisponible'));
+    detect.mockResolvedValue([appointment()]);
+    await service.runForOrganization('orgA', NOW);
+    expect(logs.some((l) => l.dedupeKey === 'APPOINTMENT_TOMORROW:EMAIL:a1')).toBe(false);
+    await service.runForOrganization('orgA', NOW);
+    expect(mail.send).toHaveBeenCalledTimes(1);
+  });
+
+  it('si la notification échoue, la clé est libérée', async () => {
+    const { service, notifications, logs } = build();
+    notifications.notify.mockRejectedValueOnce(new Error('boom'));
+    const p = { ...appointment(), kind: 'PROSPECT_FOLLOW_UP' as const, entityType: 'PROSPECT' as const, entityId: 'p1', cycle: '2026-11-16', target: target({ type: 'PROSPECT', id: 'p1' }) };
+    detect.mockResolvedValue([p]);
+    await service.runForOrganization('orgA', NOW);
+    expect(logs.some((l) => l.dedupeKey === 'PROSPECT_FOLLOW_UP:NOTIFICATION:p1:2026-11-16')).toBe(false);
+  });
+
+  it('une erreur pour un employé n’arrête pas le récapitulatif des autres', async () => {
+    const { service, prisma, notifications } = build();
+    detect.mockResolvedValue([appointment(), appointment({ entityId: 'a2', target: target({ id: 'c2', assignedToId: 'u2' }) })]);
+    prisma.user.findMany.mockResolvedValue([
+      { id: 'u1', firstName: 'A', email: 'a@demo.tn', locale: 'fr' },
+      { id: 'u2', firstName: 'B', email: 'b@demo.tn', locale: 'fr' },
+    ]);
+    notifications.notify.mockImplementation((_o: string, userId: string, type: string) => (type === 'DAILY_DIGEST' && userId === 'u1' ? Promise.reject(new Error('x')) : Promise.resolve({})));
+    await service.runForOrganization('orgA', NOW);
+    expect(notifications.notify.mock.calls.some((c) => c[1] === 'u2' && c[2] === 'DAILY_DIGEST')).toBe(true);
   });
 });
 
