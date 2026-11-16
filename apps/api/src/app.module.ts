@@ -1,4 +1,6 @@
 import { MessageTemplatesModule } from './message-templates/message-templates.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { RemindersModule } from './reminders/reminders.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -56,6 +58,8 @@ import { VisaModule } from './visa/visa.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
     MessageTemplatesModule,
+    ScheduleModule.forRoot(),
+    RemindersModule,
     AuditModule,
     AutomationModule,
     MailModule,
