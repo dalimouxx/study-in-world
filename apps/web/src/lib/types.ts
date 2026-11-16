@@ -191,6 +191,7 @@ interface PersonRef {
 export type LeadCategory = 'hot' | 'warm' | 'cold';
 
 export interface Prospect {
+  preferredLanguage: 'fr' | 'ar';
   id: string;
   firstName: string;
   lastName: string;
@@ -215,6 +216,7 @@ export interface Prospect {
 }
 
 export interface Candidate {
+  preferredLanguage: 'fr' | 'ar';
   id: string;
   firstName: string;
   lastName: string;

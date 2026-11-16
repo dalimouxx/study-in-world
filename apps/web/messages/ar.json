@@ -38,7 +38,10 @@
     "searchNoResults": "لا توجد نتائج",
     "candidatesGroup": "المترشحون",
     "prospectsGroup": "العملاء المحتملون",
-    "exportFailed": "فشل التصدير، حاول مرة أخرى."
+    "exportFailed": "فشل التصدير، حاول مرة أخرى.",
+    "preferredLanguage": "اللغة المفضلة",
+    "languageFr": "Français",
+    "languageAr": "العربية"
   },
   "nav": {
     "main": "التنقل الرئيسي",

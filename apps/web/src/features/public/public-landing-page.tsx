@@ -91,7 +91,7 @@ export function PublicLandingPage() {
   const [guideUnlocked, setGuideUnlocked] = useState(false);
 
   const submit = useMutation({
-    mutationFn: (v: ContactValues) => api('/public/leads', { method: 'POST', body: { ...v, email: v.email || undefined, message: v.message || undefined }, auth: false }),
+    mutationFn: (v: ContactValues) => api('/public/leads', { method: 'POST', body: { ...v, email: v.email || undefined, message: v.message || undefined, locale }, auth: false }),
     onSuccess: () => { toast.success(t('contactSent')); reset(); },
     onError: (err) => toast.error(errorMessage(err)),
   });
@@ -100,7 +100,7 @@ export function PublicLandingPage() {
   // Pas d'envoi par e-mail (le SMTP n'est pas garanti configuré) : on capte le lead comme pour le
   // formulaire de contact, puis on débloque immédiatement le téléchargement direct du PDF.
   const leadMagnetSubmit = useMutation({
-    mutationFn: (v: LeadMagnetValues) => api('/public/leads', { method: 'POST', body: { ...v, campaign: 'guide-telechargement' }, auth: false }),
+    mutationFn: (v: LeadMagnetValues) => api('/public/leads', { method: 'POST', body: { ...v, campaign: 'guide-telechargement', locale }, auth: false }),
     onSuccess: () => setGuideUnlocked(true),
     onError: (err) => toast.error(errorMessage(err)),
   });

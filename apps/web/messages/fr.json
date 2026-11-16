@@ -38,7 +38,10 @@
     "searchNoResults": "Aucun résultat",
     "candidatesGroup": "Candidats",
     "prospectsGroup": "Prospects",
-    "exportFailed": "L'export a échoué, réessayez."
+    "exportFailed": "L'export a échoué, réessayez.",
+    "preferredLanguage": "Langue préférée",
+    "languageFr": "Français",
+    "languageAr": "العربية"
   },
   "nav": {
     "main": "Navigation principale",

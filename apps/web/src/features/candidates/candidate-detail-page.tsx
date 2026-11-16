@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { RequirePermission } from '@/components/require-permission';
+import { LanguagePreferenceSelect } from '@/components/language-preference-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -100,6 +101,14 @@ function Content({ candidateId }: { candidateId: string }) {
           </dd>
         </div>
         <div>
+          <dt className="text-muted-foreground">{tc('preferredLanguage')}</dt>
+          <dd>
+            {can('candidate.manage') ? (
+              <PreferredLanguageSelect candidateId={candidateId} value={c.preferredLanguage ?? 'fr'} />
+            ) : c.preferredLanguage === 'ar' ? tc('languageAr') : tc('languageFr')}
+          </dd>
+        </div>
+        <div>
           <dt className="text-muted-foreground">{t('portalAccess')}</dt>
           <dd>
             {c.portalActivatedAt ? (
@@ -163,4 +172,16 @@ function PartnerLinkSelect({ candidateId, value }: { candidateId: string; value:
       {(partners.data?.items ?? []).map((p) => <option key={p.id} value={p.id}>{p.companyName}</option>)}
     </Select>
   );
+}
+
+function PreferredLanguageSelect({ candidateId, value }: { candidateId: string; value: 'fr' | 'ar' }) {
+  const tc = useTranslations('common');
+  const errorMessage = useErrorMessage();
+  const queryClient = useQueryClient();
+  const update = useMutation({
+    mutationFn: (preferredLanguage: string) => api(`/candidates/${candidateId}`, { method: 'PATCH', body: { preferredLanguage } }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['candidates', candidateId] }),
+    onError: (err) => toast.error(errorMessage(err)),
+  });
+  return <LanguagePreferenceSelect className="h-8 w-auto text-sm" aria-label={tc('preferredLanguage')} value={value} onChange={(e) => update.mutate(e.target.value)} />;
 }
