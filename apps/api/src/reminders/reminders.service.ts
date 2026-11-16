@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import type { AuthUser } from '../common/auth-user';
+import { apiError } from '../common/errors/api-error';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import type { ReminderChannel } from '@prisma/client';
@@ -11,6 +13,19 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TimelineService } from '../timeline/timeline.service';
 import { detectReminders, type DetectedReminder } from './reminders.detect';
 import { DAY_MS, dayRange, localDateKey, localHour } from './time';
+
+export type TodayReminder = {
+  key: string;
+  kind: DetectedReminder['kind'];
+  entityType: DetectedReminder['entityType'];
+  entityId: string;
+  target: { type: 'CANDIDATE' | 'PROSPECT'; id: string; name: string; phone: string | null; preferredLanguage: 'fr' | 'ar' };
+  at: string | null;
+  summary: TemplateVars;
+  autoChannel: { channel: 'EMAIL' | 'NOTIFICATION'; status: 'SENT' | 'SKIPPED' | 'FAILED'; at: string; error: string | null } | null;
+  assignedToId: string | null;
+  unassigned: boolean;
+};
 
 export type RunSummary = { organizationId: string; counts: Record<string, { SENT: number; SKIPPED: number; FAILED: number }> };
 
@@ -103,6 +118,78 @@ export class RemindersService {
     }
     this.logger.log(`Relances ${organizationId} : ${JSON.stringify(summary.counts)}`);
     return summary;
+  }
+
+  private assertCanSeeReminders(actor: AuthUser) {
+    if (!actor.permissions.includes('candidate.view') && !actor.permissions.includes('prospect.view')) {
+      throw apiError(HttpStatus.FORBIDDEN, 'FORBIDDEN', 'Permission insuffisante');
+    }
+  }
+
+  private visibleFor(actor: AuthUser, r: DetectedReminder) {
+    return actor.permissions.includes(r.target.type === 'CANDIDATE' ? 'candidate.view' : 'prospect.view');
+  }
+
+  /**
+   * Page « Relances du jour » : calculée à l'ouverture avec la même détection que la tournée du matin
+   * (elle ne dépend donc d'aucun réveil). « mine » = mes relances + les non assignées ; « all » = toute l'agence.
+   */
+  async today(actor: AuthUser, scope: 'mine' | 'all', now = new Date()): Promise<{ items: TodayReminder[]; doneToday: TodayReminder[] }> {
+    this.assertCanSeeReminders(actor);
+    const tz = await this.timezoneOf(actor.organizationId);
+    const detected = (await detectReminders(this.prisma, actor.organizationId, now, tz))
+      .filter((r) => this.visibleFor(actor, r))
+      .filter((r) => scope === 'all' || !r.target.assignedToId || r.target.assignedToId === actor.id);
+    if (!detected.length) return { items: [], doneToday: [] };
+
+    const since = dayRange(now, tz, 0).start;
+    const logs = await this.prisma.reminderLog.findMany({
+      where: { organizationId: actor.organizationId, entityId: { in: [...new Set(detected.map((r) => r.entityId))] }, createdAt: { gte: new Date(since.getTime() - 7 * DAY_MS) } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const lang = actor.locale === 'ar' ? 'ar' : 'fr';
+    const items: TodayReminder[] = [];
+    const doneToday: TodayReminder[] = [];
+    for (const r of detected) {
+      const key = dedupeKeyFor(r, 'WHATSAPP');
+      const autoKey = dedupeKeyFor(r, AUTO_CHANNEL[r.kind]);
+      const auto = logs.find((l) => l.dedupeKey === autoKey || l.dedupeKey.startsWith(`${autoKey}#`));
+      const when = r.at ? formatDateFor(lang, r.at, tz) : { date: '', heure: '' };
+      const row: TodayReminder = {
+        key, kind: r.kind, entityType: r.entityType, entityId: r.entityId,
+        target: { type: r.target.type, id: r.target.id, name: `${r.target.firstName} ${r.target.lastName}`.trim(), phone: r.target.phone, preferredLanguage: r.target.preferredLanguage },
+        at: r.at ? r.at.toISOString() : null,
+        summary: { ...r.vars, ...when },
+        autoChannel: auto ? { channel: auto.channel as 'EMAIL' | 'NOTIFICATION', status: auto.status, at: auto.createdAt.toISOString(), error: auto.error ?? null } : null,
+        assignedToId: r.target.assignedToId,
+        unassigned: !r.target.assignedToId,
+      };
+      (logs.some((l) => l.dedupeKey === key && l.status === 'SENT') ? doneToday : items).push(row);
+    }
+    return { items, doneToday };
+  }
+
+  /**
+   * Le conseiller a envoyé le WhatsApp : la relance est marquée faite (journal + chronologie), et pour un prospect
+   * la prochaine relance peut être repoussée (`null` = plus de relance prévue).
+   */
+  async markDone(actor: AuthUser, dto: { key: string; nextFollowUpAt?: string | null }, now = new Date()): Promise<{ ok: true }> {
+    this.assertCanSeeReminders(actor);
+    const tz = await this.timezoneOf(actor.organizationId);
+    const r = (await detectReminders(this.prisma, actor.organizationId, now, tz)).find((x) => dedupeKeyFor(x, 'WHATSAPP') === dto.key);
+    if (!r || !this.visibleFor(actor, r)) throw apiError(HttpStatus.NOT_FOUND, 'REMINDER_NOT_FOUND', 'Relance introuvable');
+
+    const created = await this.prisma.reminderLog
+      .create({ data: { organizationId: actor.organizationId, kind: r.kind, entityType: r.entityType, entityId: r.entityId, channel: 'WHATSAPP', dedupeKey: dto.key, status: 'SENT', sentById: actor.id } })
+      .then(() => true, (e) => (isUniqueViolation(e) ? false : Promise.reject(e)));
+    if (created) {
+      const msg = await this.templates.renderFor(actor.organizationId, r.kind, 'WHATSAPP', r.target.preferredLanguage, {});
+      await this.timeline.add(actor.organizationId, r.target.type, r.target.id, 'NOTE', `Relance WhatsApp envoyée : ${msg.name}`, actor.id);
+    }
+    if (r.kind === 'PROSPECT_FOLLOW_UP' && dto.nextFollowUpAt !== undefined) {
+      await this.prisma.prospect.update({ where: { id: r.entityId }, data: { nextFollowUpAt: dto.nextFollowUpAt ? new Date(dto.nextFollowUpAt) : null } });
+    }
+    return { ok: true };
   }
 
   /** Variables communes d'un message : identité de la personne, date et heure formatées dans sa langue. */
