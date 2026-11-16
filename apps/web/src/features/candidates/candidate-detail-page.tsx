@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { RequirePermission } from '@/components/require-permission';
+import { SendMessageButton } from '@/features/message-templates/send-message-dialog';
 import { LanguagePreferenceSelect } from '@/components/language-preference-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -81,6 +82,7 @@ function Content({ candidateId }: { candidateId: string }) {
             <Button variant="secondary" size="sm" onClick={() => window.open(whatsappLink(c.phone), '_blank')}>
               <MessageCircle className="h-4 w-4 text-success" aria-hidden />{t('whatsapp')}
             </Button>
+            <SendMessageButton entityType="CANDIDATE" entityId={candidateId} phone={c.phone} />
           </div>
         </Card>
         <HealthScoreCard candidateId={candidateId} />

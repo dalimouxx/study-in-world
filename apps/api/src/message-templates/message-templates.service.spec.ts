@@ -19,7 +19,8 @@ function build() {
     candidate: { findFirst: jest.fn() },
     prospect: { findFirst: jest.fn() },
   };
-  return { service: new MessageTemplatesService(prisma as never), prisma };
+  const timeline = { add: jest.fn().mockResolvedValue({}) };
+  return { service: new MessageTemplatesService(prisma as never, timeline as never), prisma, timeline };
 }
 
 describe('MessageTemplatesService', () => {
@@ -70,5 +71,21 @@ describe('MessageTemplatesService', () => {
     expect(out.body).toContain('Yasmine');
     expect(out.language).toBe('fr');
     expect(prisma.candidate.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: 'c1', organizationId: 'orgA' }) }));
+  });
+});
+
+describe('MessageTemplatesService.logSent', () => {
+  it('note dans la chronologie du dossier le message WhatsApp envoyé', async () => {
+    const { service, prisma, timeline } = build();
+    prisma.messageTemplate.findFirst.mockResolvedValue(DEFAULT_TEMPLATES.find((t) => t.key === 'DOCUMENTS_LIST')!);
+    prisma.candidate.findFirst.mockResolvedValue({ id: 'c1', firstName: 'Y', lastName: 'B', preferredLanguage: 'fr' });
+    await service.logSent(actor(['candidate.view']), { key: 'DOCUMENTS_LIST', entityType: 'CANDIDATE', entityId: 'c1' });
+    expect(timeline.add).toHaveBeenCalledWith('orgA', 'CANDIDATE', 'c1', 'NOTE', 'Message WhatsApp : Documents à fournir', 'u1');
+  });
+
+  it('refuse un dossier d’une autre agence', async () => {
+    const { service, prisma } = build();
+    prisma.prospect.findFirst.mockResolvedValue(null);
+    await expect(service.logSent(actor(['prospect.view']), { key: 'WELCOME', entityType: 'PROSPECT', entityId: 'pX' })).rejects.toMatchObject({ status: 404 });
   });
 });

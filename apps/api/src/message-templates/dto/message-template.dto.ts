@@ -18,3 +18,9 @@ export class RenderQueryDto {
   @IsIn(['CANDIDATE', 'PROSPECT']) entityType!: 'CANDIDATE' | 'PROSPECT';
   @IsString() entityId!: string;
 }
+
+export class MessageSentDto {
+  @IsString() key!: string;
+  @IsIn(['CANDIDATE', 'PROSPECT']) entityType!: 'CANDIDATE' | 'PROSPECT';
+  @IsString() entityId!: string;
+}

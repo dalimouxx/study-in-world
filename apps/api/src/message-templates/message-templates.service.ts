@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
 import { apiError } from '../common/errors/api-error';
 import { PrismaService } from '../prisma/prisma.service';
+import { TimelineService } from '../timeline/timeline.service';
 import { DEFAULT_TEMPLATES } from './defaults';
 import type { UpdateMessageTemplateDto } from './dto/message-template.dto';
 import { renderTemplate, type TemplateVars } from './render';
@@ -12,7 +13,10 @@ type Lang = 'fr' | 'ar';
 /** Modèles de messages modifiables par l'agence (Paramètres → Messages), remplis par `renderTemplate`. */
 @Injectable()
 export class MessageTemplatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly timeline: TimelineService,
+  ) {}
 
   /** Crée les modèles par défaut qui manquent encore, sans jamais écraser un texte modifié par l'agence. */
   async ensureDefaults(organizationId: string): Promise<void> {
@@ -67,18 +71,32 @@ export class MessageTemplatesService {
     };
   }
 
-  /** Bouton « Envoyer un message » : remplit le modèle avec les données du dossier, dans sa langue préférée. */
-  async renderForEntity(actor: AuthUser, key: string, channel: Channel, entityType: 'CANDIDATE' | 'PROSPECT', entityId: string) {
+  private async findPerson(actor: AuthUser, entityType: 'CANDIDATE' | 'PROSPECT', entityId: string) {
     const perm = entityType === 'CANDIDATE' ? 'candidate.view' : 'prospect.view';
     if (!actor.permissions.includes(perm)) throw apiError(HttpStatus.FORBIDDEN, 'FORBIDDEN', 'Permission insuffisante');
     const where = { id: entityId, organizationId: actor.organizationId, deletedAt: null };
+    const select = { id: true, firstName: true, lastName: true, preferredLanguage: true } as const;
     const person =
-      entityType === 'CANDIDATE'
-        ? await this.prisma.candidate.findFirst({ where, select: { id: true, firstName: true, lastName: true, preferredLanguage: true } })
-        : await this.prisma.prospect.findFirst({ where, select: { id: true, firstName: true, lastName: true, preferredLanguage: true } });
+      entityType === 'CANDIDATE' ? await this.prisma.candidate.findFirst({ where, select }) : await this.prisma.prospect.findFirst({ where, select });
     if (!person) throw apiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Dossier introuvable');
+    return person;
+  }
+
+  /** Trace dans la chronologie du dossier qu'un message WhatsApp a été envoyé depuis un modèle. */
+  async logSent(actor: AuthUser, dto: { key: string; entityType: 'CANDIDATE' | 'PROSPECT'; entityId: string }) {
+    await this.findPerson(actor, dto.entityType, dto.entityId);
+    const tpl = await this.prisma.messageTemplate.findFirst({ where: { organizationId: actor.organizationId, key: dto.key, channel: 'WHATSAPP' } });
+    if (!tpl) throw apiError(HttpStatus.NOT_FOUND, 'TEMPLATE_NOT_FOUND', 'Modèle introuvable');
+    await this.timeline.add(actor.organizationId, dto.entityType, dto.entityId, 'NOTE', `Message WhatsApp : ${tpl.nameFr}`, actor.id);
+    return { ok: true };
+  }
+
+  /** Bouton « Envoyer un message » : remplit le modèle avec les données du dossier, dans sa langue préférée. */
+  async renderForEntity(actor: AuthUser, key: string, channel: Channel, entityType: 'CANDIDATE' | 'PROSPECT', entityId: string) {
+    const person = await this.findPerson(actor, entityType, entityId);
     const language = (person.preferredLanguage as Lang) ?? 'fr';
     const out = await this.renderFor(actor.organizationId, key, channel, language, { prenom: person.firstName, nom: person.lastName });
     return { ...out, language };
   }
+
 }

@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, ReqMeta, RequirePermissions } from '../common/decorators';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
-import { RenderQueryDto, UpdateMessageTemplateDto } from './dto/message-template.dto';
+import { MessageSentDto, RenderQueryDto, UpdateMessageTemplateDto } from './dto/message-template.dto';
 import { MessageTemplatesService } from './message-templates.service';
 
 @ApiBearerAuth()
@@ -22,6 +22,13 @@ export class MessageTemplatesController {
   async whatsapp(@CurrentUser() user: AuthUser) {
     const all = await this.templates.list(user);
     return all.filter((t) => t.channel === 'WHATSAPP').map((t) => ({ key: t.key, nameFr: t.nameFr, nameAr: t.nameAr, isSystem: t.isSystem }));
+  }
+
+  /** Trace « Message WhatsApp : <modèle> » dans la chronologie (permission vérifiée dans le service). */
+  @HttpCode(200)
+  @Post('sent')
+  sent(@CurrentUser() user: AuthUser, @Body() dto: MessageSentDto) {
+    return this.templates.logSent(user, dto);
   }
 
   @Get() @RequirePermissions('settings.view')

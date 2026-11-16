@@ -21,7 +21,7 @@ const ADMIN_EMAIL = process.env.VISUAL_ADMIN_EMAIL ?? 'admin@demo.local';
 const ADMIN_PASSWORD = process.env.VISUAL_ADMIN_PASSWORD ?? 'LocalTest-2026-Pass';
 
 const PUBLIC_PAGES = ['/', '/destinations', '/programs', '/eligibility', '/blog', '/login', '/portal/login', '/partner-portal/login'];
-const ADMIN_PAGES = ['/dashboard', '/reminders', '/candidates', '/candidates/:first', '/settings'];
+const ADMIN_PAGES = ['/dashboard', '/reminders', '/candidates', '/candidates/:first', '/settings', '/settings/messages'];
 const PORTAL_EMAIL = process.env.VISUAL_PORTAL_EMAIL ?? 'yasmine@demo.local';
 const LOCALES = ['fr', 'ar'];
 const WIDTHS = [1280, 390];

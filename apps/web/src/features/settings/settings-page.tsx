@@ -10,6 +10,7 @@ import { RequirePermission } from '@/components/require-permission';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Field, Input, Select, Textarea } from '@/components/ui/form';
+import { Link } from '@/i18n/navigation';
 import { api } from '@/lib/api';
 import type { AgencySettings } from '@/lib/types';
 import { useErrorMessage } from '@/lib/use-error-message';
@@ -51,6 +52,7 @@ function Section({ title, description, children }: { title: string; description?
 
 function Content() {
   const t = useTranslations('settings');
+  const tm = useTranslations('messageTemplates');
   const tc = useTranslations('common');
   const ta = useTranslations('auth');
   const errorMessage = useErrorMessage();
@@ -138,6 +140,14 @@ function Content() {
         <Field label={t('termsOfService')} htmlFor="s-terms" className="sm:col-span-2"><Textarea id="s-terms" rows={5} {...f('termsOfService')} /></Field>
         <Field label={t('legalNotice')} htmlFor="s-notice" className="sm:col-span-2"><Textarea id="s-notice" rows={5} {...f('legalNotice')} /></Field>
       </Section>
+
+      <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
+        <div className="min-w-0">
+          <h2 className="font-display text-base font-bold tracking-tight">{tm('title')}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{tm('settingsSectionHint')}</p>
+        </div>
+        <Link href="/settings/messages" className="pop pop-hover inline-flex h-10 items-center gap-2 rounded-xl bg-card px-4 text-sm font-semibold text-ink">{tm('open')}</Link>
+      </Card>
 
       <Section title={t('contractTemplateTitle')} description={t('contractTemplateHint')}>
         <Field label={t('contractTemplate')} htmlFor="s-contract" hint={t('contractTemplateVars')} className="sm:col-span-2">
