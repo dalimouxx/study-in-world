@@ -39,6 +39,7 @@ export class LeadsService {
         desiredProgram: dto.desiredProgram,
         budget: dto.budget,
         campaign: dto.campaign,
+        preferredLanguage: dto.locale === 'ar' ? 'ar' : 'fr',
       },
     });
     await this.timeline.add(org.id, 'PROSPECT', prospect.id, 'SYSTEM', dto.campaign ? `Demande reçue depuis le site web (${dto.campaign})` : 'Demande reçue depuis le site web');

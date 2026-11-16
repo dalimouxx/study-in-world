@@ -29,6 +29,12 @@ describe('LeadsService.create', () => {
     }));
   });
 
+  it('un lead envoyé depuis la version arabe du site a la langue préférée ar', async () => {
+    const { service, prisma } = build();
+    await service.create('siw', { firstName: 'Ali', lastName: 'Ben', phone: '20123456', locale: 'ar' } as never);
+    expect(prisma.prospect.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ preferredLanguage: 'ar' }) }));
+  });
+
   it('ignore silencieusement un desiredCountryId qui n’appartient pas à cette agence, sans faire échouer la création', async () => {
     const { service, prisma } = build();
     prisma.country.findFirst.mockResolvedValue(null); // pays d'une autre organisation, ou inexistant
