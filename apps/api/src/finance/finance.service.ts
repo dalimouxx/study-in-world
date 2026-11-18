@@ -8,7 +8,8 @@ import { CashboxService } from '../cashbox/cashbox.service';
 import { apiError } from '../common/errors/api-error';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
 import { CandidatesService } from '../candidates/candidates.service';
-import { PdfService } from './pdf/pdf.service';
+import { LABELS, type DocKind, type DocLang } from './pdf/labels';
+import { PdfService, type DocumentItem } from './pdf/pdf.service';
 import { CreateInvoiceDto, CreateQuoteDto, RecordPaymentDto, UpdateQuoteStatusDto } from './dto/finance.dto';
 
 const quoteInclude = { items: true } satisfies Prisma.QuoteInclude;
@@ -65,7 +66,7 @@ export class FinanceService {
 
   async quotePdf(actor: AuthUser, id: string) {
     const quote = await this.findQuote(actor, id);
-    return this.renderPdf(actor.organizationId, 'Devis', quote.number, quote.currency, quote.candidateId, quote.items);
+    return this.renderPdf(actor.organizationId, 'quote', quote.number, quote.currency, quote.candidateId, quote.items);
   }
 
   /** Transforme un devis accepté en facture : copie les lignes, ne modifie pas le devis. */
@@ -121,7 +122,7 @@ export class FinanceService {
 
   async invoicePdf(actor: AuthUser, id: string) {
     const invoice = await this.findInvoice(actor, id);
-    return this.renderPdf(actor.organizationId, 'Facture', invoice.number, invoice.currency, invoice.candidateId, invoice.items);
+    return this.renderPdf(actor.organizationId, 'invoice', invoice.number, invoice.currency, invoice.candidateId, invoice.items);
   }
 
   /**
@@ -169,8 +170,8 @@ export class FinanceService {
   async receiptPdf(actor: AuthUser, paymentId: string) {
     const payment = await this.prisma.payment.findFirst({ where: { id: paymentId, organizationId: actor.organizationId }, include: { invoice: true } });
     if (!payment) throw apiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Paiement introuvable');
-    return this.renderPdf(actor.organizationId, 'Reçu', payment.receiptNumber, payment.invoice.currency, payment.invoice.candidateId, [
-      { label: `Paiement — facture ${payment.invoice.number}`, quantity: 1, unitPrice: payment.amount },
+    return this.renderPdf(actor.organizationId, 'receipt', payment.receiptNumber, payment.invoice.currency, payment.invoice.candidateId, (lang) => [
+      { label: LABELS[lang].paymentFor(payment.invoice.number), quantity: 1, unitPrice: payment.amount },
     ]);
   }
 
@@ -178,11 +179,12 @@ export class FinanceService {
 
   private async renderPdf(
     organizationId: string,
-    kind: 'Devis' | 'Facture' | 'Reçu',
+    kind: DocKind,
     number: string,
     currency: string,
     candidateId: string,
-    items: { label: string; quantity: number; unitPrice: number }[],
+    items: DocumentItem[] | ((lang: DocLang) => DocumentItem[]),
+    lang: DocLang = 'fr',
   ) {
     const [candidate, settings] = await Promise.all([
       this.prisma.candidate.findUniqueOrThrow({ where: { id: candidateId } }),
@@ -194,6 +196,7 @@ export class FinanceService {
         number,
         date: new Date(),
         currency,
+        lang,
         agency: {
           name: settings?.name ?? 'Study in World',
           address: settings?.address,
@@ -203,7 +206,7 @@ export class FinanceService {
         },
         candidate: { firstName: candidate.firstName, lastName: candidate.lastName, phone: candidate.phone, email: candidate.email },
       },
-      items,
+      typeof items === 'function' ? items(lang) : items,
     );
     return { buffer, filename: `${number}.pdf` };
   }
@@ -212,7 +215,7 @@ export class FinanceService {
   async invoicePdfForCandidate(organizationId: string, candidateId: string, invoiceId: string) {
     const invoice = await this.prisma.invoice.findFirst({ where: { id: invoiceId, organizationId, candidateId }, include: invoiceInclude });
     if (!invoice) throw apiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Facture introuvable');
-    return this.renderPdf(organizationId, 'Facture', invoice.number, invoice.currency, invoice.candidateId, invoice.items);
+    return this.renderPdf(organizationId, 'invoice', invoice.number, invoice.currency, invoice.candidateId, invoice.items);
   }
 
   private async findQuote(actor: AuthUser, id: string) {

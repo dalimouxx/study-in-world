@@ -1,6 +1,6 @@
-import { hasArabic, visualWords, wrapRtl, type Word } from './rtl';
+import { hasArabic, visualLine, visualWords, wrapRtl, type Word } from './rtl';
 
-const texts = (ws: Word[]) => ws.map((w) => w.text);
+const texts = (ws: Word[]) => ws.filter((w) => !w.space).map((w) => w.text);
 
 describe('ordre de lecture arabe (ordre visuel, de gauche à droite)', () => {
   it('détecte l’arabe', () => {
@@ -20,6 +20,14 @@ describe('ordre de lecture arabe (ordre visuel, de gauche à droite)', () => {
     expect(texts(visualWords('المجموع : 2400.000 TND'))).toEqual(['2400.000', 'TND', ':', 'المجموع']);
   });
 
+  it('le signe × d’une ligne de contrat reste entre la prestation et la quantité', () => {
+    expect(texts(visualWords('للملف × 1 : 2400.000 TND'))).toEqual(['1', ':', '2400.000', 'TND', '×', 'للملف']);
+  });
+
+  it('un matricule fiscal reste d’un bloc, dans son ordre', () => {
+    expect(texts(visualWords('المعرف الجبائي: 1234567/A/M/000'))).toEqual(['1234567/A/M/000', ':', 'الجبائي', 'المعرف']);
+  });
+
   it('nom latin au milieu d’une phrase arabe', () => {
     expect(texts(visualWords('السيدة Yasmine Ben Ali مترشحة'))).toEqual(['مترشحة', 'Yasmine', 'Ben', 'Ali', 'السيدة']);
   });
@@ -30,6 +38,21 @@ describe('ordre de lecture arabe (ordre visuel, de gauche à droite)', () => {
 
   it('marque chaque mot arabe', () => {
     expect(visualWords('رقم FAC-1').map((w) => w.rtl)).toEqual([false, true]);
+  });
+});
+
+describe('ponctuation et signes en miroir', () => {
+  it('une virgule arabe collée à un nom latin reste après le nom (à sa gauche)', () => {
+    expect(visualLine('وكالة Study in World، من').map((w) => w.text)).toEqual(['من', ' ', '،', 'Study', ' ', 'in', ' ', 'World', ' ', 'وكالة']);
+  });
+
+  it('les deux-points d’un libellé arabe restent à sa fin (à gauche)', () => {
+    expect(visualLine('الحريف:').map((w) => w.text)).toEqual([':', 'الحريف']);
+  });
+
+  it('les guillemets « » s’affichent dans le bon sens en arabe', () => {
+    // Logique « ouvre à droite » : visuellement, de gauche à droite, on voit « … » comme en français.
+    expect(visualLine('بـ «المترشح»').map((w) => w.text)).toEqual(['«', 'المترشح', '»', ' ', 'بـ']);
   });
 });
 

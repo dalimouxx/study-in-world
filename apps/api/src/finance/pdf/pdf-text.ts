@@ -38,31 +38,75 @@ export type DrawOptions = {
 /** Décalage vertical des mots latins au milieu de l'arabe, pour aligner les lignes de base des deux polices. */
 const LATIN_BASELINE_SHIFT = 0.12;
 
+type Run = { text: string; font: string };
+
+/** Le glyphe existe-t-il dans la police arabe ? (lu dans fontkit, mis en cache par caractère) */
+const arabicCoverage = new Map<number, boolean>();
+function arabicHas(doc: PDFKit.PDFDocument, cp: number): boolean {
+  let has = arabicCoverage.get(cp);
+  if (has === undefined) {
+    doc.font(ARABIC_FONT);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const font = (doc as any)._font?.font;
+    has = typeof font?.hasGlyphForCodePoint === 'function' ? Boolean(font.hasGlyphForCodePoint(cp)) : true;
+    arabicCoverage.set(cp, has);
+  }
+  return has;
+}
+
+/**
+ * Morceaux d'un mot dans l'ordre visuel (gauche → droite). Un mot latin reste entier en Helvetica. Un mot arabe est
+ * coupé là où la police arabe n'a pas le glyphe ; ses morceaux se lisent de droite à gauche, donc on inverse leur ordre.
+ */
+export function splitRuns(doc: PDFKit.PDFDocument, w: Word): Run[] {
+  if (!w.rtl) return [{ text: w.text, font: LATIN_FONT }];
+  const runs: Run[] = [];
+  for (const ch of w.text) {
+    const font = arabicHas(doc, ch.codePointAt(0)!) ? ARABIC_FONT : LATIN_FONT;
+    const last = runs[runs.length - 1];
+    if (last && last.font === font) last.text += ch;
+    else runs.push({ text: ch, font });
+  }
+  return runs.reverse();
+}
+
 /** Dessine `text` ; renvoie la position y juste sous le texte. */
 export function drawText(doc: PDFKit.PDFDocument, text: string, o: DrawOptions): number {
   if (o.color) doc.fillColor(o.color);
-  if (o.dir === 'ltr' && !hasArabic(text)) {
-    doc.font(LATIN_FONT).fontSize(o.size).text(text, o.x, o.y, { width: o.width, align: o.align, lineGap: o.lineGap });
+  // En arabe, « left » (début de ligne) signifie à droite ; « right » reste le bord droit.
+  const align = o.dir === 'rtl' && o.align === 'left' ? 'right' : o.align;
+  if (!hasArabic(text)) {
+    // Texte sans arabe (montant, nom, téléphone) : chemin pdfkit habituel, lu de gauche à droite même en arabe.
+    doc.font(LATIN_FONT).fontSize(o.size).text(text, o.x, o.y, { width: o.width, align, lineGap: o.lineGap });
     return doc.y;
   }
 
-  const fontOf = (w: Word) => (w.rtl ? ARABIC_FONT : LATIN_FONT);
-  const measure = (w: Word) => doc.font(fontOf(w)).fontSize(o.size).widthOfString(w.text);
+  // Un mot arabe peut contenir des signes absents de la police arabe (« : », chiffres…) : on le découpe en
+  // morceaux, chacun dans une police qui possède ses glyphes, sinon pdfkit dessine un carré vide.
+  const runsOf = (w: Word) => splitRuns(doc, w);
+  const measureRuns = (runs: Run[]) => runs.reduce((sum, r) => sum + doc.font(r.font).fontSize(o.size).widthOfString(r.text), 0);
   const space = doc.font(LATIN_FONT).fontSize(o.size).widthOfString(' ');
+  const measure = (w: Word) => (w.space ? space : measureRuns(runsOf(w)));
   const lineHeight = o.size * 1.5 + (o.lineGap ?? 0);
   const lines = wrapRtl(text, o.width, measure, space);
 
   let y = o.y;
   for (const words of lines) {
     const widths = words.map(measure);
-    const total = widths.reduce((a, b) => a + b, 0) + space * Math.max(0, words.length - 1);
-    // En arabe, « left » (début de ligne) signifie à droite ; « right » reste le bord droit.
-    const align = o.dir === 'rtl' && o.align === 'left' ? 'right' : o.align;
+    const total = widths.reduce((a, b) => a + b, 0);
     let x = align === 'right' ? o.x + o.width - total : align === 'center' ? o.x + (o.width - total) / 2 : o.x;
     words.forEach((w, i) => {
-      const dy = w.rtl ? 0 : o.size * LATIN_BASELINE_SHIFT;
-      doc.font(fontOf(w)).fontSize(o.size).text(w.text, x, y + dy, { lineBreak: false });
-      x += widths[i] + space;
+      let rx = x;
+      if (w.space) {
+        x += widths[i];
+        return;
+      }
+      for (const r of runsOf(w)) {
+        const dy = r.font === ARABIC_FONT ? 0 : o.size * LATIN_BASELINE_SHIFT;
+        doc.font(r.font).fontSize(o.size).text(r.text, rx, y + dy, { lineBreak: false });
+        rx += doc.widthOfString(r.text);
+      }
+      x += widths[i];
     });
     y += lineHeight;
   }

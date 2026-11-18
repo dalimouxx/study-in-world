@@ -125,7 +125,7 @@ export class ContractsService {
       ? { image: await this.storage.read(organizationId, contract.signatureImage), signerName: contract.signerName ?? '', signedAt: contract.signedAt ?? new Date() }
       : null;
     const buffer = await this.pdfService.contract(
-      { number: contract.number, date: contract.createdAt, agency: { name: settings?.name ?? 'Study in World', address: settings?.address } },
+      { number: contract.number, date: contract.createdAt, agency: { name: settings?.name ?? 'Study in World', address: settings?.address }, lang: 'fr' },
       contract.content,
       signature,
     );
