@@ -46,6 +46,10 @@ describe('ponctuation et signes en miroir', () => {
     expect(visualLine('وكالة Study in World، من').map((w) => w.text)).toEqual(['من', ' ', '،', 'Study', ' ', 'in', ' ', 'World', ' ', 'وكالة']);
   });
 
+  it('les parenthèses au milieu de l’arabe s’affichent dans le bon sens', () => {
+    expect(visualLine('صاحب(ة)').map((w) => w.text)).toEqual(['(', 'ة', ')', 'صاحب']);
+  });
+
   it('les deux-points d’un libellé arabe restent à sa fin (à gauche)', () => {
     expect(visualLine('الحريف:').map((w) => w.text)).toEqual([':', 'الحريف']);
   });

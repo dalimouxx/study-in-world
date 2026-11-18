@@ -7,7 +7,7 @@ declare module 'bidi-js' {
   interface Bidi {
     getEmbeddingLevels(text: string, explicitDirection?: 'ltr' | 'rtl'): EmbeddingLevels;
     getReorderedIndices(text: string, levels: EmbeddingLevels, start?: number, end?: number): number[];
-    getMirroredCharactersMap(text: string, levels: EmbeddingLevels, start?: number, end?: number): Map<number, string>;
+    getMirroredCharacter(char: string): string | null;
   }
   export default function bidiFactory(): Bidi;
 }

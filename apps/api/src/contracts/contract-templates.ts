@@ -16,7 +16,7 @@ Fait le {{date}}, référence {{number}}.`;
 
 /** Traduction fidèle du modèle français, en arabe standard. À faire relire par l'agence. */
 export const DEFAULT_TEMPLATE_AR = `بين وكالة {{agency_name}}، من جهة،
-و{{candidate_name}}، صاحب(ة) جواز السفر رقم {{candidate_passport}}، المشار إليه(ا) فيما يلي بـ «المترشح»، من جهة أخرى،
+والسيد(ة) {{candidate_name}}، صاحب(ة) جواز السفر رقم {{candidate_passport}}، المشار إليه(ا) فيما يلي بـ «المترشح»، من جهة أخرى،
 
 تم الاتفاق على ما يلي:
 

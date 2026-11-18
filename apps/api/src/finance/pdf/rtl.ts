@@ -21,9 +21,6 @@ function isolateLatin(line: string): string {
   return line.replace(LATIN_SPAN, (m) => LRI + m + PDI);
 }
 
-/** Signes à afficher en miroir dans un passage de droite à gauche, absents de la table de bidi-js. */
-const EXTRA_MIRRORS: Record<string, string> = { '«': '»', '»': '«', '‹': '›', '›': '‹' };
-
 export type Word = { text: string; rtl: boolean; space?: boolean };
 
 export function hasArabic(text: string): boolean {
@@ -41,7 +38,6 @@ export function visualLine(line: string, base: 'rtl' | 'ltr' = 'rtl'): Word[] {
   if (base === 'rtl') line = isolateLatin(line);
   const embedding = bidi.getEmbeddingLevels(line, base);
   const { levels } = embedding;
-  const mirrored = bidi.getMirroredCharactersMap(line, embedding);
   const out: Word[] = [];
   let current: { chars: string[]; level: number; last: number } | null = null;
   const flush = () => {
@@ -53,7 +49,8 @@ export function visualLine(line: string, base: 'rtl' | 'ltr' = 'rtl'): Word[] {
   for (const i of bidi.getReorderedIndices(line, embedding)) {
     if (line[i] === LRI || line[i] === PDI) continue;
     const odd = levels[i] % 2 === 1;
-    const ch = (odd && (mirrored.get(i) ?? EXTRA_MIRRORS[line[i]])) || line[i];
+    // Signe en miroir dans un passage de droite à gauche : ( ↔ ), « ↔ » (getMirroredCharactersMap ne renvoie rien).
+    const ch = (odd && bidi.getMirroredCharacter(line[i])) || line[i];
     if (/\s/.test(ch)) {
       flush();
       if (!out.length || !out[out.length - 1].space) out.push({ text: ' ', rtl: false, space: true });
