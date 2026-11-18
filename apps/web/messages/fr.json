@@ -299,7 +299,11 @@
     "contractTemplateTitle": "Modèle de contrat",
     "contractTemplateHint": "Texte utilisé pour générer chaque nouveau contrat.",
     "contractTemplate": "Modèle",
-    "contractTemplateVars": "Espaces réservés disponibles : {{agency_name}}, {{candidate_name}}, {{candidate_passport}}, {{services}}, {{total}}, {{currency}}, {{date}}, {{number}}. Laissez vide pour utiliser le modèle par défaut."
+    "contractTemplateVars": "Espaces réservés disponibles : {{agency_name}}, {{candidate_name}}, {{candidate_passport}}, {{services}}, {{total}}, {{currency}}, {{date}}, {{number}}. Laissez vide pour utiliser le modèle par défaut.",
+    "nameAr": "Nom de l’agence (arabe)",
+    "addressAr": "Adresse (arabe)",
+    "arabicDocsHint": "Utilisés sur les devis, factures et contrats en arabe. Laissés vides, le nom et l’adresse en français s’affichent.",
+    "contractTemplateAr": "Modèle (arabe)"
   },
   "siteAdmin": {
     "title": "Page d’accueil",
@@ -744,7 +748,10 @@
       "VISA_APPOINTMENT_PASSED": "Rendez-vous visa ({country}) dépassé sans mise à jour du statut",
       "INVOICE_OVERDUE": "Facture {number} en retard de paiement",
       "TASKS_OVERDUE": "{count, plural, one {# tâche en retard} other {# tâches en retard}}"
-    }
+    },
+    "contractLanguage": "Langue du contrat",
+    "contractLanguageHint": "Par défaut, la langue préférée du candidat. Un contrat signé reste dans sa langue.",
+    "openInLanguage": "Ouvrir en {language}"
   },
   "tasks": {
     "title": "Tâches",
