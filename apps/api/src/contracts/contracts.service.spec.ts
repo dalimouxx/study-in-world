@@ -50,6 +50,44 @@ describe('ContractsService.create', () => {
   });
 });
 
+describe('ContractsService.create — langue du contrat', () => {
+  const content = (c: unknown) => (c as { content: string }).content;
+  const language = (c: unknown) => (c as { language: string }).language;
+  const items = [{ label: 'Service X', quantity: 1, unitPrice: 100 }];
+
+  it('crée le contrat dans la langue préférée du candidat (ar) avec le modèle arabe par défaut', async () => {
+    const { service, prisma } = build();
+    prisma.candidate.findFirst.mockResolvedValue({ id: 'cand1', firstName: 'Ali', lastName: 'Ben', passportNumber: 'X123', preferredLanguage: 'ar' });
+    const created = await service.create(actor(), 'cand1', { items }, {});
+    expect(language(created)).toBe('ar');
+    expect(content(created)).toContain('تلتزم الوكالة');
+    expect(content(created)).toContain('Ali Ben');
+    expect(content(created)).toContain('100.000 TND');
+    expect(content(created)).not.toContain('{{');
+  });
+
+  it('dto.language l’emporte sur la préférence', async () => {
+    const { service, prisma } = build();
+    prisma.candidate.findFirst.mockResolvedValue({ id: 'cand1', firstName: 'Ali', lastName: 'Ben', passportNumber: 'X123', preferredLanguage: 'ar' });
+    const created = await service.create(actor(), 'cand1', { items, language: 'fr' }, {});
+    expect(language(created)).toBe('fr');
+    expect(content(created)).toContain('il a été convenu');
+  });
+
+  it('utilise contractTemplateAr de l’agence s’il existe', async () => {
+    const { service, prisma } = build();
+    prisma.agencySettings.findUnique.mockResolvedValue({ name: 'Study in World', currency: 'TND', contractTemplate: null, contractTemplateAr: 'عقد خاص {{number}}' });
+    const created = await service.create(actor(), 'cand1', { items, language: 'ar' }, {});
+    expect(content(created)).toBe('عقد خاص CTR-2026-0001');
+  });
+
+  it('candidat sans préférence → fr', async () => {
+    const { service } = build();
+    const created = await service.create(actor(), 'cand1', { items }, {});
+    expect(language(created)).toBe('fr');
+  });
+});
+
 describe('ContractsService.sign', () => {
   it('refuse de signer un contrat déjà signé', async () => {
     const { service, prisma } = build();
