@@ -8,7 +8,7 @@ import { PdfService } from '../finance/pdf/pdf.service';
 import { apiError } from '../common/errors/api-error';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
 import { CandidatesService } from '../candidates/candidates.service';
-import { formatDocDate, type DocLang } from '../finance/pdf/labels';
+import { formatDocDate, pdfFile, type DocLang } from '../finance/pdf/labels';
 import { contractTemplate } from './contract-templates';
 import { ContractItemDto, CreateContractDto, SignContractDto } from './dto/contract.dto';
 
@@ -108,19 +108,18 @@ export class ContractsService {
     await this.audit.log({ organizationId, userId: actorUserId, action: 'contract.sign', entity: 'Contract', entityId: id, metadata: { signerName: dto.signerName, method: dto.method }, meta });
   }
 
-  async pdf(organizationId: string, id: string) {
-    const contract = await this.prisma.contract.findFirst({ where: { id, organizationId } });
+  /** PDF du contrat, toujours dans la langue de son texte figé. `candidateId` limite au candidat (portail). */
+  async pdf(organizationId: string, id: string, candidateId?: string) {
+    const contract = await this.prisma.contract.findFirst({ where: { id, organizationId, ...(candidateId ? { candidateId } : {}) } });
     if (!contract) throw apiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Contrat introuvable');
     const settings = await this.prisma.agencySettings.findUnique({ where: { organizationId } });
+    const lang: DocLang = contract.language ?? 'fr';
     const signature = contract.signatureImage
       ? { image: await this.storage.read(organizationId, contract.signatureImage), signerName: contract.signerName ?? '', signedAt: contract.signedAt ?? new Date() }
       : null;
-    const buffer = await this.pdfService.contract(
-      { number: contract.number, date: contract.createdAt, agency: { name: settings?.name ?? 'Study in World', address: settings?.address }, lang: 'fr' },
-      contract.content,
-      signature,
-    );
-    return { buffer, filename: `${contract.number}.pdf` };
+    const agency = { name: settings?.name ?? 'Study in World', nameAr: settings?.nameAr, address: settings?.address, addressAr: settings?.addressAr };
+    const buffer = await this.pdfService.contract({ number: contract.number, date: contract.createdAt, agency, lang }, contract.content, signature);
+    return { buffer, ...pdfFile('contract', lang, contract.number) };
   }
 
   private render(template: string, vars: Record<string, string>): string {

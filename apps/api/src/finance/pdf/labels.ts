@@ -26,3 +26,13 @@ export function formatDocDate(lang: DocLang, date: Date): string {
 
 /** Montant : format inchangé dans les deux langues (2400.000 TND). */
 export const formatAmount = (n: number, currency: string) => `${n.toFixed(3)} ${currency}`;
+
+/**
+ * Nom du fichier PDF dans sa langue (« فاتورة-FAC-2026-0012.pdf »), et en-tête Content-Disposition qui le porte en
+ * UTF-8, avec un nom ASCII de secours en français (« Facture-FAC-2026-0012.pdf », sans accents).
+ */
+export function pdfFile(kind: DocKind | 'contract', lang: DocLang, number: string): { filename: string; disposition: string } {
+  const filename = `${LABELS[lang][kind]}-${number}.pdf`;
+  const ascii = `${LABELS.fr[kind]}-${number}.pdf`.normalize('NFD').replace(/[^\x20-\x7e]/g, '').replace(/"/g, '');
+  return { filename, disposition: `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}` };
+}

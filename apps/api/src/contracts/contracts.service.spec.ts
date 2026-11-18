@@ -88,6 +88,36 @@ describe('ContractsService.create — langue du contrat', () => {
   });
 });
 
+describe('ContractsService.pdf', () => {
+  const signedAr = { id: 'ctr1', organizationId: 'orgA', candidateId: 'cand1', number: 'CTR-2026-0001', content: 'نص', language: 'ar', createdAt: new Date(), signatureImage: null };
+
+  it('contrat : ?lang ignoré, langue du contrat', async () => {
+    const { service, prisma } = build();
+    prisma.contract.findFirst.mockResolvedValue(signedAr);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pdfSvc = (service as any).pdfService as { contract: jest.Mock };
+    const res = await service.pdf('orgA', 'ctr1');
+    expect(pdfSvc.contract.mock.calls[0][0].lang).toBe('ar');
+    expect(res.filename).toBe('عقد-CTR-2026-0001.pdf');
+  });
+
+  it('contrat existant sans language → fr', async () => {
+    const { service, prisma } = build();
+    prisma.contract.findFirst.mockResolvedValue({ ...signedAr, language: undefined });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pdfSvc = (service as any).pdfService as { contract: jest.Mock };
+    await service.pdf('orgA', 'ctr1');
+    expect(pdfSvc.contract.mock.calls[0][0].lang).toBe('fr');
+  });
+
+  it('portail : un candidat ne voit que ses propres contrats', async () => {
+    const { service, prisma } = build();
+    prisma.contract.findFirst.mockResolvedValue(signedAr);
+    await service.pdf('orgA', 'ctr1', 'cand2');
+    expect(prisma.contract.findFirst).toHaveBeenCalledWith({ where: { id: 'ctr1', organizationId: 'orgA', candidateId: 'cand2' } });
+  });
+});
+
 describe('ContractsService.sign', () => {
   it('refuse de signer un contrat déjà signé', async () => {
     const { service, prisma } = build();

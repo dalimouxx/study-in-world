@@ -8,7 +8,7 @@ import { CashboxService } from '../cashbox/cashbox.service';
 import { apiError } from '../common/errors/api-error';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
 import { CandidatesService } from '../candidates/candidates.service';
-import { LABELS, type DocKind, type DocLang } from './pdf/labels';
+import { LABELS, pdfFile, type DocKind, type DocLang } from './pdf/labels';
 import { PdfService, type DocumentItem } from './pdf/pdf.service';
 import { CreateInvoiceDto, CreateQuoteDto, RecordPaymentDto, UpdateQuoteStatusDto } from './dto/finance.dto';
 
@@ -64,9 +64,9 @@ export class FinanceService {
     return updated;
   }
 
-  async quotePdf(actor: AuthUser, id: string) {
+  async quotePdf(actor: AuthUser, id: string, lang?: DocLang) {
     const quote = await this.findQuote(actor, id);
-    return this.renderPdf(actor.organizationId, 'quote', quote.number, quote.currency, quote.candidateId, quote.items);
+    return this.renderPdf(actor.organizationId, 'quote', quote.number, quote.currency, quote.candidateId, quote.items, lang);
   }
 
   /** Transforme un devis accepté en facture : copie les lignes, ne modifie pas le devis. */
@@ -120,9 +120,9 @@ export class FinanceService {
     return invoice;
   }
 
-  async invoicePdf(actor: AuthUser, id: string) {
+  async invoicePdf(actor: AuthUser, id: string, lang?: DocLang) {
     const invoice = await this.findInvoice(actor, id);
-    return this.renderPdf(actor.organizationId, 'invoice', invoice.number, invoice.currency, invoice.candidateId, invoice.items);
+    return this.renderPdf(actor.organizationId, 'invoice', invoice.number, invoice.currency, invoice.candidateId, invoice.items, lang);
   }
 
   /**
@@ -167,12 +167,12 @@ export class FinanceService {
     return payment;
   }
 
-  async receiptPdf(actor: AuthUser, paymentId: string) {
+  async receiptPdf(actor: AuthUser, paymentId: string, lang?: DocLang) {
     const payment = await this.prisma.payment.findFirst({ where: { id: paymentId, organizationId: actor.organizationId }, include: { invoice: true } });
     if (!payment) throw apiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Paiement introuvable');
-    return this.renderPdf(actor.organizationId, 'receipt', payment.receiptNumber, payment.invoice.currency, payment.invoice.candidateId, (lang) => [
-      { label: LABELS[lang].paymentFor(payment.invoice.number), quantity: 1, unitPrice: payment.amount },
-    ]);
+    return this.renderPdf(actor.organizationId, 'receipt', payment.receiptNumber, payment.invoice.currency, payment.invoice.candidateId, (l) => [
+      { label: LABELS[l].paymentFor(payment.invoice.number), quantity: 1, unitPrice: payment.amount },
+    ], lang);
   }
 
   // ---------- Rendu PDF commun ----------
@@ -184,12 +184,14 @@ export class FinanceService {
     currency: string,
     candidateId: string,
     items: DocumentItem[] | ((lang: DocLang) => DocumentItem[]),
-    lang: DocLang = 'fr',
+    requested?: DocLang,
   ) {
     const [candidate, settings] = await Promise.all([
       this.prisma.candidate.findUniqueOrThrow({ where: { id: candidateId } }),
       this.prisma.agencySettings.findUnique({ where: { organizationId } }),
     ]);
+    // Langue demandée (?lang), sinon la langue préférée du candidat.
+    const lang: DocLang = requested ?? candidate.preferredLanguage ?? 'fr';
     const buffer = await this.pdf.document(
       {
         kind,
@@ -199,7 +201,9 @@ export class FinanceService {
         lang,
         agency: {
           name: settings?.name ?? 'Study in World',
+          nameAr: settings?.nameAr,
           address: settings?.address,
+          addressAr: settings?.addressAr,
           phone: settings?.phone,
           email: settings?.email,
           taxId: settings?.taxId,
@@ -208,14 +212,14 @@ export class FinanceService {
       },
       typeof items === 'function' ? items(lang) : items,
     );
-    return { buffer, filename: `${number}.pdf` };
+    return { buffer, ...pdfFile(kind, lang, number) };
   }
 
   /** Portail candidat : le candidat ne peut télécharger que sa propre facture. */
-  async invoicePdfForCandidate(organizationId: string, candidateId: string, invoiceId: string) {
+  async invoicePdfForCandidate(organizationId: string, candidateId: string, invoiceId: string, lang?: DocLang) {
     const invoice = await this.prisma.invoice.findFirst({ where: { id: invoiceId, organizationId, candidateId }, include: invoiceInclude });
     if (!invoice) throw apiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Facture introuvable');
-    return this.renderPdf(organizationId, 'invoice', invoice.number, invoice.currency, invoice.candidateId, invoice.items);
+    return this.renderPdf(organizationId, 'invoice', invoice.number, invoice.currency, invoice.candidateId, invoice.items, lang);
   }
 
   private async findQuote(actor: AuthUser, id: string) {
