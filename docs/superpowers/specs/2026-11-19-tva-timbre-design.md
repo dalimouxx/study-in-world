@@ -1,6 +1,6 @@
 # TVA, débours et timbre fiscal sur les devis et factures — document de conception
 
-Date : 2026-11-19 · Branche : `feat/tva-timbre` (créée à partir de `feat/documents-arabe`) · Chantier 3 de l'étape 2, seconde partie
+Date : 2026-11-19 · Branche : `feat/tva-timbre` (créée à partir de `feat/documents-arabe`) · Chantier 3 de l'étape 2, seconde partie · Statut : conception validable
 
 ## 1. Intention
 
@@ -14,6 +14,7 @@ un devis ou une facture n'est qu'une liste de lignes dont le total est la somme 
 |---|---|
 | Lignes | Certaines lignes sont des **débours** (sommes payées pour le compte du candidat : inscription à l'université, Campus France, visa) **sans TVA** ; le reste est un **service de l'agence à 19 %**. |
 | Approche | **A — un type par ligne (« Service » ou « Débours »), taux et timbre recopiés et figés dans le document à sa création.** Écartées : B (taux libre par ligne, plus d'erreurs de saisie, inutile aujourd'hui) et C (taxes calculées à l'affichage depuis les Paramètres : changer un taux modifierait les factures déjà émises). |
+| Devis ancien | Un devis créé **avant** la TVA (totaux non enregistrés), transformé en facture ou en contrat après l'activation des taxes, **garde le prix accepté** : le document produit reprend la somme brute de ses lignes, **sans TVA ni timbre**, et s'affiche comme une facture ancienne (une seule ligne de total). |
 | Euros | **Pas de paiement en euros pour le moment.** Tout reste en dinars (TND) : factures, paiements, caisse, rapports. Les euros sont sortis du chantier. |
 
 ## 3. Objectifs, non-objectifs, anti-objectifs
@@ -82,6 +83,8 @@ un devis ou une facture n'est qu'une liste de lignes dont le total est la somme 
 
 ### 6.4 Création
 - Création de devis ou de facture : les totaux sont calculés avec les Paramètres de l'agence **au moment de la création** et enregistrés avec le document.
+- **Devis ancien** (son `total` est vide) → facture ou contrat : lignes recopiées en `SERVICE` avec `vatRate` 0,
+  totaux enregistrés sans TVA ni timbre (`total` = somme brute). Le prix accepté par le candidat ne change pas.
 - Devis → facture : les lignes sont recopiées **avec leur type** ; les taux et le timbre sont ceux des Paramètres **à la date de la facture** (c'est la facture qui fait foi fiscalement).
 - Contrat : `totalAmount` = total TTC calculé de la même façon ; la variable `{{total}}` du modèle donne le TTC ; `{{services}}` signale les débours (« (débours) » / « (مصاريف مسبقة) »).
 
@@ -106,7 +109,8 @@ un devis ou une facture n'est qu'une liste de lignes dont le total est la somme 
 
 ## 7. Vérification
 - Tests de `computeTotals` sur des cas réels : services seuls ; services + débours ; débours seuls ; arrondi au millime (ex. 45,5 × 3 à 19 %) ; taxes désactivées ; quantité > 1.
-- Tests des services : une facture enregistre ses totaux ; une facture ancienne (`total` vide) garde la somme brute ; changer `vatRate` dans les Paramètres ne change pas une facture existante ; devis → facture garde les types ; paiement refusé au-delà du TTC ; relance « en retard » sur le solde TTC.
+- Tests des services : un devis ancien transformé en facture (taxes activées) garde exactement sa somme brute, sans TVA ni timbre ;
+  une facture enregistre ses totaux ; une facture ancienne (`total` vide) garde la somme brute ; changer `vatRate` dans les Paramètres ne change pas une facture existante ; devis → facture garde les types ; paiement refusé au-delà du TTC ; relance « en retard » sur le solde TTC.
 - PDF : facture taxée et facture ancienne, FR et AR, relues en image (`pdftoppm`) ; `pdftotext` contient les cinq lignes du récapitulatif.
 - `visual-check` : onglet Finance (formulaire avec récapitulatif), Paramètres, portail.
 
