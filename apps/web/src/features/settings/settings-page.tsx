@@ -26,11 +26,20 @@ const TEXT_FIELDS = [
   'contractTemplate', 'contractTemplateAr', 'nameAr', 'addressAr',
 ] as const;
 
-type Values = { [K in (typeof TEXT_FIELDS)[number]]: string } & { social: Record<SocialKey, string> };
+type Values = { [K in (typeof TEXT_FIELDS)[number]]: string } & {
+  social: Record<SocialKey, string>;
+  // Facturation : TVA et timbre fiscal appliqués aux nouveaux devis et factures.
+  taxesEnabled: boolean;
+  vatRate: number;
+  stampDuty: number;
+};
 
 const toValues = (s: AgencySettings): Values => ({
-  ...(Object.fromEntries(TEXT_FIELDS.map((k) => [k, (s[k] as string | null) ?? ''])) as Omit<Values, 'social'>),
+  ...(Object.fromEntries(TEXT_FIELDS.map((k) => [k, (s[k] as string | null) ?? ''])) as { [K in (typeof TEXT_FIELDS)[number]]: string }),
   social: Object.fromEntries(SOCIALS.map((k) => [k, s.socialLinks?.[k] ?? ''])) as Values['social'],
+  taxesEnabled: s.taxesEnabled ?? false,
+  vatRate: s.vatRate ?? 19,
+  stampDuty: s.stampDuty ?? 1,
 });
 
 export function SettingsPage() {
@@ -82,7 +91,7 @@ function Content() {
   if (query.isError) return <p role="alert" className="text-sm text-destructive">{errorMessage(query.error)}</p>;
 
   const ro = !canManage;
-  const f = (k: keyof Omit<Values, 'social'>, opts?: { required?: boolean }) =>
+  const f = (k: (typeof TEXT_FIELDS)[number], opts?: { required?: boolean }) =>
     register(k, { ...(opts?.required ? { required: tc('required') } : {}), disabled: ro });
 
   return (
@@ -137,6 +146,24 @@ function Content() {
         </Field>
         <Field label={t('legalInfo')} htmlFor="s-legal" className="sm:col-span-2"><Textarea id="s-legal" rows={3} {...f('legalInfo')} /></Field>
         <Field label={t('bankDetails')} htmlFor="s-bank" hint={t('bankHint')} className="sm:col-span-2"><Textarea id="s-bank" rows={3} {...f('bankDetails')} /></Field>
+      </Section>
+
+      <Section title={t('billingTitle')} description={t('billingHint')}>
+        <label htmlFor="s-taxes" className="flex items-start gap-3 text-sm sm:col-span-2">
+          <input id="s-taxes" type="checkbox" className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]" {...register('taxesEnabled', { disabled: ro })} />
+          <span>
+            <span className="font-medium">{t('taxesEnabled')}</span>
+            <span className="block text-muted-foreground">{t('taxesEnabledHint')}</span>
+          </span>
+        </label>
+        <Field label={t('vatRate')} htmlFor="s-vat" error={errors.vatRate?.message}>
+          <Input id="s-vat" type="number" inputMode="decimal" min={0} max={100} step={0.01} dir="ltr" aria-invalid={!!errors.vatRate}
+            {...register('vatRate', { disabled: ro, valueAsNumber: true, min: { value: 0, message: t('vatRateInvalid') }, max: { value: 100, message: t('vatRateInvalid') } })} />
+        </Field>
+        <Field label={t('stampDuty')} htmlFor="s-stamp" error={errors.stampDuty?.message}>
+          <Input id="s-stamp" type="number" inputMode="decimal" min={0} step={0.001} dir="ltr" aria-invalid={!!errors.stampDuty}
+            {...register('stampDuty', { disabled: ro, valueAsNumber: true, min: { value: 0, message: t('stampDutyInvalid') } })} />
+        </Field>
       </Section>
 
       <Section title={t('content')} description={t('contentHint')}>

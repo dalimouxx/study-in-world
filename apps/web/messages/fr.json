@@ -303,7 +303,15 @@
     "nameAr": "Nom de l’agence (arabe)",
     "addressAr": "Adresse (arabe)",
     "arabicDocsHint": "Utilisés sur les devis, factures et contrats en arabe. Laissés vides, le nom et l’adresse en français s’affichent.",
-    "contractTemplateAr": "Modèle (arabe)"
+    "contractTemplateAr": "Modèle (arabe)",
+    "billingTitle": "Facturation",
+    "billingHint": "TVA et timbre fiscal des nouveaux devis et factures. Les documents déjà émis ne changent jamais.",
+    "taxesEnabled": "Appliquer la TVA et le timbre fiscal",
+    "taxesEnabledHint": "À activer si l’agence est assujettie à la TVA. Chaque ligne est alors un service (TVA) ou un débours (sans TVA).",
+    "vatRate": "Taux de TVA (%)",
+    "stampDuty": "Timbre fiscal (TND)",
+    "vatRateInvalid": "Entre 0 et 100 %.",
+    "stampDutyInvalid": "Montant positif."
   },
   "siteAdmin": {
     "title": "Page d’accueil",
@@ -751,7 +759,16 @@
     },
     "contractLanguage": "Langue du contrat",
     "contractLanguageHint": "Par défaut, la langue préférée du candidat. Un contrat signé reste dans sa langue.",
-    "openInLanguage": "Ouvrir en {language}"
+    "openInLanguage": "Ouvrir en {language}",
+    "totalHt": "Total HT",
+    "vatLine": "TVA {rate} %",
+    "disbursements": "Débours",
+    "stampDuty": "Timbre fiscal",
+    "totalTtc": "Total à payer TTC",
+    "ttc": "TTC",
+    "lineKind": "Type de ligne",
+    "lineKindService": "Service {rate} %",
+    "lineKindDisbursement": "Débours"
   },
   "tasks": {
     "title": "Tâches",
