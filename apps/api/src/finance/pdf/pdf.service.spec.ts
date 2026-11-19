@@ -97,3 +97,34 @@ describe('PdfService.document — chiffres arabes', () => {
     expect(toText(buf)).not.toContain('fb');
   });
 });
+
+describe('PdfService.document — TVA, débours et timbre', () => {
+  const taxedItems = [
+    { label: 'Accompagnement', quantity: 1, unitPrice: 2000, kind: 'SERVICE' as const, vatRate: 19 },
+    { label: 'Inscription université', quantity: 1, unitPrice: 1500, kind: 'DISBURSEMENT' as const, vatRate: 0 },
+  ];
+  const totals = { subtotal: 2000, vatAmount: 380, disbursements: 1500, stampDuty: 1, total: 3881, taxed: true, vatRate: 19 };
+
+  itPoppler('facture taxée en français : récapitulatif HT, TVA, débours, timbre et TTC', async () => {
+    const text = toText(await new PdfService().document(header(), taxedItems, totals));
+    for (const s of ['Total HT', 'TVA 19 %', 'Débours', 'Timbre fiscal', 'Total à payer TTC', '3881.000 TND', '380.000 TND']) expect(text).toContain(s);
+  });
+
+  itPoppler('facture taxée en arabe : libellés arabes', async () => {
+    const text = toText(await new PdfService().document(header({ lang: 'ar' }), taxedItems, totals));
+    for (const s of ['3881.000 TND', '380.000 TND', '1.000 TND']) expect(text).toContain(s);
+    // Les libellés arabes sont relus sur l'image (pdftotext déforme certaines lettres arabes).
+  });
+
+  itPoppler('sans débours : la ligne « Débours » du récapitulatif n’apparaît pas', async () => {
+    const text = toText(await new PdfService().document(header(), [taxedItems[0]], { ...totals, disbursements: 0, total: 2381 }));
+    expect(text).toContain('Total HT');
+    expect(text).not.toContain('Débours :');
+  });
+
+  itPoppler('facture non taxée et reçu : rendu actuel, sans « Total HT »', async () => {
+    const text = toText(await new PdfService().document(header(), items));
+    expect(text).not.toContain('Total HT');
+    expect(text).toContain('Total : 2400.000 TND');
+  });
+});

@@ -8,12 +8,18 @@ export const LABELS = {
     client: 'Client :', description: 'Description', qty: 'Qté', unitPrice: 'Prix unitaire', total: 'Total',
     totalLine: 'Total :', taxId: 'Matricule fiscal :', generatedBy: (agency: string) => `Document généré par ${agency}.`,
     candidateSignature: 'Signature du candidat', signedOn: 'Signé le', paymentFor: (n: string) => `Paiement — facture ${n}`,
+    vat: 'TVA', disbursement: 'Débours', subtotalLine: 'Total HT :', vatLine: (rate: number) => `TVA ${rate} % :`,
+    disbursementsLine: 'Débours :', stampLine: 'Timbre fiscal :', totalTtcLine: 'Total à payer TTC :',
   },
   ar: {
     quote: 'عرض سعر', invoice: 'فاتورة', receipt: 'وصل', contract: 'عقد',
     client: 'الحريف:', description: 'البيان', qty: 'الكمية', unitPrice: 'سعر الوحدة', total: 'المجموع',
     totalLine: 'المجموع:', taxId: 'المعرف الجبائي:', generatedBy: (agency: string) => `وثيقة صادرة عن ${agency}.`,
     candidateSignature: 'إمضاء المترشح', signedOn: 'أُمضي يوم', paymentFor: (n: string) => `دفعة — الفاتورة ${n}`,
+    vat: 'الأداء', disbursement: 'مصاريف مسبقة', subtotalLine: 'المجموع دون اعتبار الأداءات:',
+    // Le taux en toutes lettres (« 19 بالمائة ») : « 19% » collé au montant serait mal ordonné dans la ligne.
+    vatLine: (rate: number) => `الأداء على القيمة المضافة ${rate} بالمائة:`, disbursementsLine: 'مصاريف مسبقة:',
+    stampLine: 'الطابع الجبائي:', totalTtcLine: 'المجموع باعتبار الأداءات:',
   },
 } as const;
 

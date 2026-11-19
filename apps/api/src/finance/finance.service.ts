@@ -9,7 +9,7 @@ import { apiError } from '../common/errors/api-error';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
 import { CandidatesService } from '../candidates/candidates.service';
 import { LABELS, pdfFile, type DocKind, type DocLang } from './pdf/labels';
-import { PdfService, type DocumentItem } from './pdf/pdf.service';
+import { PdfService, type DocumentItem, type DocumentTotals } from './pdf/pdf.service';
 import { CreateInvoiceDto, CreateQuoteDto, RecordPaymentDto, UpdateQuoteStatusDto } from './dto/finance.dto';
 import { computeTotals, documentTotals, lineVatRate, NO_TAXES, type LineKind, type TaxSettings } from './totals';
 
@@ -18,6 +18,12 @@ const invoiceInclude = { items: true, payments: true } satisfies Prisma.InvoiceI
 
 /** Un devis ou une facture tel que renvoyé par l'API : avec ses totaux, toujours remplis (voir totals.ts). */
 export const withTotals = <T extends Parameters<typeof documentTotals>[0]>(doc: T) => ({ ...doc, ...documentTotals(doc) });
+
+/** Totaux pour le PDF : ceux du document, avec le taux de TVA de ses lignes « service ». */
+const pdfTotals = (doc: Parameters<typeof documentTotals>[0]): DocumentTotals => ({
+  ...documentTotals(doc),
+  vatRate: doc.items.find((l) => l.kind !== 'DISBURSEMENT')?.vatRate ?? 0,
+});
 
 /** Lignes et totaux d'un nouveau document, selon les réglages de taxes de l'agence au moment de la création. */
 function priced(items: { label: string; quantity: number; unitPrice: number; kind?: LineKind | null }[], s: TaxSettings) {
@@ -86,7 +92,7 @@ export class FinanceService {
 
   async quotePdf(actor: AuthUser, id: string, lang?: DocLang) {
     const quote = await this.findQuote(actor, id);
-    return this.renderPdf(actor.organizationId, 'quote', quote.number, quote.currency, quote.candidateId, quote.items, lang);
+    return this.renderPdf(actor.organizationId, 'quote', quote.number, quote.currency, quote.candidateId, quote.items, lang, pdfTotals(quote));
   }
 
   /** Transforme un devis accepté en facture : copie les lignes, ne modifie pas le devis. */
@@ -149,7 +155,7 @@ export class FinanceService {
 
   async invoicePdf(actor: AuthUser, id: string, lang?: DocLang) {
     const invoice = await this.findInvoice(actor, id);
-    return this.renderPdf(actor.organizationId, 'invoice', invoice.number, invoice.currency, invoice.candidateId, invoice.items, lang);
+    return this.renderPdf(actor.organizationId, 'invoice', invoice.number, invoice.currency, invoice.candidateId, invoice.items, lang, pdfTotals(invoice));
   }
 
   /**
@@ -212,6 +218,7 @@ export class FinanceService {
     candidateId: string,
     items: DocumentItem[] | ((lang: DocLang) => DocumentItem[]),
     requested?: DocLang,
+    totals?: DocumentTotals,
   ) {
     const [candidate, settings] = await Promise.all([
       this.prisma.candidate.findUniqueOrThrow({ where: { id: candidateId } }),
@@ -238,6 +245,7 @@ export class FinanceService {
         candidate: { firstName: candidate.firstName, lastName: candidate.lastName, phone: candidate.phone, email: candidate.email },
       },
       typeof items === 'function' ? items(lang) : items,
+      totals,
     );
     return { buffer, ...pdfFile(kind, lang, number) };
   }
@@ -246,7 +254,7 @@ export class FinanceService {
   async invoicePdfForCandidate(organizationId: string, candidateId: string, invoiceId: string, lang?: DocLang) {
     const invoice = await this.prisma.invoice.findFirst({ where: { id: invoiceId, organizationId, candidateId }, include: invoiceInclude });
     if (!invoice) throw apiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Facture introuvable');
-    return this.renderPdf(organizationId, 'invoice', invoice.number, invoice.currency, invoice.candidateId, invoice.items, lang);
+    return this.renderPdf(organizationId, 'invoice', invoice.number, invoice.currency, invoice.candidateId, invoice.items, lang, pdfTotals(invoice));
   }
 
   private async findQuote(actor: AuthUser, id: string) {

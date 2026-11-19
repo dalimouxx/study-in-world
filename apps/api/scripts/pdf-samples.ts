@@ -3,6 +3,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PdfService, type DocumentHeader } from '../src/finance/pdf/pdf.service';
+import { computeTotals } from '../src/finance/totals';
 
 const out = join(__dirname, '..', '.pdf-samples');
 mkdirSync(out, { recursive: true });
@@ -21,6 +22,13 @@ const kinds: DocumentHeader['kind'][] = ['quote', 'invoice', 'receipt'];
       const buf = await pdf.document({ kind, number: 'FAC-2026-0012', date: new Date(), currency: 'TND', lang, agency, candidate }, items);
       writeFileSync(join(out, `${kind}-${lang}.pdf`), buf);
     }
+    // Facture taxée : service à 19 % + débours + timbre.
+    const taxedItems = [
+      { label: 'Accompagnement complet du dossier', quantity: 1, unitPrice: 2000, kind: 'SERVICE' as const, vatRate: 19 },
+      { label: lang === 'ar' ? 'رسوم التسجيل بالجامعة' : 'Frais d’inscription université', quantity: 1, unitPrice: 1500, kind: 'DISBURSEMENT' as const, vatRate: 0 },
+    ];
+    const totals = { ...computeTotals(taxedItems, { taxesEnabled: true, vatRate: 19, stampDuty: 1 }), taxed: true, vatRate: 19 };
+    writeFileSync(join(out, `invoice-taxed-${lang}.pdf`), await pdf.document({ kind: 'invoice', number: 'FAC-2026-0013', date: new Date(), currency: 'TND', lang, agency, candidate }, taxedItems, totals));
     const content =
       lang === 'ar'
         ? 'بين وكالة Study in World، من جهة،\nوالسيدة Yasmine Ben Ali، صاحبة جواز السفر رقم X1234567، المشار إليها بـ «المترشح»، من جهة أخرى،\n\nتم الاتفاق على ما يلي:\n- مرافقة كاملة للملف × 1 : 2400.000 TND\nالمجموع : 2400.000 TND'
