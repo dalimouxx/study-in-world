@@ -83,6 +83,8 @@ un devis ou une facture n'est qu'une liste de lignes dont le total est la somme 
 
 ### 6.4 Création
 - Création de devis ou de facture : les totaux sont calculés avec les Paramètres de l'agence **au moment de la création** et enregistrés avec le document.
+- **Devis créé sans taxes** (ancien, ou agence alors non assujettie) → facture : même règle que le devis ancien, prix
+  accepté conservé (ajout après relecture : ses lignes n'ont jamais été classées service / débours).
 - **Devis ancien** (son `total` est vide) → facture ou contrat : lignes recopiées en `SERVICE` avec `vatRate` 0,
   totaux enregistrés sans TVA ni timbre (`total` = somme brute). Le prix accepté par le candidat ne change pas.
 - Devis → facture : les lignes sont recopiées **avec leur type** ; les taux et le timbre sont ceux des Paramètres **à la date de la facture** (c'est la facture qui fait foi fiscalement).

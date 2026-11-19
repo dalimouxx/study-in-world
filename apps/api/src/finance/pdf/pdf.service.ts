@@ -102,7 +102,7 @@ export class PdfService {
       const money = (n: number) => formatAmount(n, header.currency);
       const rows: [string, number, number][] = [
         [L.subtotalLine, totals.subtotal, 10],
-        [L.vatLine(totals.vatRate), totals.vatAmount, 10],
+        ...(totals.vatAmount > 0 ? [[L.vatLine(totals.vatRate), totals.vatAmount, 10] as [string, number, number]] : []),
         ...(totals.disbursements > 0 ? [[L.disbursementsLine, totals.disbursements, 10] as [string, number, number]] : []),
         ...(totals.stampDuty > 0 ? [[L.stampLine, totals.stampDuty, 10] as [string, number, number]] : []),
       ];

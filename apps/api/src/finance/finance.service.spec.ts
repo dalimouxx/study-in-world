@@ -164,6 +164,15 @@ describe('FinanceService — TVA, débours et timbre', () => {
     expect(d.items.create[1]).toMatchObject({ kind: 'DISBURSEMENT', vatRate: 0 });
   });
 
+  it('devis créé sans taxes puis taxes activées → facture au prix accepté, sans TVA ni timbre', async () => {
+    const { service, prisma, data } = setup();
+    prisma.quote.findFirst.mockResolvedValue({ id: 'q1', status: 'ACCEPTED', candidateId: 'cand1', number: 'DEV-1', currency: 'TND',
+      subtotal: 3500, vatAmount: 0, disbursements: 0, stampDuty: 0, total: 3500,
+      items: [{ label: 'A', quantity: 1, unitPrice: 2000, kind: 'SERVICE', vatRate: 0 }, { label: 'B', quantity: 1, unitPrice: 1500, kind: 'SERVICE', vatRate: 0 }] });
+    await service.createInvoiceFromQuote(actor(), 'q1', {});
+    expect(data(prisma.invoice.create)).toMatchObject({ vatAmount: 0, stampDuty: 0, total: 3500 });
+  });
+
   const taxed = { id: 'inv1', organizationId: 'orgA', candidateId: 'cand1', number: 'FAC-1', currency: 'TND', status: 'ISSUED', payments: [],
     items: [{ label: 'Traduction', quantity: 3, unitPrice: 45.5, kind: 'SERVICE', vatRate: 19 }],
     subtotal: 136.5, vatAmount: 25.935, disbursements: 0, stampDuty: 1, total: 163.435 };

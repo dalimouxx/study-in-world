@@ -189,7 +189,8 @@ function ItemsFormDialog({
         {taxed && <TotalsPreview items={items} settings={taxes!} currency="TND" />}
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>{tc('cancel')}</Button>
-          <Button type="submit" loading={loading}>{tc('create')}</Button>
+          {/* Tant que les réglages de taxes ne sont pas chargés, on ne crée pas : les lignes partiraient sans leur type. */}
+          <Button type="submit" loading={loading} disabled={!taxes}>{tc('create')}</Button>
         </div>
       </form>
     </Dialog>
@@ -520,7 +521,8 @@ export function FinanceTab({ candidateId, hasPartner, preferredLanguage }: { can
 function PaymentForm({ invoice, onSubmit, loading, onCancel }: { invoice: Invoice; onSubmit: (v: { amount: number; method: PaymentMethod }) => void; loading: boolean; onCancel: () => void }) {
   const t = useTranslations('candidates');
   const tc = useTranslations('common');
-  const remaining = invoice.total - invoice.payments.reduce((s, p) => s + p.amount, 0);
+  // Arrondi au millime : évite un montant proposé du type 3408.4040000000005.
+  const remaining = Math.round((invoice.total - invoice.payments.reduce((s, p) => s + p.amount, 0)) * 1000) / 1000;
   const { register, handleSubmit, formState: { errors } } = useForm<{ amount: number; method: PaymentMethod }>({ defaultValues: { amount: remaining, method: 'CASH' } });
 
   return (

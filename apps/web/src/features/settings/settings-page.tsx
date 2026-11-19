@@ -81,6 +81,8 @@ function Content() {
     onSuccess: (data) => {
       queryClient.setQueryData(['agency-settings'], data);
       void queryClient.invalidateQueries({ queryKey: ['public-agency'] });
+      // Le formulaire de devis/facture relit tout de suite les nouveaux réglages de taxes.
+      void queryClient.invalidateQueries({ queryKey: ['finance', 'tax-settings'] });
       reset(toValues(data));
       toast.success(t('saved'));
     },
@@ -158,11 +160,11 @@ function Content() {
         </label>
         <Field label={t('vatRate')} htmlFor="s-vat" error={errors.vatRate?.message}>
           <Input id="s-vat" type="number" inputMode="decimal" min={0} max={100} step={0.01} dir="ltr" aria-invalid={!!errors.vatRate}
-            {...register('vatRate', { disabled: ro, valueAsNumber: true, min: { value: 0, message: t('vatRateInvalid') }, max: { value: 100, message: t('vatRateInvalid') } })} />
+            {...register('vatRate', { disabled: ro, valueAsNumber: true, validate: (v) => (Number.isFinite(v) && v >= 0 && v <= 100) || t('vatRateInvalid') })} />
         </Field>
         <Field label={t('stampDuty')} htmlFor="s-stamp" error={errors.stampDuty?.message}>
           <Input id="s-stamp" type="number" inputMode="decimal" min={0} step={0.001} dir="ltr" aria-invalid={!!errors.stampDuty}
-            {...register('stampDuty', { disabled: ro, valueAsNumber: true, min: { value: 0, message: t('stampDutyInvalid') } })} />
+            {...register('stampDuty', { disabled: ro, valueAsNumber: true, validate: (v) => (Number.isFinite(v) && v >= 0) || t('stampDutyInvalid') })} />
         </Field>
       </Section>
 

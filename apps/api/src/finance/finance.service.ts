@@ -100,9 +100,11 @@ export class FinanceService {
     const quote = await this.findQuote(actor, quoteId);
     if (quote.status !== 'ACCEPTED') throw apiError(HttpStatus.CONFLICT, 'QUOTE_NOT_ACCEPTED', 'Seul un devis accepté peut être transformé en facture');
     const number = await this.counter.next(actor.organizationId, 'invoice', 'FAC');
-    // Devis ancien (créé avant la TVA) : on garde le prix accepté, sans TVA ni timbre (décision du propriétaire).
+    // Devis ancien ou créé sans taxes : on garde le prix accepté, sans TVA ni timbre (décision du propriétaire).
     // Sinon : lignes avec leur type, taux et timbre des Paramètres à la date de la facture.
-    const { lines, totals } = priced(quote.items, quote.total == null ? NO_TAXES : await this.taxSettings(actor.organizationId));
+    // Un devis créé sans taxes (avant la TVA, ou agence alors non assujettie) garde lui aussi son prix accepté : ses
+    // lignes n'ont jamais été classées service / débours, les taxer toucherait aussi les débours.
+    const { lines, totals } = priced(quote.items, documentTotals(quote).taxed ? await this.taxSettings(actor.organizationId) : NO_TAXES);
     const invoice = await this.prisma.invoice.create({
       data: {
         organizationId: actor.organizationId,

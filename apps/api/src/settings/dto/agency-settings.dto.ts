@@ -45,7 +45,8 @@ export class UpdateAgencySettingsDto {
   @IsOptional() @IsString() @MaxLength(20000) contractTemplate?: string;
   @IsOptional() @IsString() @MaxLength(20000) contractTemplateAr?: string;
   /** Facturation : appliquer la TVA et le timbre fiscal aux nouveaux devis et factures ; taux en %, timbre en TND. */
-  @IsOptional() @IsBoolean() taxesEnabled?: boolean;
-  @IsOptional() @IsNumber() @Min(0) @Max(100) vatRate?: number;
-  @IsOptional() @IsNumber() @Min(0) @Max(1000) stampDuty?: number;
+  // Absents : inchangés ; mais jamais vides (null) : ces colonnes sont obligatoires en base (sinon erreur 500).
+  @ValidateIf((_, v) => v !== undefined) @IsBoolean() taxesEnabled?: boolean;
+  @ValidateIf((_, v) => v !== undefined) @IsNumber() @Min(0) @Max(100) vatRate?: number;
+  @ValidateIf((_, v) => v !== undefined) @IsNumber() @Min(0) @Max(1000) stampDuty?: number;
 }

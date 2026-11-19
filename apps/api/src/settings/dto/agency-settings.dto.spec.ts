@@ -24,6 +24,10 @@ describe('UpdateAgencySettingsDto — taxes', () => {
     expect(await errs({ vatRate: 101 })).toContain('vatRate');
     expect(await errs({ vatRate: '19' })).toContain('vatRate');
   });
+  it('refuse un taux, un timbre ou un interrupteur vide (null), sans erreur 500 en base', async () => {
+    expect(await errs({ vatRate: null, stampDuty: null, taxesEnabled: null })).toEqual(expect.arrayContaining(['vatRate', 'stampDuty', 'taxesEnabled']));
+  });
+
   it('accepte 19 %, un timbre de 1 et l’interrupteur', async () => {
     expect(await errs({ vatRate: 19, stampDuty: 1, taxesEnabled: true })).toEqual([]);
   });

@@ -128,3 +128,12 @@ describe('PdfService.document — TVA, débours et timbre', () => {
     expect(text).toContain('Total : 2400.000 TND');
   });
 });
+
+describe('PdfService.document — débours seuls', () => {
+  itPoppler('pas de ligne « TVA 0 % » quand il n’y a aucune TVA', async () => {
+    const text = toText(await new PdfService().document(header(), [{ label: 'Visa', quantity: 1, unitPrice: 300, kind: 'DISBURSEMENT', vatRate: 0 }],
+      { subtotal: 0, vatAmount: 0, disbursements: 300, stampDuty: 1, total: 301, taxed: true, vatRate: 0 }));
+    expect(text).not.toContain('TVA 0 %');
+    expect(text).toContain('301.000 TND');
+  });
+});
