@@ -72,6 +72,12 @@ export function visualLine(line: string, base: 'rtl' | 'ltr' = 'rtl'): Word[] {
   };
   for (const i of bidi.getReorderedIndices(line, embedding)) {
     if (line[i] === LRI || line[i] === PDI) continue;
+    // Antiliant / liant (ZWNJ, ZWJ) : il reste dans le mot en cours, où la police s'en sert pour lier ou non.
+    if ((line[i] === '\u200c' || line[i] === '\u200d') && current) {
+      current.chars.push(line[i]);
+      current.last = i;
+      continue;
+    }
     const odd = levels[i] % 2 === 1;
     // Signe en miroir dans un passage de droite à gauche : ( ↔ ), « ↔ » (getMirroredCharactersMap ne renvoie rien).
     const ch = (odd && bidi.getMirroredCharacter(line[i])) || line[i];

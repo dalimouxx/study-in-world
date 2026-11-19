@@ -60,7 +60,8 @@ export class ContractsService {
       agency_name: settings?.name ?? 'Study in World',
       candidate_name: `${candidate.firstName} ${candidate.lastName}`,
       candidate_passport: candidate.passportNumber ?? '—',
-      services: items.map((i) => `- ${i.label} × ${i.quantity} : ${(i.quantity * i.unitPrice).toFixed(3)} ${currency}`).join('\n'),
+      // En arabe, pas d'espace avant les deux-points (en français, l'espace avant « : » est d'usage).
+      services: items.map((i) => `- ${i.label} × ${i.quantity}${lang === 'ar' ? ':' : ' :'} ${(i.quantity * i.unitPrice).toFixed(3)} ${currency}`).join('\n'),
       total: amount.toFixed(3),
       currency,
       date: formatDocDate(lang, new Date()),

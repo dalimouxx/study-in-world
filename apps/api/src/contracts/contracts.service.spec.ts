@@ -64,6 +64,8 @@ describe('ContractsService.create — langue du contrat', () => {
     expect(content(created)).toContain('Ali Ben');
     expect(content(created)).toContain('100.000 TND');
     expect(content(created)).not.toContain('{{');
+    // Ponctuation arabe : pas d'espace avant les deux-points.
+    expect(content(created)).toContain('- Service X × 1: 100.000 TND');
   });
 
   it('dto.language l’emporte sur la préférence', async () => {

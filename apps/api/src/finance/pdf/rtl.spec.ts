@@ -58,6 +58,10 @@ describe('ponctuation et signes en miroir', () => {
     expect(visualLine('الموقع https://studyinworld.tn/ للتسجيل').map((w) => w.text).join('')).toBe('للتسجيل https://studyinworld.tn/ الموقع');
   });
 
+  it('un antiliant (ZWNJ) reste dans son mot arabe au lieu de le couper', () => {
+    expect(visualLine('كلمة\u200cكلمة').map((w) => w.text)).toEqual(['كلمة\u200cكلمة']);
+  });
+
   it('les deux-points d’un libellé arabe restent à sa fin (à gauche)', () => {
     expect(visualLine('الحريف:').map((w) => w.text)).toEqual([':', 'الحريف']);
   });
