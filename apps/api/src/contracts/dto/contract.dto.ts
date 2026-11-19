@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsEnum, IsOptional, IsString, Min, MinLength, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsEnum, IsIn, IsOptional, IsString, Min, MinLength, ValidateNested } from 'class-validator';
 
 export class ContractItemDto {
   @IsString() @MinLength(1) label!: string;
@@ -11,6 +11,8 @@ export class CreateContractDto {
   /** Si fourni, les lignes du devis accepté sont reprises ; sinon `items` doit être fourni. */
   @IsOptional() @IsString() quoteId?: string;
   @IsOptional() @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => ContractItemDto) items?: ContractItemDto[];
+  /** Langue du contrat ; par défaut, la langue préférée du candidat. */
+  @IsOptional() @IsIn(['fr', 'ar']) language?: 'fr' | 'ar';
 }
 
 export class UpdateContractStatusDto {

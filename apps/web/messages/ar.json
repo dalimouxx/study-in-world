@@ -299,7 +299,11 @@
     "contractTemplateTitle": "نموذج العقد",
     "contractTemplateHint": "النص المستخدم لإنشاء كل عقد جديد.",
     "contractTemplate": "النموذج",
-    "contractTemplateVars": "المتغيرات المتاحة: {{agency_name}}, {{candidate_name}}, {{candidate_passport}}, {{services}}, {{total}}, {{currency}}, {{date}}, {{number}}. اتركه فارغًا لاستخدام النموذج الافتراضي."
+    "contractTemplateVars": "المتغيرات المتاحة: {{agency_name}}, {{candidate_name}}, {{candidate_passport}}, {{services}}, {{total}}, {{currency}}, {{date}}, {{number}}. اتركه فارغًا لاستخدام النموذج الافتراضي.",
+    "nameAr": "اسم الوكالة (بالعربية)",
+    "addressAr": "العنوان (بالعربية)",
+    "arabicDocsHint": "يُستعملان في عروض الأسعار والفواتير والعقود بالعربية. إن تُركا فارغين، يظهر الاسم والعنوان بالفرنسية.",
+    "contractTemplateAr": "النموذج (بالعربية)"
   },
   "siteAdmin": {
     "title": "الصفحة الرئيسية",
@@ -744,7 +748,10 @@
       "VISA_APPOINTMENT_PASSED": "فات موعد التأشيرة ({country}) دون تحديث الحالة",
       "INVOICE_OVERDUE": "الفاتورة {number} متأخرة الدفع",
       "TASKS_OVERDUE": "{count, plural, one {مهمة واحدة متأخرة} two {مهمتان متأخرتان} few {# مهام متأخرة} many {# مهمة متأخرة} other {# مهمة متأخرة}}"
-    }
+    },
+    "contractLanguage": "لغة العقد",
+    "contractLanguageHint": "افتراضيًا، اللغة المفضلة للمترشح. يبقى العقد الممضى بلغته.",
+    "openInLanguage": "فتح بـ{language}"
   },
   "tasks": {
     "title": "المهام",

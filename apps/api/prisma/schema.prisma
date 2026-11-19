@@ -691,6 +691,8 @@ model Contract {
   number          String
   status          ContractStatus   @default(DRAFT)
   content         String
+  // Langue du texte figé dans `content` (choisie à la création) : le PDF du contrat sort toujours dans cette langue.
+  language        Language         @default(fr)
   totalAmount     Float
   currency        String           @default("TND")
   signedAt        DateTime?
@@ -1309,6 +1311,10 @@ model AgencySettings {
   termsOfService   String?
   legalNotice      String?
   contractTemplate String? // texte du modèle de contrat, avec des espaces réservés {{comme_ceci}} (section 35)
+  // Version arabe du modèle de contrat (mêmes espaces réservés) et coordonnées en arabe pour les documents arabes.
+  contractTemplateAr String?
+  nameAr             String?
+  addressAr          String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

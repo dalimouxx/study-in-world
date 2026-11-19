@@ -23,6 +23,9 @@ export class SocialLinksDto {
 export class UpdateAgencySettingsDto {
   @IsOptional() @IsString() @MinLength(2) @MaxLength(120) name?: string;
   @IsOptional() @IsString() @MaxLength(300) address?: string;
+  /** Nom et adresse en arabe, utilisés sur les documents arabes s'ils sont remplis. */
+  @IsOptional() @IsString() @MaxLength(120) nameAr?: string;
+  @IsOptional() @IsString() @MaxLength(300) addressAr?: string;
   @IsOptional() @IsString() @MaxLength(30) phone?: string;
   @IsOptional() @IsString() @MaxLength(30) whatsapp?: string;
   @IsOptional() @ValidateIf(notEmpty) @IsEmail() email?: string;
@@ -38,4 +41,7 @@ export class UpdateAgencySettingsDto {
   @IsOptional() @IsString() @MaxLength(20000) privacyPolicy?: string;
   @IsOptional() @IsString() @MaxLength(20000) termsOfService?: string;
   @IsOptional() @IsString() @MaxLength(20000) legalNotice?: string;
+  /** Modèles de contrat (français et arabe), avec les espaces réservés {{…}}. */
+  @IsOptional() @IsString() @MaxLength(20000) contractTemplate?: string;
+  @IsOptional() @IsString() @MaxLength(20000) contractTemplateAr?: string;
 }

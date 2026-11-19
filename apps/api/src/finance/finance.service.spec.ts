@@ -70,3 +70,36 @@ describe('FinanceService.recordPayment', () => {
     expect(cashbox.addMovement).toHaveBeenCalledWith('orgA', 'branch-gab', 'IN', 500, expect.stringContaining('FAC-2026-0001'), expect.objectContaining({ paymentId: 'pay1' }), 'u1');
   });
 });
+
+describe('FinanceService — langue des PDF', () => {
+  const setup = (preferredLanguage?: 'fr' | 'ar') => {
+    const ctx = build();
+    ctx.prisma.candidate.findUniqueOrThrow.mockResolvedValue({ firstName: 'Ali', lastName: 'Ben', phone: '1', email: null, preferredLanguage });
+    ctx.prisma.agencySettings.findUnique.mockResolvedValue({ name: 'Study in World', nameAr: 'ستادي', address: 'Gabès', addressAr: 'قابس' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pdfSvc = (ctx.service as any).pdf as { document: jest.Mock };
+    pdfSvc.document.mockResolvedValue(Buffer.from('pdf'));
+    return { ...ctx, header: () => pdfSvc.document.mock.calls[0][0] };
+  };
+
+  it('facture : langue par défaut = préférence du candidat', async () => {
+    const { service, header } = setup('ar');
+    const res = await service.invoicePdf(actor(), 'inv1');
+    expect(header()).toMatchObject({ lang: 'ar', agency: { nameAr: 'ستادي', addressAr: 'قابس' } });
+    expect(res.filename).toBe('فاتورة-FAC-2026-0001.pdf');
+    expect(res.disposition).toBe(`inline; filename="Facture-FAC-2026-0001.pdf"; filename*=UTF-8''${encodeURIComponent('فاتورة-FAC-2026-0001.pdf')}`);
+  });
+
+  it('?lang=fr remplace ar', async () => {
+    const { service, header } = setup('ar');
+    await service.invoicePdf(actor(), 'inv1', 'fr');
+    expect(header().lang).toBe('fr');
+  });
+
+  it('candidat sans préférence → fr', async () => {
+    const { service, header } = setup(undefined);
+    const res = await service.invoicePdf(actor(), 'inv1');
+    expect(header().lang).toBe('fr');
+    expect(res.disposition).toContain('filename="Facture-FAC-2026-0001.pdf"');
+  });
+});

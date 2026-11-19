@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileSignature, FileText, Plus, Receipt, Trash, TrendingUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/empty-state';
@@ -17,6 +17,7 @@ import type { CandidateProfitability, Commission, CommissionStatus, Contract, Co
 import { useErrorMessage } from '@/lib/use-error-message';
 import { useAuth } from '@/features/auth/auth-context';
 import { SignContractDialog } from '@/features/shared/sign-contract-dialog';
+import { LanguagePreferenceSelect } from '@/components/language-preference-select';
 
 const QUOTE_TONE: Record<QuoteStatus, 'neutral' | 'primary' | 'success' | 'danger'> = { DRAFT: 'neutral', SENT: 'primary', ACCEPTED: 'success', REJECTED: 'danger', EXPIRED: 'neutral' };
 const INVOICE_TONE = { DRAFT: 'neutral', ISSUED: 'primary', PARTIALLY_PAID: 'primary', PAID: 'success', CANCELLED: 'danger' } as const;
@@ -97,6 +98,30 @@ function openPdf(path: string) {
     .then((blob) => window.open(URL.createObjectURL(blob), '_blank'));
 }
 
+type DocLang = 'fr' | 'ar';
+const otherLang = (l: DocLang): DocLang => (l === 'ar' ? 'fr' : 'ar');
+
+/**
+ * Bouton PDF (langue préférée du candidat, choisie par l'API) et, à côté, un petit lien vers l'autre langue
+ * (« العربية » ou « Français »), pour une famille qui préfère l'autre version.
+ */
+function PdfButtons({ path, lang, label, icon: Icon }: { path: string; lang: DocLang; label: string; icon: typeof FileText }) {
+  const t = useTranslations('candidates');
+  const tc = useTranslations('common');
+  const other = otherLang(lang);
+  const name = tc(other === 'ar' ? 'languageAr' : 'languageFr');
+  return (
+    <span className="inline-flex items-center">
+      <Button variant="ghost" size="icon" aria-label={label} onClick={() => openPdf(path)}>
+        <Icon className="h-4 w-4" aria-hidden />
+      </Button>
+      <Button variant="ghost" size="sm" lang={other} className="h-8 px-2 text-xs text-muted-foreground" aria-label={t('openInLanguage', { language: name })} onClick={() => openPdf(`${path}?lang=${other}`)}>
+        {name}
+      </Button>
+    </span>
+  );
+}
+
 interface ItemForm { label: string; quantity: number; unitPrice: number }
 
 function ItemsFormDialog({
@@ -133,11 +158,16 @@ function ItemsFormDialog({
 }
 
 function CreateContractDialog({
-  open, onOpenChange, quotes, onSubmit, loading,
-}: { open: boolean; onOpenChange: (o: boolean) => void; quotes: Quote[]; onSubmit: (quoteId: string) => void; loading: boolean }) {
+  open, onOpenChange, quotes, onSubmit, loading, defaultLanguage,
+}: { open: boolean; onOpenChange: (o: boolean) => void; quotes: Quote[]; onSubmit: (quoteId: string, language: DocLang) => void; loading: boolean; defaultLanguage: DocLang }) {
   const t = useTranslations('candidates');
   const tc = useTranslations('common');
   const [quoteId, setQuoteId] = useState('');
+  const [language, setLanguage] = useState<DocLang>(defaultLanguage);
+  // À chaque ouverture, on repart de la langue préférée du candidat.
+  useEffect(() => {
+    if (open) setLanguage(defaultLanguage);
+  }, [open, defaultLanguage]);
   const eligible = quotes.filter((q) => q.status === 'ACCEPTED');
 
   return (
@@ -153,9 +183,14 @@ function CreateContractDialog({
             </Select>
           </Field>
         )}
+        {eligible.length > 0 && (
+          <Field label={t('contractLanguage')} htmlFor="ctr-lang" hint={t('contractLanguageHint')}>
+            <LanguagePreferenceSelect id="ctr-lang" value={language} onChange={(e) => setLanguage(e.target.value as DocLang)} />
+          </Field>
+        )}
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>{tc('cancel')}</Button>
-          <Button disabled={!quoteId} loading={loading} onClick={() => onSubmit(quoteId)}>{tc('create')}</Button>
+          <Button disabled={!quoteId} loading={loading} onClick={() => onSubmit(quoteId, language)}>{tc('create')}</Button>
         </div>
       </div>
     </Dialog>
@@ -232,7 +267,7 @@ function ProfitabilitySection({ candidateId }: { candidateId: string }) {
   );
 }
 
-export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; hasPartner: boolean }) {
+export function FinanceTab({ candidateId, hasPartner, preferredLanguage }: { candidateId: string; hasPartner: boolean; preferredLanguage: DocLang }) {
   const t = useTranslations('candidates');
   const tc = useTranslations('common');
   const errorMessage = useErrorMessage();
@@ -280,7 +315,7 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
     onError: (err) => toast.error(errorMessage(err)),
   });
   const createContract = useMutation({
-    mutationFn: (quoteId: string) => api(`/candidates/${candidateId}/contracts`, { method: 'POST', body: { quoteId } }),
+    mutationFn: ({ quoteId, language }: { quoteId: string; language: DocLang }) => api(`/candidates/${candidateId}/contracts`, { method: 'POST', body: { quoteId, language } }),
     onSuccess: () => { invalidate(); setContractFormOpen(false); toast.success(t('contractCreated')); },
     onError: (err) => toast.error(errorMessage(err)),
   });
@@ -314,11 +349,9 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
                   <p className="font-medium">{q.number}</p>
                   <p className="text-sm text-muted-foreground">{fmt(total(q.items), q.currency)}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={QUOTE_TONE[q.status]}>{t(`quoteStatuses.${q.status}`)}</Badge>
-                  <Button variant="ghost" size="icon" aria-label={tc('download')} onClick={() => openPdf(`/quotes/${q.id}/pdf`)}>
-                    <FileText className="h-4 w-4" aria-hidden />
-                  </Button>
+                  <PdfButtons path={`/quotes/${q.id}/pdf`} lang={preferredLanguage} label={tc('download')} icon={FileText} />
                   {can('finance.manage') && q.status === 'DRAFT' && (
                     <Button size="sm" variant="secondary" onClick={() => setQuoteStatus.mutate({ id: q.id, status: 'SENT' })}>{t('markSent')}</Button>
                   )}
@@ -358,8 +391,10 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
                     {ctr.signedAt && <> · {t('signedBy', { name: ctr.signerName ?? '' })}</>}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={CONTRACT_TONE[ctr.status]}>{t(`contractStatuses.${ctr.status}`)}</Badge>
+                  {/* Un contrat n'existe que dans sa langue (texte figé) : pas de lien vers l'autre langue. */}
+                  <Badge tone="neutral" lang={ctr.language}>{tc(ctr.language === 'ar' ? 'languageAr' : 'languageFr')}</Badge>
                   <Button variant="ghost" size="icon" aria-label={tc('download')} onClick={() => openPdf(`/contracts/${ctr.id}/pdf`)}>
                     <FileText className="h-4 w-4" aria-hidden />
                   </Button>
@@ -400,11 +435,9 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
                       <p className="font-medium">{inv.number}</p>
                       <p className="text-sm text-muted-foreground">{fmt(paid, inv.currency)} / {fmt(invTotal, inv.currency)}</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={INVOICE_TONE[inv.status]}>{t(`invoiceStatuses.${inv.status}`)}</Badge>
-                      <Button variant="ghost" size="icon" aria-label={tc('download')} onClick={() => openPdf(`/invoices/${inv.id}/pdf`)}>
-                        <FileText className="h-4 w-4" aria-hidden />
-                      </Button>
+                      <PdfButtons path={`/invoices/${inv.id}/pdf`} lang={preferredLanguage} label={tc('download')} icon={FileText} />
                       {can('finance.manage') && inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
                         <Button size="sm" onClick={() => setPayingInvoice(inv)}>{t('recordPayment')}</Button>
                       )}
@@ -415,9 +448,7 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
                       {inv.payments.map((p) => (
                         <li key={p.id} className="flex items-center justify-between">
                           <span>{t(`paymentMethods.${p.method}`)} · {fmt(p.amount, inv.currency)}</span>
-                          <Button variant="ghost" size="icon" aria-label={t('receipt')} onClick={() => openPdf(`/payments/${p.id}/receipt`)}>
-                            <Receipt className="h-4 w-4" aria-hidden />
-                          </Button>
+                          <PdfButtons path={`/payments/${p.id}/receipt`} lang={preferredLanguage} label={t('receipt')} icon={Receipt} />
                         </li>
                       ))}
                     </ul>
@@ -435,7 +466,7 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
 
       <ItemsFormDialog open={quoteFormOpen} onOpenChange={setQuoteFormOpen} title={t('newQuote')} onSubmit={(items) => createQuote.mutate(items)} loading={createQuote.isPending} />
       <ItemsFormDialog open={invoiceFormOpen} onOpenChange={setInvoiceFormOpen} title={t('newInvoice')} onSubmit={(items) => createInvoice.mutate(items)} loading={createInvoice.isPending} />
-      <CreateContractDialog open={contractFormOpen} onOpenChange={setContractFormOpen} quotes={quotes.data ?? []} onSubmit={(quoteId) => createContract.mutate(quoteId)} loading={createContract.isPending} />
+      <CreateContractDialog open={contractFormOpen} onOpenChange={setContractFormOpen} quotes={quotes.data ?? []} onSubmit={(quoteId, language) => createContract.mutate({ quoteId, language })} loading={createContract.isPending} defaultLanguage={preferredLanguage} />
       <SignContractDialog contract={signingContract} open={!!signingContract} onOpenChange={(o) => !o && setSigningContract(null)} onSign={(v) => signContract.mutate(v)} loading={signContract.isPending} />
 
       <Dialog open={!!payingInvoice} onOpenChange={(o) => !o && setPayingInvoice(null)} title={t('recordPayment')}>

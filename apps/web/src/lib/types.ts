@@ -87,6 +87,9 @@ export interface AgencySettings {
   termsOfService: string | null;
   legalNotice: string | null;
   contractTemplate: string | null;
+  contractTemplateAr: string | null;
+  nameAr: string | null;
+  addressAr: string | null;
 }
 
 // ---------- CMS « Page d'accueil » (réservé au Super Admin) ----------
@@ -607,6 +610,8 @@ export interface Contract {
   signedAt: string | null;
   signerName: string | null;
   signatureMethod: SignatureMethod | null;
+  /** Langue du texte du contrat, choisie à la création (le PDF sort toujours dans cette langue). */
+  language: 'fr' | 'ar';
   createdAt: string;
 }
 

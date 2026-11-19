@@ -150,7 +150,7 @@ function Content({ candidateId }: { candidateId: string }) {
         {tab === 'checklist' && <ChecklistTab candidateId={candidateId} />}
         {tab === 'applications' && <ApplicationsTab candidateId={candidateId} />}
         {tab === 'visa' && <VisaTab candidateId={candidateId} />}
-        {tab === 'finance' && <FinanceTab candidateId={candidateId} hasPartner={!!c.partner} />}
+        {tab === 'finance' && <FinanceTab candidateId={candidateId} hasPartner={!!c.partner} preferredLanguage={c.preferredLanguage ?? 'fr'} />}
       </div>
     </>
   );
