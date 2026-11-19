@@ -106,15 +106,16 @@ export class PdfService {
     const dir = rtl ? 'rtl' : 'ltr';
     const start: Align = rtl ? 'right' : 'left';
     const end: Align = rtl ? 'left' : 'right';
-    const t = (text: string, y: number, size: number, align: Align, color = '#000', lineGap?: number) =>
-      drawText(doc, text, { x: MARGIN, y, width: WIDTH, size, align, dir, color, lineGap });
+    const t = (text: string, y: number, size: number, align: Align, color = '#000', lineGap?: number, pageBreak?: boolean) =>
+      drawText(doc, text, { x: MARGIN, y, width: WIDTH, size, align, dir, color, lineGap, pageBreak });
 
     let y = t((rtl && header.agency.nameAr) || header.agency.name, MARGIN, 18, start);
     const address = (rtl && header.agency.addressAr) || header.agency.address;
     if (address) y = t(address, y, 9, start, '#555');
     y = t(`${L.contract} ${header.number}`, y + 12, 16, end);
     y = t(formatDocDate(header.lang, header.date), y, 10, end, '#555');
-    y = t(content, y + 18, 10, start, '#000', 4);
+    // Le texte d'un contrat peut être long : il continue sur les pages suivantes.
+    y = t(content, y + 18, 10, start, '#000', 4, true);
 
     if (signature) {
       if (y > 640) {
@@ -131,6 +132,8 @@ export class PdfService {
       t(signature.signerName, y + 80, 9, start, '#555');
       t(`${L.signedOn} ${formatDocDate(header.lang, signature.signedAt)}`, y + 93, 9, start, '#555');
     }
+
+    t(L.generatedBy(header.agency.name), 780, 8, 'center', '#888');
 
     doc.end();
     return done;

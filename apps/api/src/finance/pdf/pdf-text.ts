@@ -33,6 +33,8 @@ export type DrawOptions = {
   dir: 'ltr' | 'rtl';
   color?: string;
   lineGap?: number;
+  /** Passer à la page suivante quand le texte arrive en bas de page (texte long : corps du contrat). */
+  pageBreak?: boolean;
 };
 
 /** Décalage vertical des mots latins au milieu de l'arabe, pour aligner les lignes de base des deux polices. */
@@ -59,15 +61,19 @@ function arabicHas(doc: PDFKit.PDFDocument, cp: number): boolean {
  * coupé là où la police arabe n'a pas le glyphe ; ses morceaux se lisent de droite à gauche, donc on inverse leur ordre.
  */
 export function splitRuns(doc: PDFKit.PDFDocument, w: Word): Run[] {
-  if (!w.rtl) return [{ text: w.text, font: LATIN_FONT }];
+  // Morceau de gauche à droite sans arabe : Helvetica entier. Avec des chiffres arabo-indiens (١٢), qui se lisent
+  // de gauche à droite mais n'existent pas dans Helvetica, chaque caractère arabe passe par la police arabe.
+  if (!w.rtl && !hasArabic(w.text)) return [{ text: w.text, font: LATIN_FONT }];
   const runs: Run[] = [];
   for (const ch of w.text) {
-    const font = arabicHas(doc, ch.codePointAt(0)!) ? ARABIC_FONT : LATIN_FONT;
+    const font = (w.rtl || hasArabic(ch)) && arabicHas(doc, ch.codePointAt(0)!) ? ARABIC_FONT : LATIN_FONT;
     const last = runs[runs.length - 1];
-    if (last && last.font === font) last.text += ch;
+    // Dans un morceau de gauche à droite, un caractère en police arabe est dessiné seul : fontkit retournerait
+    // sinon l'ordre de la suite (١٢ deviendrait ٢١).
+    if (last && last.font === font && (w.rtl || font === LATIN_FONT)) last.text += ch;
     else runs.push({ text: ch, font });
   }
-  return runs.reverse();
+  return w.rtl ? runs.reverse() : runs;
 }
 
 /** Dessine `text` ; renvoie la position y juste sous le texte. */
@@ -76,7 +82,8 @@ export function drawText(doc: PDFKit.PDFDocument, text: string, o: DrawOptions):
   // En arabe, « left » (début de ligne) signifie à droite ; « right » reste le bord droit.
   const align = o.dir === 'rtl' && o.align === 'left' ? 'right' : o.align;
   if (!hasArabic(text)) {
-    // Texte sans arabe (montant, nom, téléphone) : chemin pdfkit habituel, lu de gauche à droite même en arabe.
+    // Texte sans arabe (montant, nom, téléphone) : chemin pdfkit habituel, lu de gauche à droite même en arabe
+    // (pdfkit passe lui-même à la page suivante).
     doc.font(LATIN_FONT).fontSize(o.size).text(text, o.x, o.y, { width: o.width, align, lineGap: o.lineGap });
     return doc.y;
   }
@@ -92,6 +99,10 @@ export function drawText(doc: PDFKit.PDFDocument, text: string, o: DrawOptions):
 
   let y = o.y;
   for (const words of lines) {
+    if (o.pageBreak && y + lineHeight > doc.page.height - doc.page.margins.bottom) {
+      doc.addPage();
+      y = doc.page.margins.top;
+    }
     const widths = words.map(measure);
     const total = widths.reduce((a, b) => a + b, 0);
     let x = align === 'right' ? o.x + o.width - total : align === 'center' ? o.x + (o.width - total) / 2 : o.x;

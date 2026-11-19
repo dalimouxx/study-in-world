@@ -18,7 +18,31 @@ const LATIN_SPAN = /[A-Za-z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F](?:[^\u060
  * s'affiche d'un bloc, de gauche à droite, au lieu d'être découpé par l'algorithme autour des « / », « . » et espaces.
  */
 function isolateLatin(line: string): string {
-  return line.replace(LATIN_SPAN, (m) => LRI + m + PDI);
+  const count = (s: string, c: string) => s.split(c).length - 1;
+  let out = '';
+  let pos = 0;
+  for (const m of line.matchAll(LATIN_SPAN)) {
+    let start = m.index ?? 0;
+    let end = start + m[0].length;
+    if (start < pos) continue;
+    // On garde dans le bloc la parenthèse fermante d'une parenthèse ouverte dedans (« (CF) ») et le « / » final
+    // d'une adresse web ; et symétriquement la parenthèse ouvrante d'une fermante restée seule dans le bloc.
+    for (;;) {
+      const span = line.slice(start, end);
+      const c = line[end];
+      if (c === '/' || (c === ')' && count(span, '(') > count(span, ')')) || (c === ']' && count(span, '[') > count(span, ']'))) end++;
+      else break;
+    }
+    for (;;) {
+      const span = line.slice(start, end);
+      const c = line[start - 1];
+      if (start > pos && ((c === '(' && count(span, ')') > count(span, '(')) || (c === '[' && count(span, ']') > count(span, '[')))) start--;
+      else break;
+    }
+    out += line.slice(pos, start) + LRI + line.slice(start, end) + PDI;
+    pos = end;
+  }
+  return out + line.slice(pos);
 }
 
 export type Word = { text: string; rtl: boolean; space?: boolean };
@@ -80,6 +104,22 @@ export function visualWords(line: string, base: 'rtl' | 'ltr' = 'rtl'): Word[] {
   return visualLine(line, base).filter((w) => !w.space);
 }
 
+/** Un mot plus large que la colonne (longue adresse e-mail, référence) est coupé en morceaux qui y tiennent. */
+function breakLongWord(token: string, maxWidth: number, measure: (w: Word) => number): string[] {
+  const rtl = hasArabic(token);
+  if (measure({ text: token, rtl }) <= maxWidth) return [token];
+  const parts: string[] = [];
+  let current = '';
+  for (const ch of token) {
+    if (current && measure({ text: current + ch, rtl }) > maxWidth) {
+      parts.push(current);
+      current = ch;
+    } else current += ch;
+  }
+  if (current) parts.push(current);
+  return parts;
+}
+
 /**
  * Découpe un texte en lignes qui tiennent dans `maxWidth` (dans l'ordre LOGIQUE, pour que le premier mot lu
  * soit en haut), puis met chaque ligne dans l'ordre visuel. Un « \n » force une nouvelle ligne ; une ligne vide
@@ -95,7 +135,7 @@ export function wrapRtl(text: string, maxWidth: number, measure: (w: Word) => nu
     }
     let line: string[] = [];
     let width = 0;
-    for (const t of logical) {
+    for (const t of logical.flatMap((tok) => breakLongWord(tok, maxWidth, measure))) {
       const w = measure({ text: t, rtl: hasArabic(t) });
       const next = line.length ? width + spaceWidth + w : w;
       if (line.length && next > maxWidth) {

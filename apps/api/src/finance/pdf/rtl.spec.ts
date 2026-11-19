@@ -50,6 +50,14 @@ describe('ponctuation et signes en miroir', () => {
     expect(visualLine('صاحب(ة)').map((w) => w.text)).toEqual(['(', 'ة', ')', 'صاحب']);
   });
 
+  it('une parenthèse fermante reste avec son passage latin', () => {
+    expect(visualLine('رسوم Campus France (CF) مدفوعة').map((w) => w.text).join('')).toBe('مدفوعة Campus France (CF) رسوم');
+  });
+
+  it('une adresse web finissant par « / » reste d’un bloc', () => {
+    expect(visualLine('الموقع https://studyinworld.tn/ للتسجيل').map((w) => w.text).join('')).toBe('للتسجيل https://studyinworld.tn/ الموقع');
+  });
+
   it('les deux-points d’un libellé arabe restent à sa fin (à gauche)', () => {
     expect(visualLine('الحريف:').map((w) => w.text)).toEqual([':', 'الحريف']);
   });
@@ -65,6 +73,13 @@ describe('wrapRtl', () => {
   it('coupe en lignes logiques puis réordonne chaque ligne', () => {
     const lines = wrapRtl('أ ب ت ث', 25, measure, 2);
     expect(lines.map(texts)).toEqual([['ب', 'أ'], ['ث', 'ت']]);
+  });
+
+  it('un mot plus large que la colonne est coupé au lieu de déborder', () => {
+    const byChar = (w: Word) => w.text.length * 10;
+    const lines = wrapRtl('x'.repeat(25), 100, byChar, 2);
+    expect(lines.length).toBe(3);
+    for (const l of lines) expect(l.reduce((s, w) => s + byChar(w), 0)).toBeLessThanOrEqual(100);
   });
 
   it('respecte les retours à la ligne', () => {

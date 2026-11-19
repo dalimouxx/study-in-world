@@ -73,3 +73,27 @@ describe('PdfService.contract', () => {
     expect(buf.toString('latin1')).toContain('NotoNaskhArabic');
   });
 });
+
+describe('PdfService.contract — pages et pied de page', () => {
+  const pages = (buf: Buffer) => (buf.toString('latin1').match(/\/Type \/Page\b/g) ?? []).length;
+
+  itPoppler('un long contrat arabe continue sur les pages suivantes, sans perdre de clause', async () => {
+    const content = Array.from({ length: 120 }, (_, i) => `البند ${i + 1}: تلتزم الوكالة بمرافقة المترشح.`).join('\n');
+    const buf = await new PdfService().contract({ number: 'CTR-1', date: new Date(), agency: { name: 'Study in World' }, lang: 'ar' }, content, null);
+    expect(pages(buf)).toBeGreaterThanOrEqual(3);
+    expect(toText(buf)).toContain('120');
+  });
+
+  itPoppler('le contrat français garde son pied de page', async () => {
+    const buf = await new PdfService().contract({ number: 'CTR-1', date: new Date(), agency: { name: 'Study in World' }, lang: 'fr' }, 'Texte', null);
+    expect(toText(buf)).toContain('Document généré par Study in World.');
+  });
+});
+
+describe('PdfService.document — chiffres arabes', () => {
+  itPoppler('les chiffres arabo-indiens (١٢) sont dessinés avec la police arabe, pas en caractères illisibles', async () => {
+    const buf = await new PdfService().document(header({ lang: 'ar', agency: { name: 'SIW', addressAr: 'شارع الحبيب بورقيبة ١٢ تونس' } }), items);
+    expect(toText(buf)).toMatch(/١٢|12/);
+    expect(toText(buf)).not.toContain('fb');
+  });
+});
