@@ -1,6 +1,7 @@
 import type { ReminderKind } from '@prisma/client';
 import type { TemplateVars } from '../message-templates/render';
 import type { PrismaService } from '../prisma/prisma.service';
+import { documentTotals } from '../finance/totals';
 import { DAY_MS, dayRange, localDateKey } from './time';
 
 export type ReminderTarget = {
@@ -97,13 +98,15 @@ export async function detectReminders(prisma: PrismaService, organizationId: str
     where: { organizationId, status: { in: ['ISSUED', 'PARTIALLY_PAID'] }, dueDate: { lt: today.start } },
     select: {
       id: true, number: true, currency: true, dueDate: true,
-      items: { select: { quantity: true, unitPrice: true } }, payments: { select: { amount: true } },
+      items: { select: { quantity: true, unitPrice: true, kind: true } }, payments: { select: { amount: true } },
+      subtotal: true, vatAmount: true, disbursements: true, stampDuty: true, total: true,
       candidate: { select: candidateSelect },
     },
   });
   for (const inv of invoices) {
     if (!isActiveCandidate(inv.candidate as CandidateRow) || !inv.dueDate) continue;
-    const rest = round3(inv.items.reduce((s, l) => s + l.quantity * l.unitPrice, 0) - inv.payments.reduce((s, p) => s + p.amount, 0));
+    // Reste à payer sur le total TTC enregistré (somme brute pour une facture d'avant la TVA).
+    const rest = round3(documentTotals(inv).total - inv.payments.reduce((s, p) => s + p.amount, 0));
     if (rest <= 0) continue;
     const daysLate = Math.floor((now.getTime() - inv.dueDate.getTime()) / DAY_MS);
     out.push({

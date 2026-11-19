@@ -9,6 +9,7 @@ import { TimelineService } from '../timeline/timeline.service';
 import { apiError } from '../common/errors/api-error';
 import type { CandidateAuthUser } from '../common/auth-user';
 import { PortalUploadDocumentDto, UpdatePortalProfileDto } from './dto/portal.dto';
+import { withTotals } from '../finance/finance.service';
 import type { SignContractDto } from '../contracts/dto/contract.dto';
 
 const MAX_SIZE = 15 * 1024 * 1024;
@@ -106,12 +107,14 @@ export class PortalService {
     return this.prisma.checklistItem.findMany({ where: { visaFileId }, orderBy: { position: 'asc' } });
   }
 
-  quotes(candidate: CandidateAuthUser) {
-    return this.prisma.quote.findMany({ where: { candidateId: candidate.id }, include: { items: true }, orderBy: { createdAt: 'desc' } });
+  async quotes(candidate: CandidateAuthUser) {
+    const quotes = await this.prisma.quote.findMany({ where: { candidateId: candidate.id }, include: { items: true }, orderBy: { createdAt: 'desc' } });
+    return quotes.map(withTotals);
   }
 
-  invoices(candidate: CandidateAuthUser) {
-    return this.prisma.invoice.findMany({ where: { candidateId: candidate.id }, include: { items: true, payments: true }, orderBy: { createdAt: 'desc' } });
+  async invoices(candidate: CandidateAuthUser) {
+    const invoices = await this.prisma.invoice.findMany({ where: { candidateId: candidate.id }, include: { items: true, payments: true }, orderBy: { createdAt: 'desc' } });
+    return invoices.map(withTotals);
   }
 
   invoicePdf(candidate: CandidateAuthUser, invoiceId: string, lang?: DocLang) {

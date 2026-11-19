@@ -82,6 +82,13 @@ describe('detectReminders — factures', () => {
     expect(prisma.invoice.findMany.mock.calls[0][0].where).toMatchObject({ organizationId: 'orgA', status: { in: ['ISSUED', 'PARTIALLY_PAID'] } });
   });
 
+  it('facture taxée : le reste à payer part du total TTC', async () => {
+    const prisma = build();
+    prisma.invoice.findMany.mockResolvedValue([invoice({ items: [{ quantity: 1, unitPrice: 2000, kind: 'SERVICE' }], subtotal: 2000, vatAmount: 380, disbursements: 0, stampDuty: 1, total: 2381, payments: [{ amount: 1000 }] })]);
+    const out = await run(prisma);
+    expect(out[0].vars).toMatchObject({ montant: '1381' });
+  });
+
   it('ignore une facture soldée', async () => {
     const prisma = build();
     prisma.invoice.findMany.mockResolvedValue([invoice({ payments: [{ amount: 2400 }] })]);

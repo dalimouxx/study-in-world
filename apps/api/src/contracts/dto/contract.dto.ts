@@ -5,6 +5,8 @@ export class ContractItemDto {
   @IsString() @MinLength(1) label!: string;
   @Type(() => Number) quantity!: number;
   @Type(() => Number) @Min(0) unitPrice!: number;
+  /** Service de l'agence (TVA) ou débours (sans TVA). Par défaut : service. */
+  @IsOptional() @IsIn(['SERVICE', 'DISBURSEMENT']) kind?: 'SERVICE' | 'DISBURSEMENT';
 }
 
 export class CreateContractDto {
