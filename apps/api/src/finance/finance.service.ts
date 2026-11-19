@@ -11,11 +11,22 @@ import { CandidatesService } from '../candidates/candidates.service';
 import { LABELS, pdfFile, type DocKind, type DocLang } from './pdf/labels';
 import { PdfService, type DocumentItem } from './pdf/pdf.service';
 import { CreateInvoiceDto, CreateQuoteDto, RecordPaymentDto, UpdateQuoteStatusDto } from './dto/finance.dto';
+import { computeTotals, documentTotals, lineVatRate, NO_TAXES, type LineKind, type TaxSettings } from './totals';
 
 const quoteInclude = { items: true } satisfies Prisma.QuoteInclude;
 const invoiceInclude = { items: true, payments: true } satisfies Prisma.InvoiceInclude;
 
-const total = (items: { quantity: number; unitPrice: number }[]) => items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+/** Un devis ou une facture tel que renvoyé par l'API : avec ses totaux, toujours remplis (voir totals.ts). */
+export const withTotals = <T extends Parameters<typeof documentTotals>[0]>(doc: T) => ({ ...doc, ...documentTotals(doc) });
+
+/** Lignes et totaux d'un nouveau document, selon les réglages de taxes de l'agence au moment de la création. */
+function priced(items: { label: string; quantity: number; unitPrice: number; kind?: LineKind | null }[], s: TaxSettings) {
+  const lines = items.map((i) => {
+    const kind: LineKind = s.taxesEnabled ? (i.kind ?? 'SERVICE') : 'SERVICE';
+    return { label: i.label, quantity: i.quantity, unitPrice: i.unitPrice, kind, vatRate: lineVatRate(kind, s) };
+  });
+  return { lines, totals: computeTotals(lines, s) };
+}
 
 @Injectable()
 export class FinanceService {
@@ -31,13 +42,21 @@ export class FinanceService {
 
   // ---------- Devis ----------
 
-  quotesFor(actor: AuthUser, candidateId: string) {
-    return this.prisma.quote.findMany({ where: { organizationId: actor.organizationId, candidateId }, include: quoteInclude, orderBy: { createdAt: 'desc' } });
+  /** Réglages de taxes de l'agence (défauts : désactivées, 19 %, timbre 1,000 TND). */
+  async taxSettings(organizationId: string): Promise<TaxSettings> {
+    const s = await this.prisma.agencySettings.findUnique({ where: { organizationId } });
+    return { taxesEnabled: s?.taxesEnabled ?? false, vatRate: s?.vatRate ?? 19, stampDuty: s?.stampDuty ?? 1 };
+  }
+
+  async quotesFor(actor: AuthUser, candidateId: string) {
+    const quotes = await this.prisma.quote.findMany({ where: { organizationId: actor.organizationId, candidateId }, include: quoteInclude, orderBy: { createdAt: 'desc' } });
+    return quotes.map(withTotals);
   }
 
   async createQuote(actor: AuthUser, candidateId: string, dto: CreateQuoteDto, meta: RequestMeta) {
     await this.candidates.assertBelongs(actor.organizationId, candidateId);
     const number = await this.counter.next(actor.organizationId, 'quote', 'DEV');
+    const { lines, totals } = priced(dto.items, await this.taxSettings(actor.organizationId));
     const quote = await this.prisma.quote.create({
       data: {
         organizationId: actor.organizationId,
@@ -47,13 +66,14 @@ export class FinanceService {
         validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
         notes: dto.notes,
         createdById: actor.id,
-        items: { create: dto.items },
+        ...totals,
+        items: { create: lines },
       },
       include: quoteInclude,
     });
-    await this.timeline.add(actor.organizationId, 'CANDIDATE', candidateId, TimelineType.SYSTEM, `Devis ${number} créé (${total(dto.items).toFixed(3)} ${quote.currency})`, actor.id);
+    await this.timeline.add(actor.organizationId, 'CANDIDATE', candidateId, TimelineType.SYSTEM, `Devis ${number} créé (${totals.total.toFixed(3)} ${quote.currency})`, actor.id);
     await this.audit.log({ organizationId: actor.organizationId, userId: actor.id, action: 'quote.create', entity: 'Quote', entityId: quote.id, metadata: { candidateId, number }, meta });
-    return quote;
+    return withTotals(quote);
   }
 
   async setQuoteStatus(actor: AuthUser, id: string, dto: UpdateQuoteStatusDto, meta: RequestMeta) {
@@ -61,7 +81,7 @@ export class FinanceService {
     const updated = await this.prisma.quote.update({ where: { id }, data: { status: dto.status }, include: quoteInclude });
     await this.timeline.add(actor.organizationId, 'CANDIDATE', quote.candidateId, TimelineType.SYSTEM, `Devis ${quote.number} : ${dto.status}`, actor.id);
     await this.audit.log({ organizationId: actor.organizationId, userId: actor.id, action: 'quote.status', entity: 'Quote', entityId: id, metadata: { status: dto.status }, meta });
-    return updated;
+    return withTotals(updated);
   }
 
   async quotePdf(actor: AuthUser, id: string, lang?: DocLang) {
@@ -74,6 +94,9 @@ export class FinanceService {
     const quote = await this.findQuote(actor, quoteId);
     if (quote.status !== 'ACCEPTED') throw apiError(HttpStatus.CONFLICT, 'QUOTE_NOT_ACCEPTED', 'Seul un devis accepté peut être transformé en facture');
     const number = await this.counter.next(actor.organizationId, 'invoice', 'FAC');
+    // Devis ancien (créé avant la TVA) : on garde le prix accepté, sans TVA ni timbre (décision du propriétaire).
+    // Sinon : lignes avec leur type, taux et timbre des Paramètres à la date de la facture.
+    const { lines, totals } = priced(quote.items, quote.total == null ? NO_TAXES : await this.taxSettings(actor.organizationId));
     const invoice = await this.prisma.invoice.create({
       data: {
         organizationId: actor.organizationId,
@@ -82,25 +105,28 @@ export class FinanceService {
         number,
         currency: quote.currency,
         createdById: actor.id,
-        items: { create: quote.items.map((i) => ({ label: i.label, quantity: i.quantity, unitPrice: i.unitPrice })) },
+        ...totals,
+        items: { create: lines },
         status: 'ISSUED',
       },
       include: invoiceInclude,
     });
     await this.timeline.add(actor.organizationId, 'CANDIDATE', quote.candidateId, TimelineType.SYSTEM, `Facture ${number} créée à partir du devis ${quote.number}`, actor.id);
     await this.audit.log({ organizationId: actor.organizationId, userId: actor.id, action: 'invoice.create', entity: 'Invoice', entityId: invoice.id, metadata: { fromQuote: quote.number }, meta });
-    return invoice;
+    return withTotals(invoice);
   }
 
   // ---------- Factures ----------
 
-  invoicesFor(actor: AuthUser, candidateId: string) {
-    return this.prisma.invoice.findMany({ where: { organizationId: actor.organizationId, candidateId }, include: invoiceInclude, orderBy: { createdAt: 'desc' } });
+  async invoicesFor(actor: AuthUser, candidateId: string) {
+    const invoices = await this.prisma.invoice.findMany({ where: { organizationId: actor.organizationId, candidateId }, include: invoiceInclude, orderBy: { createdAt: 'desc' } });
+    return invoices.map(withTotals);
   }
 
   async createInvoice(actor: AuthUser, candidateId: string, dto: CreateInvoiceDto, meta: RequestMeta) {
     await this.candidates.assertBelongs(actor.organizationId, candidateId);
     const number = await this.counter.next(actor.organizationId, 'invoice', 'FAC');
+    const { lines, totals } = priced(dto.items, await this.taxSettings(actor.organizationId));
     const invoice = await this.prisma.invoice.create({
       data: {
         organizationId: actor.organizationId,
@@ -111,13 +137,14 @@ export class FinanceService {
         notes: dto.notes,
         createdById: actor.id,
         status: 'ISSUED',
-        items: { create: dto.items },
+        ...totals,
+        items: { create: lines },
       },
       include: invoiceInclude,
     });
-    await this.timeline.add(actor.organizationId, 'CANDIDATE', candidateId, TimelineType.SYSTEM, `Facture ${number} créée (${total(dto.items).toFixed(3)} ${invoice.currency})`, actor.id);
+    await this.timeline.add(actor.organizationId, 'CANDIDATE', candidateId, TimelineType.SYSTEM, `Facture ${number} créée (${totals.total.toFixed(3)} ${invoice.currency})`, actor.id);
     await this.audit.log({ organizationId: actor.organizationId, userId: actor.id, action: 'invoice.create', entity: 'Invoice', entityId: invoice.id, metadata: { candidateId, number }, meta });
-    return invoice;
+    return withTotals(invoice);
   }
 
   async invoicePdf(actor: AuthUser, id: string, lang?: DocLang) {
@@ -132,7 +159,7 @@ export class FinanceService {
   async recordPayment(actor: AuthUser, invoiceId: string, dto: RecordPaymentDto, meta: RequestMeta) {
     const invoice = await this.findInvoice(actor, invoiceId);
     if (invoice.status === 'CANCELLED') throw apiError(HttpStatus.CONFLICT, 'INVOICE_CANCELLED', 'Cette facture est annulée');
-    const invoiceTotal = total(invoice.items);
+    const invoiceTotal = documentTotals(invoice).total;
     const alreadyPaid = invoice.payments.reduce((s, p) => s + p.amount, 0);
     const remaining = invoiceTotal - alreadyPaid;
     if (dto.amount > remaining + 0.001) {

@@ -587,6 +587,13 @@ model Quote {
   number         String
   status         QuoteStatus @default(DRAFT)
   currency       String      @default("TND")
+  // Totaux enregistrés à la création (HT des services, TVA, débours, timbre, TTC). Vides = document créé avant
+  // la TVA : son total reste la somme brute de ses lignes.
+  subtotal       Float?
+  vatAmount      Float?
+  disbursements  Float?
+  stampDuty      Float?
+  total          Float?
   validUntil     DateTime?
   notes          String?
   createdById    String?
@@ -604,11 +611,14 @@ model Quote {
 }
 
 model QuoteItem {
-  id        String @id @default(cuid())
+  id        String   @id @default(cuid())
   quoteId   String
   label     String
-  quantity  Int    @default(1)
+  quantity  Int      @default(1)
   unitPrice Float
+  // Service de l'agence (TVA) ou débours payé pour le compte du candidat (sans TVA) ; taux recopié à la création.
+  kind      LineKind @default(SERVICE)
+  vatRate   Float    @default(0)
 
   quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 }
@@ -621,6 +631,13 @@ model Invoice {
   number         String
   status         InvoiceStatus @default(DRAFT)
   currency       String        @default("TND")
+  // Totaux enregistrés à la création (HT des services, TVA, débours, timbre, TTC). Vides = document créé avant
+  // la TVA : son total reste la somme brute de ses lignes.
+  subtotal       Float?
+  vatAmount      Float?
+  disbursements  Float?
+  stampDuty      Float?
+  total          Float?
   dueDate        DateTime?
   notes          String?
   createdById    String?
@@ -639,11 +656,14 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id        String @id @default(cuid())
+  id        String   @id @default(cuid())
   invoiceId String
   label     String
-  quantity  Int    @default(1)
+  quantity  Int      @default(1)
   unitPrice Float
+  // Service de l'agence (TVA) ou débours payé pour le compte du candidat (sans TVA) ; taux recopié à la création.
+  kind      LineKind @default(SERVICE)
+  vatRate   Float    @default(0)
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }
@@ -1285,38 +1305,42 @@ model Message {
 }
 
 model AgencySettings {
-  id               String   @id @default(cuid())
-  organizationId   String   @unique
-  name             String
-  logoUrl          String?
-  logoDarkUrl      String?
-  faviconUrl       String?
-  address          String?
-  phone            String?
-  whatsapp         String?
-  email            String?
-  website          String?
-  socialLinks      Json? // { facebook, instagram, tiktok, linkedin, youtube }
-  openingHours     String?
-  legalInfo        String?
-  taxId            String? // matricule fiscal
-  bankDetails      String?
-  currency         String   @default("TND")
-  timezone         String   @default("Africa/Tunis")
-  footerText       String?
+  id                 String   @id @default(cuid())
+  organizationId     String   @unique
+  name               String
+  logoUrl            String?
+  logoDarkUrl        String?
+  faviconUrl         String?
+  address            String?
+  phone              String?
+  whatsapp           String?
+  email              String?
+  website            String?
+  socialLinks        Json? // { facebook, instagram, tiktok, linkedin, youtube }
+  openingHours       String?
+  legalInfo          String?
+  taxId              String? // matricule fiscal
+  bankDetails        String?
+  currency           String   @default("TND")
+  timezone           String   @default("Africa/Tunis")
+  footerText         String?
   // Version arabe du texte de pied de page (Phase « CMS landing page ») — footerText reste le texte
   // principal/français existant, jamais renommé pour ne pas casser les agences déjà en place.
-  footerTextAr     String?
-  privacyPolicy    String?
-  termsOfService   String?
-  legalNotice      String?
-  contractTemplate String? // texte du modèle de contrat, avec des espaces réservés {{comme_ceci}} (section 35)
+  footerTextAr       String?
+  privacyPolicy      String?
+  termsOfService     String?
+  legalNotice        String?
+  contractTemplate   String? // texte du modèle de contrat, avec des espaces réservés {{comme_ceci}} (section 35)
   // Version arabe du modèle de contrat (mêmes espaces réservés) et coordonnées en arabe pour les documents arabes.
   contractTemplateAr String?
+  // Facturation : TVA et timbre fiscal (désactivés par défaut, à activer par une agence assujettie).
+  taxesEnabled       Boolean  @default(false)
+  vatRate            Float    @default(19)
+  stampDuty          Float    @default(1)
   nameAr             String?
   addressAr          String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
 }
@@ -1520,6 +1544,11 @@ model BlogPost {
 }
 
 // ---------- Relances automatiques et messages tout prêts (étape 2, chantiers 1 et 2) ----------
+
+enum LineKind {
+  SERVICE
+  DISBURSEMENT
+}
 
 enum Language {
   fr

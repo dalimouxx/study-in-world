@@ -1,11 +1,13 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsDateString, IsEnum, IsNumber, IsOptional, IsPositive, IsString, Min, MinLength, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsDateString, IsEnum, IsIn, IsNumber, IsOptional, IsPositive, IsString, Min, MinLength, ValidateNested } from 'class-validator';
 import { PaymentMethod } from '@prisma/client';
 
 export class ItemDto {
   @IsString() @MinLength(1) label!: string;
   @IsNumber() @Min(1) quantity!: number;
   @IsNumber() @Min(0) unitPrice!: number;
+  /** Service de l'agence (TVA) ou débours (sans TVA). Par défaut : service. */
+  @IsOptional() @IsIn(['SERVICE', 'DISBURSEMENT']) kind?: 'SERVICE' | 'DISBURSEMENT';
 }
 
 export class CreateQuoteDto {

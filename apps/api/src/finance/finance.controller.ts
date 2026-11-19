@@ -13,6 +13,12 @@ import { PdfLangQueryDto } from './dto/pdf-lang.dto';
 export class FinanceController {
   constructor(private readonly finance: FinanceService) {}
 
+  /** Réglages de taxes pour le formulaire de devis et de facture (sans exiger le droit de voir les Paramètres). */
+  @Get('finance/tax-settings') @RequirePermissions('finance.view')
+  taxSettings(@CurrentUser() user: AuthUser) {
+    return this.finance.taxSettings(user.organizationId);
+  }
+
   // ----- Devis -----
   @Get('candidates/:candidateId/quotes') @RequirePermissions('finance.view')
   quotes(@CurrentUser() user: AuthUser, @Param('candidateId') candidateId: string) {

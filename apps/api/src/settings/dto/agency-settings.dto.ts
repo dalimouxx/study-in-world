@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsEmail, IsIn, IsOptional, IsString, IsUrl, MaxLength, MinLength, ValidateIf, ValidateNested, IsTimeZone } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, IsUrl, MaxLength, MinLength, ValidateIf, ValidateNested, IsTimeZone, IsBoolean, IsNumber, Max, Min } from 'class-validator';
 
 const url = { require_protocol: true, protocols: ['http', 'https'] };
 const notEmpty = (_: unknown, v: unknown) => v !== '';
@@ -44,4 +44,8 @@ export class UpdateAgencySettingsDto {
   /** Modèles de contrat (français et arabe), avec les espaces réservés {{…}}. */
   @IsOptional() @IsString() @MaxLength(20000) contractTemplate?: string;
   @IsOptional() @IsString() @MaxLength(20000) contractTemplateAr?: string;
+  /** Facturation : appliquer la TVA et le timbre fiscal aux nouveaux devis et factures ; taux en %, timbre en TND. */
+  @IsOptional() @IsBoolean() taxesEnabled?: boolean;
+  @IsOptional() @IsNumber() @Min(0) @Max(100) vatRate?: number;
+  @IsOptional() @IsNumber() @Min(0) @Max(1000) stampDuty?: number;
 }

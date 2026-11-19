@@ -16,3 +16,15 @@ describe('UpdateAgencySettingsDto.timezone', () => {
     expect(errors.filter((e) => e.property === 'timezone')).not.toHaveLength(0);
   });
 });
+
+describe('UpdateAgencySettingsDto — taxes', () => {
+  const errs = async (o: object) => (await validate(plainToInstance(UpdateAgencySettingsDto, o))).map((e) => e.property);
+  it('refuse un taux de TVA négatif ou supérieur à 100', async () => {
+    expect(await errs({ vatRate: -1 })).toContain('vatRate');
+    expect(await errs({ vatRate: 101 })).toContain('vatRate');
+    expect(await errs({ vatRate: '19' })).toContain('vatRate');
+  });
+  it('accepte 19 %, un timbre de 1 et l’interrupteur', async () => {
+    expect(await errs({ vatRate: 19, stampDuty: 1, taxesEnabled: true })).toEqual([]);
+  });
+});

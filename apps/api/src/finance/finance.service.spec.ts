@@ -103,3 +103,93 @@ describe('FinanceService — langue des PDF', () => {
     expect(res.disposition).toContain('filename="Facture-FAC-2026-0001.pdf"');
   });
 });
+
+describe('FinanceService — TVA, débours et timbre', () => {
+  const TAXES = { taxesEnabled: true, vatRate: 19, stampDuty: 1 };
+  const lines = [
+    { label: 'Accompagnement', quantity: 1, unitPrice: 2000, kind: 'SERVICE' as const },
+    { label: 'Inscription université', quantity: 1, unitPrice: 1500, kind: 'DISBURSEMENT' as const },
+  ];
+  const setup = (settings: object | null = TAXES) => {
+    const ctx = build();
+    ctx.prisma.agencySettings.findUnique.mockResolvedValue(settings);
+    ctx.prisma.invoice.create = jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve({ id: 'inv9', payments: [], ...data, items: [] }));
+    ctx.prisma.quote.create = jest.fn().mockImplementation(({ data }: { data: object }) => Promise.resolve({ id: 'q9', ...data, items: [] }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = (m: jest.Mock): any => m.mock.calls[0][0].data;
+    return { ...ctx, data };
+  };
+
+  it('facture créée avec taxes : lignes et totaux enregistrés', async () => {
+    const { service, prisma, data } = setup();
+    await service.createInvoice(actor(), 'cand1', { items: lines }, {});
+    const d = data(prisma.invoice.create);
+    expect(d).toMatchObject({ subtotal: 2000, vatAmount: 380, disbursements: 1500, stampDuty: 1, total: 3881 });
+    expect(d.items.create).toEqual([
+      expect.objectContaining({ kind: 'SERVICE', vatRate: 19 }),
+      expect.objectContaining({ kind: 'DISBURSEMENT', vatRate: 0 }),
+    ]);
+  });
+
+  it('devis créé avec taxes : mêmes totaux', async () => {
+    const { service, prisma, data } = setup();
+    await service.createQuote(actor(), 'cand1', { items: lines }, {});
+    expect(data(prisma.quote.create)).toMatchObject({ total: 3881 });
+  });
+
+  it('agence sans taxes : débours forcé en service, total brut', async () => {
+    const { service, prisma, data } = setup(null);
+    await service.createInvoice(actor(), 'cand1', { items: lines }, {});
+    const d = data(prisma.invoice.create);
+    expect(d).toMatchObject({ vatAmount: 0, stampDuty: 0, total: 3500 });
+    expect(d.items.create.every((l: { kind: string; vatRate: number }) => l.kind === 'SERVICE' && l.vatRate === 0)).toBe(true);
+  });
+
+  it('devis ancien → facture garde la somme brute, sans TVA ni timbre', async () => {
+    const { service, prisma, data } = setup();
+    prisma.quote.findFirst.mockResolvedValue({ id: 'q1', status: 'ACCEPTED', candidateId: 'cand1', number: 'DEV-1', currency: 'TND', total: null,
+      items: [{ label: 'A', quantity: 1, unitPrice: 2000, kind: 'SERVICE' }, { label: 'B', quantity: 1, unitPrice: 1500, kind: 'SERVICE' }] });
+    await service.createInvoiceFromQuote(actor(), 'q1', {});
+    const d = data(prisma.invoice.create);
+    expect(d).toMatchObject({ vatAmount: 0, stampDuty: 0, total: 3500 });
+  });
+
+  it('devis récent → facture garde les types et recalcule avec les Paramètres du jour', async () => {
+    const { service, prisma, data } = setup({ taxesEnabled: true, vatRate: 19, stampDuty: 1.5 });
+    prisma.quote.findFirst.mockResolvedValue({ id: 'q1', status: 'ACCEPTED', candidateId: 'cand1', number: 'DEV-1', currency: 'TND', total: 3881,
+      items: lines.map((l) => ({ ...l, vatRate: l.kind === 'SERVICE' ? 19 : 0 })) });
+    await service.createInvoiceFromQuote(actor(), 'q1', {});
+    const d = data(prisma.invoice.create);
+    expect(d).toMatchObject({ disbursements: 1500, stampDuty: 1.5, total: 3881.5 });
+    expect(d.items.create[1]).toMatchObject({ kind: 'DISBURSEMENT', vatRate: 0 });
+  });
+
+  const taxed = { id: 'inv1', organizationId: 'orgA', candidateId: 'cand1', number: 'FAC-1', currency: 'TND', status: 'ISSUED', payments: [],
+    items: [{ label: 'Traduction', quantity: 3, unitPrice: 45.5, kind: 'SERVICE', vatRate: 19 }],
+    subtotal: 136.5, vatAmount: 25.935, disbursements: 0, stampDuty: 1, total: 163.435 };
+
+  it('paiement du TTC exact (163.435) accepté et facture payée', async () => {
+    const { service, prisma } = setup();
+    prisma.invoice.findFirst.mockResolvedValue(taxed);
+    await service.recordPayment(actor(), 'inv1', { amount: 163.435, method: 'BANK_TRANSFER' }, {});
+    expect(prisma.invoice.update).toHaveBeenCalledWith({ where: { id: 'inv1' }, data: { status: 'PAID' } });
+  });
+
+  it('paiement au-delà du TTC refusé', async () => {
+    const { service, prisma } = setup();
+    prisma.invoice.findFirst.mockResolvedValue(taxed);
+    await expect(service.recordPayment(actor(), 'inv1', { amount: 163.5, method: 'BANK_TRANSFER' }, {})).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('facture existante : un nouveau taux dans les Paramètres ne change pas ses totaux', async () => {
+    const { service, prisma } = setup({ taxesEnabled: true, vatRate: 7, stampDuty: 5 });
+    prisma.invoice.findMany = jest.fn().mockResolvedValue([taxed]);
+    const [inv] = await service.invoicesFor(actor(), 'cand1');
+    expect(inv).toMatchObject({ vatAmount: 25.935, stampDuty: 1, total: 163.435, taxed: true });
+  });
+
+  it('réglages de taxes : défauts sans Paramètres', async () => {
+    const { service } = setup(null);
+    await expect(service.taxSettings('orgA')).resolves.toEqual({ taxesEnabled: false, vatRate: 19, stampDuty: 1 });
+  });
+});
