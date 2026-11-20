@@ -35,12 +35,30 @@ contenir de fichier pour studyinworld.net.
 ```bash
 mkdir -p /srv/platforms && cd /srv/platforms
 git clone https://github.com/dalimouxx/study-in-world.git studyinworld && cd studyinworld/deploy
-cp .env.production.example .env
-openssl rand -hex 24      # → POSTGRES_PASSWORD
-openssl rand -base64 48   # → JWT_SECRET (refaire pour CANDIDATE_JWT_SECRET et PARTNER_JWT_SECRET)
-nano .env                 # coller les secrets, choisir SEED_ADMIN_PASSWORD, régler le SMTP si disponible
-chmod 600 .env
+cp .env.production.example .env && chmod 600 .env
 ```
+
+Secrets générés et écrits directement dans `.env`, sans jamais les afficher (ne pas les copier ailleurs) :
+
+```bash
+sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(openssl rand -hex 24)|" .env && for k in JWT_SECRET CANDIDATE_JWT_SECRET PARTNER_JWT_SECRET; do sed -i "s|^$k=.*|$k=$(openssl rand -base64 48 | tr -d '\n/+=')|" .env; done
+```
+
+Mot de passe de départ du Super Admin, saisi sans affichage : lettres, chiffres et `-` seulement, 10 caractères
+ou plus, avec majuscule, minuscule et chiffre (sinon le compte n'est pas créé) :
+
+```bash
+read -rsp "Mot de passe Super Admin : " P && echo && sed -i "s|^SEED_ADMIN_PASSWORD=.*|SEED_ADMIN_PASSWORD=$P|" .env && unset P
+```
+
+Vérification sans afficher les valeurs (aucune ligne ne doit indiquer 0 caractère) :
+
+```bash
+awk -F= '/^(SEED_ADMIN_PASSWORD|POSTGRES_PASSWORD|JWT_SECRET|CANDIDATE_JWT_SECRET|PARTNER_JWT_SECRET)=/{v=substr($0,index($0,"=")+1); print $1 " : " length(v) " caractères"}' .env
+```
+
+Le SMTP (e-mails) se règle ensuite dans `.env` (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`…), puis
+`docker compose -f docker-compose.prod.yml --env-file .env up -d`.
 
 ## 4. Démarrage
 
