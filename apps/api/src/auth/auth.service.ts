@@ -10,10 +10,17 @@ import { apiError } from '../common/errors/api-error';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
 import type { Env } from '../config/env';
 import { toAuthUser } from './strategies/jwt.strategy';
+import { TwoFactorService } from './two-factor/two-factor.service';
 
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 const RESET_TTL_MS = 60 * 60 * 1000;
 const REUSE_GRACE_MS = 10_000;
+
+/** Mot de passe correct, double authentification activée : il reste à saisir le code (jeton d'étape de 5 minutes). */
+export interface TwoFactorChallenge {
+  twoFactorRequired: true;
+  twoFactorToken: string;
+}
 
 export interface AuthResult {
   accessToken: string;
@@ -30,6 +37,7 @@ export class AuthService {
     private readonly config: ConfigService<Env, true>,
     private readonly audit: AuditService,
     private readonly mail: MailService,
+    private readonly twoFactor: TwoFactorService,
   ) {}
 
   private dummyHash?: Promise<string>;
@@ -40,7 +48,7 @@ export class AuthService {
 
   private userInclude = { role: { include: { permissions: { include: { permission: true } } } } } as const;
 
-  async login(emailRaw: string, password: string, meta: RequestMeta): Promise<AuthResult> {
+  async login(emailRaw: string, password: string, meta: RequestMeta): Promise<AuthResult | TwoFactorChallenge> {
     const email = emailRaw.trim().toLowerCase();
     const user = await this.prisma.user.findFirst({
       where: { email, deletedAt: null },
@@ -77,27 +85,13 @@ export class AuthService {
 
     const ok = await argon2.verify(user.passwordHash, password).catch(() => false);
     if (!ok) {
-      const max = this.config.get('LOGIN_MAX_ATTEMPTS', { infer: true });
-      const attempts = user.failedLoginCount + 1;
-      const lock = attempts >= max;
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          failedLoginCount: lock ? 0 : attempts,
-          lockedUntil: lock ? new Date(Date.now() + this.config.get('LOGIN_LOCK_MINUTES', { infer: true }) * 60_000) : null,
-        },
-      });
-      if (lock) {
-        await this.audit.log({
-          organizationId: user.organizationId,
-          userId: user.id,
-          action: 'auth.locked',
-          entity: 'User',
-          entityId: user.id,
-          meta,
-        });
-      }
+      await this.registerFailure(user, meta);
       return fail('bad_password', user.organizationId, user.id);
+    }
+
+    // Double authentification activée : pas encore de session, seulement un jeton d'étape pour saisir le code.
+    if (user.totpEnabledAt && user.totpSecret) {
+      return { twoFactorRequired: true, twoFactorToken: await this.twoFactor.createChallenge(user.id) };
     }
 
     await this.prisma.user.update({
@@ -116,6 +110,54 @@ export class AuthService {
     });
     await this.audit.log({ organizationId: user.organizationId, userId: user.id, action: 'auth.login', entity: 'User', entityId: user.id, meta });
     return this.issueTokens(toAuthUser(user), meta);
+  }
+
+  /** Seconde étape de connexion : code de l'application ou code de secours. Les erreurs comptent dans le verrouillage. */
+  async verifyTwoFactor(token: string, code: string, meta: RequestMeta): Promise<AuthResult> {
+    const { userId, jti } = await this.twoFactor.readChallenge(token);
+    const user = await this.prisma.user.findFirst({ where: { id: userId, deletedAt: null, status: 'ACTIVE' }, include: this.userInclude });
+    if (!user) throw apiError(HttpStatus.UNAUTHORIZED, 'TWO_FACTOR_EXPIRED', 'Étape expirée : reconnectez-vous');
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw apiError(HttpStatus.TOO_MANY_REQUESTS, 'ACCOUNT_LOCKED', 'Compte temporairement verrouillé');
+    }
+    const check = await this.twoFactor.checkCode(user, code);
+    if (!check.ok) {
+      await this.registerFailure(user, meta);
+      await this.prisma.loginLog.create({
+        data: { organizationId: user.organizationId, userId: user.id, email: user.email, success: false, reason: 'bad_2fa_code', ip: meta.ip, userAgent: meta.userAgent },
+      });
+      throw apiError(HttpStatus.UNAUTHORIZED, 'INVALID_2FA_CODE', 'Code incorrect');
+    }
+    this.twoFactor.markChallengeUsed(jti);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date(), ...this.twoFactor.afterSuccess(check) },
+    });
+    await this.prisma.loginLog.create({
+      data: { organizationId: user.organizationId, userId: user.id, email: user.email, success: true, ip: meta.ip, userAgent: meta.userAgent },
+    });
+    await this.audit.log({
+      organizationId: user.organizationId, userId: user.id, action: 'auth.login', entity: 'User', entityId: user.id,
+      metadata: { twoFactor: 'step' in check ? 'app' : 'recovery_code' }, meta,
+    });
+    return this.issueTokens(toAuthUser(user), meta);
+  }
+
+  /** Échec (mot de passe ou code) : compteur d'essais, verrouillage temporaire au-delà de LOGIN_MAX_ATTEMPTS. */
+  private async registerFailure(user: { id: string; organizationId: string; failedLoginCount: number }, meta: RequestMeta): Promise<void> {
+    const max = this.config.get('LOGIN_MAX_ATTEMPTS', { infer: true });
+    const attempts = user.failedLoginCount + 1;
+    const lock = attempts >= max;
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        failedLoginCount: lock ? 0 : attempts,
+        lockedUntil: lock ? new Date(Date.now() + this.config.get('LOGIN_LOCK_MINUTES', { infer: true }) * 60_000) : null,
+      },
+    });
+    if (lock) {
+      await this.audit.log({ organizationId: user.organizationId, userId: user.id, action: 'auth.locked', entity: 'User', entityId: user.id, meta });
+    }
   }
 
   /** Rotation du refresh token. Un token déjà utilisé qui revient = vol probable : toute la famille est révoquée. */

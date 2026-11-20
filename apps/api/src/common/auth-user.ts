@@ -14,6 +14,10 @@ export interface AuthUser {
   /** Distinct du RBAC ci-dessus : accès à /platform-admin (gestion des agences elles-mêmes), jamais réglable
    *  depuis l'écran de gestion des employés — voir le commentaire sur le champ dans schema.prisma. */
   isPlatformAdmin: boolean;
+  /** Double authentification activée sur ce compte. */
+  twoFactorEnabled?: boolean;
+  /** Rôle qui exige la double authentification et elle n'est pas encore activée : tout est bloqué sauf sa mise en place. */
+  mustSetupTwoFactor?: boolean;
 }
 
 /** Identité d'un candidat connecté au portail (Phase 3, section 19) — jamais un employé, aucune permission. */

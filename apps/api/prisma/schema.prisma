@@ -172,6 +172,12 @@ model User {
   // de gestion des employés — seulement en base, pour éviter qu'une faille dans l'admin normal ne devienne
   // une élévation vers la gestion de toutes les agences.
   isPlatformAdmin    Boolean    @default(false)
+  // Double authentification (application de codes, TOTP). Secret chiffré (AES-256-GCM, voir auth/two-factor).
+  totpSecret         String?
+  totpPendingSecret  String? // secret proposé pendant la mise en place, avant confirmation par un premier code
+  totpEnabledAt      DateTime?
+  totpLastUsedStep   Int? // dernière période de 30 s utilisée : un code ne sert qu'une fois
+  totpRecoveryCodes  String[]   @default([]) // codes de secours hachés (argon2), à usage unique
   failedLoginCount   Int        @default(0)
   lockedUntil        DateTime?
   lastLoginAt        DateTime?

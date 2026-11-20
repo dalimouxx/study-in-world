@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -7,7 +7,10 @@ import { CurrentUser, Public, ReqMeta } from '../common/decorators';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
 import type { Env } from '../config/env';
 import { AuthResult, AuthService } from './auth.service';
-import { ChangePasswordDto, ForgotPasswordDto, LoginDto, RefreshDto, ResetPasswordDto } from './dto/auth.dto';
+import { ChangePasswordDto, ForgotPasswordDto, LoginDto, RefreshDto, ResetPasswordDto, TwoFactorCodeDto, TwoFactorDisableDto, TwoFactorVerifyDto } from './dto/auth.dto';
+import { AllowDuringTwoFactorSetup } from './two-factor/two-factor.guard';
+import { TwoFactorService } from './two-factor/two-factor.service';
+import { SuperAdminGuard } from '../common/guards/super-admin.guard';
 
 const COOKIE = 'siw_refresh';
 
@@ -17,6 +20,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly config: ConfigService<Env, true>,
+    private readonly twoFactor: TwoFactorService,
   ) {}
 
   @Public()
@@ -24,7 +28,50 @@ export class AuthController {
   @HttpCode(200)
   @Post('login')
   async login(@Body() dto: LoginDto, @ReqMeta() meta: RequestMeta, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    return this.respond(await this.auth.login(dto.email, dto.password, meta), req, res);
+    const result = await this.auth.login(dto.email, dto.password, meta);
+    // Double authentification : pas encore de session ni de cookie, seulement le jeton d'étape.
+    if ('twoFactorRequired' in result) return result;
+    return this.respond(result, req, res);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('2fa/verify')
+  async verifyTwoFactor(@Body() dto: TwoFactorVerifyDto, @ReqMeta() meta: RequestMeta, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.respond(await this.auth.verifyTwoFactor(dto.twoFactorToken, dto.code, meta), req, res);
+  }
+
+  @ApiBearerAuth()
+  @AllowDuringTwoFactorSetup()
+  @HttpCode(200)
+  @Post('2fa/setup')
+  setupTwoFactor(@CurrentUser() user: AuthUser) {
+    return this.twoFactor.setup(user);
+  }
+
+  @ApiBearerAuth()
+  @AllowDuringTwoFactorSetup()
+  @HttpCode(200)
+  @Post('2fa/enable')
+  enableTwoFactor(@CurrentUser() user: AuthUser, @Body() dto: TwoFactorCodeDto, @ReqMeta() meta: RequestMeta) {
+    return this.twoFactor.enable(user, dto.code, meta);
+  }
+
+  @ApiBearerAuth()
+  @HttpCode(204)
+  @Post('2fa/disable')
+  async disableTwoFactor(@CurrentUser() user: AuthUser, @Body() dto: TwoFactorDisableDto, @ReqMeta() meta: RequestMeta) {
+    await this.twoFactor.disable(user, dto.password, dto.code, meta);
+  }
+
+  /** Téléphone perdu : le Super Admin réinitialise la double authentification d'un employé. */
+  @ApiBearerAuth()
+  @UseGuards(SuperAdminGuard)
+  @HttpCode(204)
+  @Post('2fa/reset/:userId')
+  async resetTwoFactor(@CurrentUser() user: AuthUser, @Param('userId') userId: string, @ReqMeta() meta: RequestMeta) {
+    await this.twoFactor.reset(user, userId, meta);
   }
 
   @Public()
@@ -37,6 +84,7 @@ export class AuthController {
   }
 
   @Public()
+  @AllowDuringTwoFactorSetup()
   @HttpCode(204)
   @Post('logout')
   async logout(@Body() dto: RefreshDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -45,12 +93,14 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
+  @AllowDuringTwoFactorSetup()
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
     return this.auth.me(user.id);
   }
 
   @ApiBearerAuth()
+  @AllowDuringTwoFactorSetup()
   @HttpCode(200)
   @Post('change-password')
   async changePassword(

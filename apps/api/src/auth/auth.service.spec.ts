@@ -1,5 +1,5 @@
 import * as argon2 from 'argon2';
-import { AuthService } from './auth.service';
+import { AuthService, type AuthResult } from './auth.service';
 
 const PASSWORD = 'Correct-Password1';
 let hash: string;
@@ -37,7 +37,8 @@ function build(user: ReturnType<typeof baseUser> | null) {
   const jwt = { signAsync: jest.fn().mockResolvedValue('access.jwt') };
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
   const mail = { send: jest.fn() };
-  const service = new AuthService(prisma as never, jwt as never, config as never, audit as never, mail as never);
+  const twoFactor = { createChallenge: jest.fn().mockResolvedValue('step.jwt') };
+  const service = new AuthService(prisma as never, jwt as never, config as never, audit as never, mail as never, twoFactor as never);
   return { service, prisma, audit };
 }
 
@@ -48,7 +49,7 @@ beforeAll(async () => {
 describe('AuthService.login', () => {
   it('connecte avec les bons identifiants et remet le compteur à zéro', async () => {
     const { service, prisma } = build({ ...baseUser(), failedLoginCount: 3 });
-    const res = await service.login('A@B.tn ', PASSWORD, {});
+    const res = (await service.login('A@B.tn ', PASSWORD, {})) as AuthResult;
     expect(res.accessToken).toBe('access.jwt');
     expect(res.refreshToken.length).toBeGreaterThan(40);
     expect(prisma.user.update).toHaveBeenCalledWith(

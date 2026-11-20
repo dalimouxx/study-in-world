@@ -18,6 +18,21 @@ export class ChangePasswordDto {
   @ApiProperty() @IsString() @Matches(PASSWORD_REGEX, { message: PASSWORD_MESSAGE }) newPassword!: string;
 }
 
+export class TwoFactorVerifyDto {
+  @IsString() @MinLength(10) @MaxLength(2000) twoFactorToken!: string;
+  /** Code de l'application (6 chiffres) ou code de secours (xxxx-xxxx). */
+  @IsString() @MinLength(6) @MaxLength(20) code!: string;
+}
+
+export class TwoFactorCodeDto {
+  @IsString() @MinLength(6) @MaxLength(20) code!: string;
+}
+
+export class TwoFactorDisableDto {
+  @IsString() @MinLength(1) @MaxLength(128) password!: string;
+  @IsString() @MinLength(6) @MaxLength(20) code!: string;
+}
+
 export class ForgotPasswordDto {
   @ApiProperty() @IsEmail() email!: string;
 }

@@ -127,6 +127,21 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d
 (crontab -l 2>/dev/null; echo "*/5 * * * * /srv/platforms/studyinworld/deploy/watchdog.sh >/dev/null 2>&1") | crontab -
 ```
 
+## Double authentification
+
+Obligatoire pour le Super Admin et les administrateurs (et les administrateurs de la plateforme) : à la première
+connexion, ils sont conduits à l'activer (QR code à scanner avec Google Authenticator ou Microsoft Authenticator,
+puis 10 codes de secours à garder). Facultative pour les autres employés, depuis « Mon compte ».
+
+- Téléphone perdu d'un employé : le Super Admin réinitialise sa double authentification depuis la fiche de l'employé.
+- **Secours** (le Super Admin a perdu son téléphone **et** ses codes de secours) — sur le VPS, en remplaçant l'e-mail :
+
+```bash
+cd /srv/platforms/studyinworld/deploy && docker compose -f docker-compose.prod.yml exec -T db psql -U siw -d siw -c "UPDATE \"User\" SET \"totpSecret\"=NULL, \"totpPendingSecret\"=NULL, \"totpEnabledAt\"=NULL, \"totpLastUsedStep\"=NULL, \"totpRecoveryCodes\"='{}' WHERE email='admin@studyinworld.net'"
+```
+
+  À la connexion suivante, le compte devra réactiver la double authentification.
+
 ## Mises à jour
 
 ```bash

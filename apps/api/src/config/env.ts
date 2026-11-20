@@ -43,6 +43,8 @@ const schema = z.object({
   // Alertes Telegram (groupe d'équipe) : facultatives ; sans elles, aucune alerte n'est envoyée.
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID: z.string().optional(),
+  // Chiffrement des secrets de double authentification : facultatif (sinon dérivé de JWT_SECRET).
+  TOTP_ENCRYPTION_KEY: z.string().min(32, 'TOTP_ENCRYPTION_KEY doit contenir au moins 32 caractères').optional(),
   REMINDERS_CRON_ENABLED: z
     .enum(['true', 'false'])
     .optional()

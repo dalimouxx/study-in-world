@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { apiError } from '../../common/errors/api-error';
 import type { AuthUser } from '../../common/auth-user';
 import type { Env } from '../../config/env';
+import { requiresTwoFactor } from '../two-factor/two-factor.crypto';
 
 export interface JwtPayload {
   sub: string;
@@ -47,8 +48,10 @@ export function toAuthUser(user: {
   mustChangePassword: boolean;
   roleId: string;
   isPlatformAdmin: boolean;
+  totpEnabledAt?: Date | null;
   role: { code: string; name: string; permissions: { permission: { code: string } }[] };
 }): AuthUser {
+  const twoFactorEnabled = !!user.totpEnabledAt;
   return {
     id: user.id,
     organizationId: user.organizationId,
@@ -63,5 +66,7 @@ export function toAuthUser(user: {
     roleName: user.role.name,
     permissions: user.role.permissions.map((rp) => rp.permission.code),
     isPlatformAdmin: user.isPlatformAdmin,
+    twoFactorEnabled,
+    mustSetupTwoFactor: requiresTwoFactor(user.role.code, user.isPlatformAdmin) && !twoFactorEnabled,
   };
 }

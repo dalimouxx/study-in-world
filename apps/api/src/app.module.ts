@@ -51,6 +51,7 @@ import { LandingPageModule } from './landing-page/landing-page.module';
 import { TasksModule } from './tasks/tasks.module';
 import { TimelineModule } from './timeline/timeline.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { TwoFactorSetupGuard } from './auth/two-factor/two-factor.guard';
 import { VisaModule } from './visa/visa.module';
 
 @Module({
@@ -109,6 +110,8 @@ import { VisaModule } from './visa/visa.module';
     // Ordre important : limitation de débit → authentification → permissions.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Après l'authentification : bloque tout compte qui doit encore mettre en place la double authentification.
+    { provide: APP_GUARD, useClass: TwoFactorSetupGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
