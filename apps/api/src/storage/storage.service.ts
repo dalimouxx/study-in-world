@@ -1,10 +1,9 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GetObjectCommand, PutObjectCommand, DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { createHash, randomBytes } from 'crypto';
 import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
-import { apiError } from '../common/errors/api-error';
 import type { Env } from '../config/env';
 
 /**
@@ -20,6 +19,11 @@ import type { Env } from '../config/env';
 @Injectable()
 export class StorageService {
   private readonly root = process.env.STORAGE_DIR ?? join(process.cwd(), 'storage', 'documents');
+  /**
+   * Images publiques sur le disque du serveur (VPS) quand S3 n'est pas configuré : dans le même espace persistant que
+   * les documents (volume Docker, inclus dans les sauvegardes), servies par GET /api/public/files/:nom.
+   */
+  readonly publicRoot = join(this.root, '_public');
   private readonly s3?: S3Client;
   private readonly privateBucket?: string;
   private readonly publicBucket?: string;
@@ -78,27 +82,52 @@ export class StorageService {
 
   // ---------- Images publiques (logos, photos de la landing page — CMS Super Admin). ----------
 
-  /** Nécessite le stockage S3 configuré : pas de repli local sensé pour un fichier censé être servi publiquement. */
+  /** Adresse publique des images enregistrées sur le serveur (sans S3). */
+  private get localPublicBaseUrl(): string {
+    return `${this.config.get('APP_URL', { infer: true }).replace(/\/+$/, '')}/api/public/files`;
+  }
+
+  /** S3 si configuré ; sinon le disque du serveur (VPS), servi par l'API. */
   async savePublic(buffer: Buffer, extension: string): Promise<string> {
-    if (!this.s3 || !this.publicBucket || !this.publicBaseUrl) {
-      throw apiError(HttpStatus.SERVICE_UNAVAILABLE, 'STORAGE_NOT_CONFIGURED', "Stockage d'images non configuré");
+    const key = `${randomBytes(16).toString('hex')}.${extension.replace(/^\.+/, '').toLowerCase()}`;
+    if (this.s3 && this.publicBucket && this.publicBaseUrl) {
+      await this.s3.send(new PutObjectCommand({ Bucket: this.publicBucket, Key: key, Body: buffer, ContentType: contentTypeFor(extension) }));
+      return `${this.publicBaseUrl}/${key}`;
     }
-    const key = `${randomBytes(16).toString('hex')}.${extension.replace(/^\.+/, '')}`;
-    await this.s3.send(new PutObjectCommand({ Bucket: this.publicBucket, Key: key, Body: buffer, ContentType: contentTypeFor(extension) }));
-    return `${this.publicBaseUrl}/${key}`;
+    await mkdir(this.publicRoot, { recursive: true });
+    await writeFile(join(this.publicRoot, key), buffer);
+    return `${this.localPublicBaseUrl}/${key}`;
+  }
+
+  /** Lecture d'une image publique enregistrée sur le serveur ; null si le nom est invalide ou le fichier absent. */
+  async readPublic(name: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+    if (!PUBLIC_FILE_NAME.test(name)) return null; // jamais de chemin (../) ni d'autre fichier que nos images
+    try {
+      return { buffer: await readFile(join(this.publicRoot, name)), contentType: contentTypeFor(name.split('.').pop()!) };
+    } catch {
+      return null;
+    }
   }
 
   async removePublic(publicUrl: string): Promise<void> {
-    if (!this.s3 || !this.publicBucket || !this.publicBaseUrl) return;
-    if (!publicUrl.startsWith(this.publicBaseUrl)) return; // jamais supprimer un lien qui ne vient pas de notre propre bucket
-    const key = publicUrl.slice(this.publicBaseUrl.length + 1);
-    await this.s3.send(new DeleteObjectCommand({ Bucket: this.publicBucket, Key: key }));
+    if (this.s3 && this.publicBucket && this.publicBaseUrl) {
+      if (!publicUrl.startsWith(this.publicBaseUrl)) return; // jamais supprimer un lien qui ne vient pas de notre propre bucket
+      const key = publicUrl.slice(this.publicBaseUrl.length + 1);
+      await this.s3.send(new DeleteObjectCommand({ Bucket: this.publicBucket, Key: key }));
+      return;
+    }
+    if (!publicUrl.startsWith(`${this.localPublicBaseUrl}/`)) return;
+    const name = publicUrl.slice(this.localPublicBaseUrl.length + 1);
+    if (PUBLIC_FILE_NAME.test(name)) await rm(join(this.publicRoot, name), { force: true });
   }
 
   static sha256(buffer: Buffer): string {
     return createHash('sha256').update(buffer).digest('hex');
   }
 }
+
+/** Nom d'une image publique : 32 caractères hexadécimaux et une extension d'image. */
+export const PUBLIC_FILE_NAME = /^[a-f0-9]{32}\.(png|jpg|jpeg|webp|svg)$/;
 
 function contentTypeFor(extension: string): string {
   switch (extension.replace(/^\.+/, '').toLowerCase()) {
