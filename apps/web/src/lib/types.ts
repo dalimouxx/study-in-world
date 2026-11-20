@@ -11,6 +11,10 @@ export interface SessionUser {
   branchId: string | null;
   permissions: string[];
   isPlatformAdmin: boolean;
+  /** Double authentification activée. */
+  twoFactorEnabled?: boolean;
+  /** Administrateur sans double authentification : doit l'activer avant tout le reste. */
+  mustSetupTwoFactor?: boolean;
 }
 
 export interface Paginated<T> {
@@ -57,6 +61,7 @@ export interface Employee {
   locale: string;
   status: 'ACTIVE' | 'INACTIVE';
   mustChangePassword: boolean;
+  totpEnabledAt: string | null;
   lastLoginAt: string | null;
   createdAt: string;
   roleId: string;

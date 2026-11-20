@@ -100,7 +100,14 @@
     "confirmPassword": "تأكيد كلمة المرور",
     "passwordRule": "10 أحرف على الأقل، مع حرف كبير وحرف صغير ورقم.",
     "passwordMismatch": "كلمتا المرور غير متطابقتين",
-    "resetSubmit": "حفظ كلمة المرور"
+    "resetSubmit": "حفظ كلمة المرور",
+    "twoFactorTitle": "رمز التحقق",
+    "twoFactorSubtitle": "افتح تطبيق المصادقة وأدخل الرمز المكوّن من 6 أرقام.",
+    "twoFactorCode": "الرمز",
+    "twoFactorRecoveryHint": "الهاتف غير متاح؟ أدخل أحد رموز الاحتياط (xxxx-xxxx).",
+    "twoFactorCodeInvalid": "الرمز غير مكتمل",
+    "twoFactorVerify": "تحقق",
+    "twoFactorBack": "العودة إلى البريد الإلكتروني وكلمة المرور"
   },
   "errors": {
     "GENERIC": "حدث خطأ ما. أعد المحاولة بعد قليل.",
@@ -146,7 +153,13 @@
     "AI_NOT_CONFIGURED": "المساعد الذكي غير مُهيَّأ لهذه الوكالة.",
     "AI_UNAVAILABLE": "المساعد الذكي غير متاح مؤقتًا، حاول مرة أخرى لاحقًا.",
     "OCR_UNSUPPORTED_FILE": "الاستخراج التلقائي يعمل فقط على الصور (وليس PDF حاليًا).",
-    "PERMISSIONS_NOT_SEEDED": "لم يتم تهيئة كتالوج الصلاحيات على هذا الخادم بعد."
+    "PERMISSIONS_NOT_SEEDED": "لم يتم تهيئة كتالوج الصلاحيات على هذا الخادم بعد.",
+    "INVALID_2FA_CODE": "الرمز غير صحيح. تحقّق من توقيت هاتفك أو استعمل رمز احتياط.",
+    "TWO_FACTOR_EXPIRED": "انتهت صلاحية الخطوة: أعد تسجيل الدخول.",
+    "TWO_FACTOR_SETUP_REQUIRED": "فعّل المصادقة الثنائية للمتابعة.",
+    "TWO_FACTOR_REQUIRED": "المصادقة الثنائية إلزامية لدورك.",
+    "TWO_FACTOR_ALREADY_ENABLED": "المصادقة الثنائية مفعّلة بالفعل.",
+    "TWO_FACTOR_NOT_STARTED": "أعد خطوات التفعيل: امسح رمز QR من جديد."
   },
   "dashboard": {
     "welcome": "مرحبًا {name}",
@@ -199,7 +212,12 @@
     "resetPassword": "كلمة مرور جديدة (اختياري)",
     "resetPasswordHint": "اتركه فارغًا لعدم التغيير. سيُطلب تغييرها عند الدخول التالي.",
     "initialPassword": "كلمة مرور مؤقتة",
-    "initialPasswordHint": "سيُطلب من الموظف تغييرها عند أول دخول. 10 أحرف على الأقل، حرف كبير وصغير ورقم."
+    "initialPasswordHint": "سيُطلب من الموظف تغييرها عند أول دخول. 10 أحرف على الأقل، حرف كبير وصغير ورقم.",
+    "twoFactorBadge": "2FA",
+    "reset2fa": "إعادة ضبط المصادقة الثنائية",
+    "reset2faTitle": "إعادة ضبط المصادقة الثنائية؟",
+    "reset2faDescription": "سيتعيّن على {name} إعادة تفعيلها عند تسجيل الدخول القادم (عند فقدان الهاتف مثلًا). ستُغلق جلساته المفتوحة.",
+    "reset2faDone": "تمت إعادة ضبط المصادقة الثنائية"
   },
   "roles": {
     "title": "الأدوار والصلاحيات",
@@ -455,7 +473,28 @@
     "currentPassword": "كلمة المرور الحالية",
     "samePassword": "يجب أن تختلف كلمة المرور الجديدة عن الحالية",
     "changed": "تم تغيير كلمة المرور",
-    "changePassword": "تغيير كلمة المرور"
+    "changePassword": "تغيير كلمة المرور",
+    "mustSetupTwoFactor": "يتطلب دورك المصادقة الثنائية. فعّلها للوصول إلى المنصة.",
+    "twoFactorTitle": "المصادقة الثنائية",
+    "twoFactorOffHint": "إضافة إلى كلمة المرور، يُطلب رمز من 6 أرقام من هاتفك عند كل تسجيل دخول.",
+    "twoFactorOnHint": "مفعّلة: يُطلب رمز من تطبيقك عند كل تسجيل دخول.",
+    "twoFactorRequiredHint": "مفعّلة وإلزامية لدورك.",
+    "twoFactorOn": "مفعّلة",
+    "twoFactorStart": "تفعيل المصادقة الثنائية",
+    "twoFactorStep1": "ثبّت Google Authenticator أو Microsoft Authenticator على هاتفك.",
+    "twoFactorStep2": "امسح رمز QR بالتطبيق، ثم أدخل الرمز الظاهر.",
+    "twoFactorQrAlt": "رمز QR للمسح بتطبيق المصادقة",
+    "twoFactorManual": "تعذّر المسح؟ أدخل هذا المفتاح في التطبيق:",
+    "twoFactorCode": "رمز من 6 أرقام",
+    "twoFactorCodeSix": "يتكوّن الرمز من 6 أرقام",
+    "twoFactorConfirm": "تأكيد وتفعيل",
+    "twoFactorEnabled": "تم تفعيل المصادقة الثنائية",
+    "twoFactorDisable": "إلغاء التفعيل",
+    "twoFactorDisabled": "تم إلغاء المصادقة الثنائية",
+    "recoveryCodesTitle": "رموز الاحتياط",
+    "recoveryCodesHint": "احفظ هذه الرموز العشرة في مكان آمن: كل رمز يتيح تسجيل دخول واحد إذا تعذّر استعمال هاتفك. لن تُعرض مرة أخرى.",
+    "recoveryCodesDownload": "تنزيل",
+    "recoveryCodesDone": "دوّنت رموزي"
   },
   "prospects": {
     "title": "العملاء المحتملون",

@@ -10,7 +10,12 @@ type Status = 'loading' | 'authenticated' | 'anonymous';
 interface AuthContext {
   user: SessionUser | null;
   status: Status;
-  login: (email: string, password: string) => Promise<SessionUser>;
+  /** Renvoie la session, ou le jeton d'étape si la double authentification demande un code. */
+  login: (email: string, password: string) => Promise<SessionUser | { twoFactorToken: string }>;
+  /** Seconde étape : code de l'application ou code de secours. */
+  verifyTwoFactor: (twoFactorToken: string, code: string) => Promise<SessionUser>;
+  /** Relit l'utilisateur (après activation de la double authentification, par exemple). */
+  refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
   /** Après un changement de mot de passe : l'API renvoie une nouvelle session. */
   applySession: (payload: AuthPayload) => void;
@@ -57,12 +62,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const payload = await api<AuthPayload>('/auth/login', { method: 'POST', body: { email, password }, auth: false });
+      const payload = await api<AuthPayload | { twoFactorRequired: true; twoFactorToken: string }>('/auth/login', { method: 'POST', body: { email, password }, auth: false });
+      if ('twoFactorRequired' in payload) return { twoFactorToken: payload.twoFactorToken };
       applySession(payload);
       return payload.user;
     },
     [applySession],
   );
+
+  const verifyTwoFactor = useCallback(
+    async (twoFactorToken: string, code: string) => {
+      const payload = await api<AuthPayload>('/auth/2fa/verify', { method: 'POST', body: { twoFactorToken, code }, auth: false });
+      applySession(payload);
+      return payload.user;
+    },
+    [applySession],
+  );
+
+  const refreshUser = useCallback(async () => {
+    setUser(await api<SessionUser>('/auth/me'));
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -77,11 +96,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       status,
       login,
+      verifyTwoFactor,
+      refreshUser,
       logout,
       applySession,
       can: (permission) => !!user && (user.roleCode === 'SUPER_ADMIN' || user.permissions.includes(permission)),
     }),
-    [user, status, login, logout, applySession],
+    [user, status, login, verifyTwoFactor, refreshUser, logout, applySession],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -4,6 +4,7 @@
 // Usage : node scripts/visual-check.mjs [--base http://localhost:3000] [--shots] [--only /login]
 // Prérequis : `npm run dev` (ou start) lancé ; l'API sur NEXT_PUBLIC_API_URL pour les pages authentifiées.
 import { createRequire } from 'node:module';
+import { createHmac } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
@@ -41,6 +42,40 @@ async function apiUp() {
   }
 }
 
+
+// Double authentification du compte admin de test : codes TOTP (RFC 6238, comme les applications d'authentification)
+// calculés à partir de VISUAL_ADMIN_TOTP_SECRET. L'API refuse de rejouer un code : on attend la période suivante.
+const ADMIN_TOTP_SECRET = process.env.VISUAL_ADMIN_TOTP_SECRET ?? '';
+function totp(secretBase32, step) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const c of secretBase32.replace(/=+$/, '').toUpperCase()) bits += alphabet.indexOf(c).toString(2).padStart(5, '0');
+  const key = Buffer.from(bits.match(/.{8}/g).map((b) => parseInt(b, 2)));
+  const msg = Buffer.alloc(8);
+  msg.writeBigUInt64BE(BigInt(step));
+  const h = createHmac('sha1', key).update(msg).digest();
+  const o = h[h.length - 1] & 15;
+  return String((h.readUInt32BE(o) & 0x7fffffff) % 1_000_000).padStart(6, '0');
+}
+let lastTotpStep = -1;
+async function nextAdminCode() {
+  if (!ADMIN_TOTP_SECRET) throw new Error('VISUAL_ADMIN_TOTP_SECRET manquant : le compte admin exige la double authentification');
+  let step = Math.floor(Date.now() / 30000);
+  if (step <= lastTotpStep) {
+    await new Promise((r) => setTimeout(r, (lastTotpStep + 1) * 30000 - Date.now() + 300));
+    step = lastTotpStep + 1;
+  }
+  lastTotpStep = step;
+  return totp(ADMIN_TOTP_SECRET, step);
+}
+/** Après l'envoi de l'e-mail et du mot de passe admin : saisit le code si la double authentification le demande. */
+async function passAdminTwoFactor(page) {
+  const asked = await page.waitForSelector('#code', { timeout: 8000 }).then(() => true, () => false);
+  if (!asked) return;
+  await page.fill('#code', await nextAdminCode());
+  await page.click('button[type="submit"]');
+}
+
 async function login(context, kind = 'admin') {
   const page = await context.newPage();
   const portal = kind === 'portal';
@@ -48,6 +83,7 @@ async function login(context, kind = 'admin') {
   await page.fill('#email', portal ? PORTAL_EMAIL : ADMIN_EMAIL);
   await page.fill('#password', ADMIN_PASSWORD);
   await page.click('button[type="submit"]');
+  if (!portal) await passAdminTwoFactor(page);
   await page.waitForURL(portal ? /\/portal\/dashboard/ : /\/(dashboard|account)/, { timeout: 20000 });
   await page.close();
 }
@@ -97,7 +133,12 @@ const firstItem = {};
 const API = process.env.VISUAL_API_URL ?? 'http://localhost:4000/api';
 async function firstIdFromApi(list) {
   const login = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }) });
-  const { accessToken } = await login.json();
+  let session = await login.json();
+  if (session.twoFactorRequired) {
+    const verify = await fetch(`${API}/auth/2fa/verify`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ twoFactorToken: session.twoFactorToken, code: await nextAdminCode() }) });
+    session = await verify.json();
+  }
+  const { accessToken } = session;
   const res = await fetch(`${API}${list}?pageSize=1`, { headers: { authorization: `Bearer ${accessToken}` } });
   const data = await res.json();
   const id = (data.items ?? data)[0]?.id;
@@ -316,6 +357,7 @@ async function checkRegressions(browser) {
     await dr.fill('#email', ADMIN_EMAIL);
     await dr.fill('#password', ADMIN_PASSWORD);
     await dr.click('button[type="submit"]');
+    await passAdminTwoFactor(dr);
     await dr.waitForURL(/\/ar\/dashboard/, { timeout: 20000 });
     await dr.waitForLoadState('networkidle');
     await hideDevOverlay(dr);
@@ -346,6 +388,7 @@ async function checkRegressions(browser) {
     await rp.fill('#email', ADMIN_EMAIL);
     await rp.fill('#password', ADMIN_PASSWORD);
     await rp.click('button[type="submit"]');
+    await passAdminTwoFactor(rp);
     await rp.waitForURL(/\/dashboard/, { timeout: 20000 });
     await rp.evaluate(() => { window.__opened = []; window.open = (u) => { window.__opened.push(String(u)); return null; }; });
     await rp.locator('nav a[href$="/reminders"]').first().click();

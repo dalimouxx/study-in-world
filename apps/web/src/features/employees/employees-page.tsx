@@ -1,7 +1,7 @@
 'use client';
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, ShieldOff, Trash2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -64,6 +64,17 @@ function Content() {
   });
   const roles = useQuery({ queryKey: ['roles'], queryFn: () => api<Role[]>('/roles'), enabled: can('role.view') });
   const branches = useQuery({ queryKey: ['branches'], queryFn: () => api<Branch[]>('/branches') });
+
+  const [resetting, setResetting] = useState<Employee | null>(null);
+  const reset2fa = useMutation({
+    mutationFn: (id: string) => api(`/auth/2fa/reset/${id}`, { method: 'POST', body: {} }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setResetting(null);
+      toast.success(t('reset2faDone'));
+    },
+    onError: (err) => toast.error(errorMessage(err)),
+  });
 
   const remove = useMutation({
     mutationFn: (id: string) => api(`/employees/${id}`, { method: 'DELETE' }),
@@ -147,6 +158,7 @@ function Content() {
                     <Td>{e.branch?.name ?? '–'}</Td>
                     <Td>
                       <Badge tone={e.status === 'ACTIVE' ? 'success' : 'neutral'}>{e.status === 'ACTIVE' ? t('active') : t('inactive')}</Badge>
+                      {e.totpEnabledAt && <Badge tone="primary" className="ms-1">{t('twoFactorBadge')}</Badge>}
                     </Td>
                     <Td className="whitespace-nowrap text-muted-foreground">{e.lastLoginAt ? formatDateTime(e.lastLoginAt, locale) : t('never')}</Td>
                     <Td>
@@ -154,6 +166,12 @@ function Content() {
                         {can('employee.edit') && (
                           <Button variant="ghost" size="icon" aria-label={`${tc('edit')} ${e.firstName} ${e.lastName}`} onClick={() => { setEditing(e); setFormOpen(true); }}>
                             <Pencil className="h-4 w-4" aria-hidden />
+                          </Button>
+                        )}
+                        {/* Téléphone perdu : le Super Admin réinitialise la double authentification de l'employé. */}
+                        {user?.roleCode === 'SUPER_ADMIN' && e.totpEnabledAt && e.id !== user.id && (
+                          <Button variant="ghost" size="icon" aria-label={`${t('reset2fa')} — ${e.firstName} ${e.lastName}`} title={t('reset2fa')} onClick={() => setResetting(e)}>
+                            <ShieldOff className="h-4 w-4" aria-hidden />
                           </Button>
                         )}
                         {can('employee.delete') && e.id !== user?.id && (
@@ -182,6 +200,15 @@ function Content() {
         confirmLabel={tc('delete')}
         loading={remove.isPending}
         onConfirm={() => deleting && remove.mutate(deleting.id)}
+      />
+      <ConfirmDialog
+        open={!!resetting}
+        onOpenChange={(o) => !o && setResetting(null)}
+        title={t('reset2faTitle')}
+        description={t('reset2faDescription', { name: `${resetting?.firstName ?? ''} ${resetting?.lastName ?? ''}` })}
+        confirmLabel={t('reset2fa')}
+        loading={reset2fa.isPending}
+        onConfirm={() => resetting && reset2fa.mutate(resetting.id)}
       />
     </>
   );

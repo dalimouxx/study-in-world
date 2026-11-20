@@ -20,6 +20,7 @@ const employeeSelect = {
   locale: true,
   status: true,
   mustChangePassword: true,
+  totpEnabledAt: true,
   lastLoginAt: true,
   createdAt: true,
   roleId: true,

@@ -15,6 +15,7 @@ import { api, AuthPayload } from '@/lib/api';
 import { passwordSchema } from '@/lib/schemas';
 import { useErrorMessage } from '@/lib/use-error-message';
 import { useAuth } from '@/features/auth/auth-context';
+import { TwoFactorSection } from './two-factor-section';
 
 export function AccountPage() {
   const t = useTranslations('account');
@@ -24,6 +25,7 @@ export function AccountPage() {
   const router = useRouter();
   const { user, applySession } = useAuth();
   const forced = !!user?.mustChangePassword;
+  const mustSetupTwoFactor = !!user?.mustSetupTwoFactor && !forced;
 
   const schema = z
     .object({ currentPassword: z.string().min(1, tc('required')), newPassword: passwordSchema(ta), confirm: z.string().min(1, tc('required')) })
@@ -38,7 +40,7 @@ export function AccountPage() {
       applySession(payload);
       reset();
       toast.success(t('changed'));
-      if (forced) router.replace('/dashboard');
+      if (forced && !payload.user.mustSetupTwoFactor) router.replace('/dashboard');
     },
     onError: (err) => toast.error(errorMessage(err)),
   });
@@ -51,6 +53,14 @@ export function AccountPage() {
           {t('mustChange')}
         </p>
       )}
+
+      {mustSetupTwoFactor && (
+        <p role="alert" className="rounded-md border border-accent/60 bg-accent/10 px-4 py-3 text-sm">
+          {t('mustSetupTwoFactor')}
+        </p>
+      )}
+      {/* Double authentification obligatoire : la section passe en premier. */}
+      {mustSetupTwoFactor && <TwoFactorSection />}
 
       <Card>
         <CardHeader title={t('profile')} />
@@ -81,6 +91,8 @@ export function AccountPage() {
           </div>
         </form>
       </Card>
+
+      {!mustSetupTwoFactor && !forced && <TwoFactorSection />}
     </div>
   );
 }

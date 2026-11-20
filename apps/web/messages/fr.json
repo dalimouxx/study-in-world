@@ -100,7 +100,14 @@
     "confirmPassword": "Confirmer le mot de passe",
     "passwordRule": "10 caractères minimum, avec une majuscule, une minuscule et un chiffre.",
     "passwordMismatch": "Les deux mots de passe ne correspondent pas",
-    "resetSubmit": "Enregistrer le mot de passe"
+    "resetSubmit": "Enregistrer le mot de passe",
+    "twoFactorTitle": "Code de vérification",
+    "twoFactorSubtitle": "Ouvrez votre application d’authentification et saisissez le code à 6 chiffres.",
+    "twoFactorCode": "Code",
+    "twoFactorRecoveryHint": "Téléphone indisponible ? Saisissez l’un de vos codes de secours (xxxx-xxxx).",
+    "twoFactorCodeInvalid": "Code incomplet",
+    "twoFactorVerify": "Vérifier",
+    "twoFactorBack": "Revenir à l’e-mail et au mot de passe"
   },
   "errors": {
     "GENERIC": "Une erreur est survenue. Réessayez dans un instant.",
@@ -146,7 +153,13 @@
     "AI_NOT_CONFIGURED": "L’assistant IA n’est pas configuré pour cette agence.",
     "AI_UNAVAILABLE": "L’assistant IA est momentanément indisponible, réessayez plus tard.",
     "OCR_UNSUPPORTED_FILE": "L’extraction automatique ne fonctionne que sur une image (pas un PDF pour l’instant).",
-    "PERMISSIONS_NOT_SEEDED": "Le catalogue de permissions n’a pas encore été initialisé sur ce serveur."
+    "PERMISSIONS_NOT_SEEDED": "Le catalogue de permissions n’a pas encore été initialisé sur ce serveur.",
+    "INVALID_2FA_CODE": "Code incorrect. Vérifiez l’heure de votre téléphone ou utilisez un code de secours.",
+    "TWO_FACTOR_EXPIRED": "Étape expirée : reconnectez-vous.",
+    "TWO_FACTOR_SETUP_REQUIRED": "Activez la double authentification pour continuer.",
+    "TWO_FACTOR_REQUIRED": "La double authentification est obligatoire pour votre rôle.",
+    "TWO_FACTOR_ALREADY_ENABLED": "La double authentification est déjà activée.",
+    "TWO_FACTOR_NOT_STARTED": "Recommencez la mise en place : scannez à nouveau le QR code."
   },
   "dashboard": {
     "welcome": "Bonjour {name}",
@@ -199,7 +212,12 @@
     "resetPassword": "Nouveau mot de passe (facultatif)",
     "resetPasswordHint": "Laissez vide pour ne pas le changer. Il devra être modifié à la prochaine connexion.",
     "initialPassword": "Mot de passe provisoire",
-    "initialPasswordHint": "L’employé devra le remplacer dès sa première connexion. 10 caractères minimum, majuscule, minuscule, chiffre."
+    "initialPasswordHint": "L’employé devra le remplacer dès sa première connexion. 10 caractères minimum, majuscule, minuscule, chiffre.",
+    "twoFactorBadge": "2FA",
+    "reset2fa": "Réinitialiser la double authentification",
+    "reset2faTitle": "Réinitialiser la double authentification ?",
+    "reset2faDescription": "{name} devra la réactiver à sa prochaine connexion (téléphone perdu, par exemple). Ses sessions ouvertes seront fermées.",
+    "reset2faDone": "Double authentification réinitialisée"
   },
   "roles": {
     "title": "Rôles et permissions",
@@ -455,7 +473,28 @@
     "currentPassword": "Mot de passe actuel",
     "samePassword": "Le nouveau mot de passe doit être différent de l’actuel",
     "changed": "Mot de passe modifié",
-    "changePassword": "Changer le mot de passe"
+    "changePassword": "Changer le mot de passe",
+    "mustSetupTwoFactor": "Votre rôle exige la double authentification. Activez-la pour accéder à la plateforme.",
+    "twoFactorTitle": "Double authentification",
+    "twoFactorOffHint": "En plus du mot de passe, un code à 6 chiffres de votre téléphone est demandé à chaque connexion.",
+    "twoFactorOnHint": "Activée : un code de votre application est demandé à chaque connexion.",
+    "twoFactorRequiredHint": "Activée et obligatoire pour votre rôle.",
+    "twoFactorOn": "Activée",
+    "twoFactorStart": "Activer la double authentification",
+    "twoFactorStep1": "Installez Google Authenticator ou Microsoft Authenticator sur votre téléphone.",
+    "twoFactorStep2": "Scannez ce QR code avec l’application, puis saisissez le code affiché.",
+    "twoFactorQrAlt": "QR code à scanner avec l’application d’authentification",
+    "twoFactorManual": "Impossible de scanner ? Saisissez cette clé dans l’application :",
+    "twoFactorCode": "Code à 6 chiffres",
+    "twoFactorCodeSix": "Le code compte 6 chiffres",
+    "twoFactorConfirm": "Confirmer et activer",
+    "twoFactorEnabled": "Double authentification activée",
+    "twoFactorDisable": "Désactiver",
+    "twoFactorDisabled": "Double authentification désactivée",
+    "recoveryCodesTitle": "Codes de secours",
+    "recoveryCodesHint": "Gardez ces 10 codes de secours en lieu sûr : chacun permet une connexion si votre téléphone est indisponible. Ils ne seront plus affichés.",
+    "recoveryCodesDownload": "Télécharger",
+    "recoveryCodesDone": "J’ai noté mes codes"
   },
   "prospects": {
     "title": "Prospects",
