@@ -31,9 +31,35 @@ const user = (o: Record<string, unknown> = {}) => ({
   totpRecoveryCodes: recoveryHashes, ...o,
 });
 
+/** Base simulée avec état : les mises à jour s'appliquent vraiment (incréments, conditions), comme en base. */
 function build(u: ReturnType<typeof user> | null) {
+  const state = u ? { ...u } : null;
+  const tick = () => new Promise((r) => setImmediate(r)); // laisse les requêtes parallèles s'entrelacer
+  const apply = (data: Record<string, unknown>) => {
+    for (const [k, v] of Object.entries(data)) {
+      (state as unknown as Record<string, unknown>)[k] = v && typeof v === 'object' && 'increment' in (v as object) ? ((state as unknown as Record<string, number>)[k] ?? 0) + (v as { increment: number }).increment : v;
+    }
+  };
+  const matches = (where: Record<string, unknown>) => {
+    if (!state) return false;
+    if (Array.isArray(where.OR)) {
+      return (where.OR as Record<string, unknown>[]).some((c) => (c.totpLastUsedStep === null ? state.totpLastUsedStep === null : state.totpLastUsedStep !== null && state.totpLastUsedStep < (c.totpLastUsedStep as { lt: number }).lt));
+    }
+    if (where.totpRecoveryCodes) return JSON.stringify(state.totpRecoveryCodes) === JSON.stringify((where.totpRecoveryCodes as { equals: string[] }).equals);
+    return true;
+  };
   const prisma = {
-    user: { findFirst: jest.fn().mockResolvedValue(u), findUniqueOrThrow: jest.fn().mockResolvedValue(u), update: jest.fn().mockResolvedValue({}) },
+    user: {
+      findFirst: jest.fn().mockImplementation(async () => { await tick(); return state && { ...state }; }),
+      findUniqueOrThrow: jest.fn().mockImplementation(async () => state && { ...state }),
+      update: jest.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => { await tick(); apply(data); return { ...state }; }),
+      updateMany: jest.fn().mockImplementation(async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+        await tick();
+        if (!matches(where)) return { count: 0 };
+        apply(data);
+        return { count: 1 };
+      }),
+    },
     loginLog: { create: jest.fn().mockResolvedValue({}) },
     refreshToken: { create: jest.fn().mockResolvedValue({}), updateMany: jest.fn().mockResolvedValue({}) },
     $transaction: jest.fn().mockResolvedValue([]),
@@ -43,7 +69,7 @@ function build(u: ReturnType<typeof user> | null) {
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
   const twoFactor = new TwoFactorService(prisma as never, jwt, config as never, audit as never);
   const auth = new AuthService(prisma as never, jwt, config as never, audit as never, { send: jest.fn() } as never, twoFactor);
-  return { auth, twoFactor, prisma, jwt, audit };
+  return { auth, twoFactor, prisma, jwt, audit, state: state! };
 }
 
 describe('outils', () => {
@@ -101,10 +127,9 @@ describe('connexion en deux temps', () => {
     const code = authenticator.generate(SECRET);
     const ok = (await b.auth.verifyTwoFactor(twoFactorToken, code, {})) as AuthResult;
     expect(ok.accessToken).toBeTruthy();
-    const saved = b.prisma.user.update.mock.calls.at(-1)[0].data;
-    expect(saved.totpLastUsedStep).toBeGreaterThan(0);
+    expect(b.state.totpLastUsedStep).toBeGreaterThan(0);
     // Nouvelle connexion, même code, même période : refusé.
-    const b2 = build({ ...u, totpLastUsedStep: saved.totpLastUsedStep });
+    const b2 = build({ ...u, totpLastUsedStep: b.state.totpLastUsedStep });
     const second = await step(b2);
     await expect(b2.auth.verifyTwoFactor(second.twoFactorToken, code, {})).rejects.toMatchObject({ response: expect.objectContaining({ code: 'INVALID_2FA_CODE' }) });
   });
@@ -126,19 +151,50 @@ describe('connexion en deux temps', () => {
     const b = build(user({ failedLoginCount: 4 }));
     const { twoFactorToken } = await step(b);
     await expect(b.auth.verifyTwoFactor(twoFactorToken, '000000', {})).rejects.toMatchObject({ status: 401 });
-    const data = b.prisma.user.update.mock.calls.at(-1)[0].data;
-    expect(data.lockedUntil).toBeInstanceOf(Date);
+    expect(b.state.lockedUntil).toBeInstanceOf(Date);
   });
 
   it('code de secours : accepté une fois, puis retiré', async () => {
     const b = build(user());
     const { twoFactorToken } = await step(b);
     await b.auth.verifyTwoFactor(twoFactorToken, 'ABCD EFGH', {});
-    const saved = b.prisma.user.update.mock.calls.at(-1)[0].data;
-    expect(saved.totpRecoveryCodes).toHaveLength(1);
-    const b2 = build(user({ totpRecoveryCodes: saved.totpRecoveryCodes }));
+    expect(b.state.totpRecoveryCodes).toHaveLength(1);
+    const b2 = build(user({ totpRecoveryCodes: b.state.totpRecoveryCodes }));
     const again = await step(b2);
     await expect(b2.auth.verifyTwoFactor(again.twoFactorToken, 'abcd-efgh', {})).rejects.toMatchObject({ status: 401 });
+  });
+
+  it('attaque : 50 mauvais codes envoyés en parallèle → le compte est verrouillé', async () => {
+    const b = build(user());
+    const tokens = await Promise.all(Array.from({ length: 10 }, () => step(b)));
+    await Promise.allSettled(Array.from({ length: 50 }, (_, i) => b.auth.verifyTwoFactor(tokens[i % 10].twoFactorToken, String(100000 + i), {})));
+    expect(b.state.lockedUntil).toBeInstanceOf(Date);
+  });
+
+  it('attaque : le même bon code envoyé 3 fois en parallèle → une seule session', async () => {
+    const b = build(user());
+    const t1 = await step(b);
+    const t2 = await step(b);
+    const code = authenticator.generate(SECRET);
+    const results = await Promise.allSettled([
+      b.auth.verifyTwoFactor(t1.twoFactorToken, code, {}),
+      b.auth.verifyTwoFactor(t1.twoFactorToken, code, {}),
+      b.auth.verifyTwoFactor(t2.twoFactorToken, code, {}),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+  });
+
+  it('un jeton d’étape est brûlé après 5 mauvais codes', async () => {
+    const b = build(user({ failedLoginCount: -100 })); // le verrouillage du compte n'intervient pas ici
+    const { twoFactorToken } = await step(b);
+    for (let i = 0; i < 5; i++) await b.auth.verifyTwoFactor(twoFactorToken, '000000', {}).catch(() => undefined);
+    await expect(b.auth.verifyTwoFactor(twoFactorToken, authenticator.generate(SECRET), {})).rejects.toMatchObject({ response: expect.objectContaining({ code: 'TWO_FACTOR_EXPIRED' }) });
+  });
+
+  it('clé de chiffrement changée : code refusé proprement (pas d’erreur 500)', async () => {
+    const b = build(user({ totpSecret: encryptSecret(SECRET, totpKey('une-autre-cle-de-chiffrement-de-32-car', JWT_SECRET)) }));
+    const { twoFactorToken } = await step(b);
+    await expect(b.auth.verifyTwoFactor(twoFactorToken, authenticator.generate(SECRET), {})).rejects.toMatchObject({ status: 401 });
   });
 
   it('sans double authentification : connexion directe comme avant', async () => {

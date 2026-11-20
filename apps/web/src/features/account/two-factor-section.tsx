@@ -12,6 +12,7 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { Field, Input } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { useErrorMessage } from '@/lib/use-error-message';
+import { useRouter } from '@/i18n/navigation';
 import { useAuth } from '@/features/auth/auth-context';
 
 type Setup = { otpauthUrl: string; qrDataUrl: string; secret: string };
@@ -25,6 +26,9 @@ export function TwoFactorSection() {
   const tc = useTranslations('common');
   const errorMessage = useErrorMessage();
   const { user, refreshUser } = useAuth();
+  const router = useRouter();
+  // Activation obligatoire : une fois terminée, on rejoint le tableau de bord.
+  const [wasForced] = useState(!!user?.mustSetupTwoFactor);
   const [setup, setSetup] = useState<Setup | null>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const enableForm = useForm<{ code: string }>();
@@ -75,7 +79,7 @@ export function TwoFactorSection() {
           </ul>
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="secondary" onClick={download}>{t('recoveryCodesDownload')}</Button>
-            <Button onClick={async () => { setRecoveryCodes(null); await refreshUser(); toast.success(t('twoFactorEnabled')); }}>{t('recoveryCodesDone')}</Button>
+            <Button onClick={async () => { setRecoveryCodes(null); await refreshUser(); toast.success(t('twoFactorEnabled')); if (wasForced) router.replace('/dashboard'); }}>{t('recoveryCodesDone')}</Button>
           </div>
         </div>
       </Card>

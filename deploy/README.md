@@ -203,6 +203,16 @@ Remplacer la production par une sauvegarde (demande de taper `RESTAURER`) :
 /srv/platforms/studyinworld/deploy/restore.sh 2026-11-20 --production
 ```
 
-**Sur un VPS neuf** : cloner le dépôt (étape 3), créer `deploy/.env` avec seulement les quatre lignes B2 et la phrase,
-démarrer la base (`docker compose -f docker-compose.prod.yml --env-file .env up -d db`), lancer `restore.sh <date>`,
-puis reprendre les réglages complets dans `/var/tmp/studyinworld-restore/env` et lancer `restore.sh <date> --production`.
+**Sur un VPS neuf** (l'ancien a disparu) :
+
+```bash
+cd /srv/platforms && git clone https://github.com/dalimouxx/study-in-world.git studyinworld && cd studyinworld/deploy
+apt-get install -y rclone gpg
+printf 'B2_ACCOUNT_ID=\nB2_APPLICATION_KEY=\nB2_BUCKET=studyinworld-sauvegardes\n' > .env && chmod 600 .env   # puis renseigner les deux clés (gestionnaire de mots de passe)
+./restore.sh 2026-11-20 --env-only          # demande la phrase de chiffrement, réécrit deploy/.env complet
+docker compose -f docker-compose.prod.yml --env-file .env up -d db
+./restore.sh 2026-11-20 --production
+docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+```
+
+Puis la passerelle Caddy (étape 5) et la surveillance (Telegram, sauvegarde) comme à l'installation.

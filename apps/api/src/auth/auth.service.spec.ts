@@ -24,7 +24,11 @@ const baseUser = () => ({
 
 function build(user: ReturnType<typeof baseUser> | null) {
   const prisma = {
-    user: { findFirst: jest.fn().mockResolvedValue(user), update: jest.fn().mockResolvedValue({}) },
+    user: {
+      findFirst: jest.fn().mockResolvedValue(user),
+      // Incrément atomique : renvoie le nouveau compteur.
+      update: jest.fn().mockImplementation(async ({ data }: { data: { failedLoginCount?: { increment: number } } }) => (data.failedLoginCount && typeof data.failedLoginCount === 'object' ? { failedLoginCount: (user?.failedLoginCount ?? 0) + data.failedLoginCount.increment } : {})),
+    },
     loginLog: { create: jest.fn().mockResolvedValue({}) },
     refreshToken: {
       findUnique: jest.fn(),
@@ -63,7 +67,7 @@ describe('AuthService.login', () => {
   it('verrouille le compte à la 5e erreur', async () => {
     const { service, prisma } = build({ ...baseUser(), failedLoginCount: 4 });
     await expect(service.login('a@b.tn', 'mauvais', {})).rejects.toMatchObject({ status: 401 });
-    const data = prisma.user.update.mock.calls[0][0].data;
+    const data = prisma.user.update.mock.calls.at(-1)[0].data;
     expect(data.lockedUntil).toBeInstanceOf(Date);
     expect(data.lockedUntil.getTime()).toBeGreaterThan(Date.now());
   });

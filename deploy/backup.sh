@@ -31,7 +31,8 @@ trap 'tg "❌ <b>Échec de la sauvegarde</b> — Study in World\nÉtape : ${step
 trap cleanup EXIT
 [ -n "$PASSPHRASE" ] || { echo "BACKUP_PASSPHRASE manquante dans deploy/.env" >&2; false; }
 [ -n "${BACKUP_REMOTE:-}" ] || [ -n "$B2_BUCKET" ] || { echo "B2_BUCKET manquant dans deploy/.env" >&2; false; }
-mkdir -p "$LOCAL_DIR" && chmod 700 "$LOCAL_DIR"
+mkdir -p "$LOCAL_DIR"
+chmod 700 "$LOCAL_DIR"
 
 step="export de la base"
 "${COMPOSE[@]}" exec -T db pg_dump -U "$PG_USER" -d "$PG_DB" -Fc > "$WORK/db.dump"

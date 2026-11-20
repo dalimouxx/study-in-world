@@ -39,12 +39,13 @@ const schema = z.object({
   // logos de la landing page, lus directement par le navigateur via S3_PUBLIC_BASE_URL).
   // Relances automatiques : secret de la route POST /api/jobs/daily-reminders (réveil extérieur, ex. Vercel Cron).
   // Absent → la route répond 404. Le réveil intégré (chaque heure, agences à 07:xx locale) se coupe avec REMINDERS_CRON_ENABLED=false.
-  JOBS_SECRET: z.string().min(24, 'JOBS_SECRET doit contenir au moins 24 caractères').optional(),
+  JOBS_SECRET: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(24, 'JOBS_SECRET doit contenir au moins 24 caractères').optional()),
   // Alertes Telegram (groupe d'équipe) : facultatives ; sans elles, aucune alerte n'est envoyée.
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_CHAT_ID: z.string().optional(),
   // Chiffrement des secrets de double authentification : facultatif (sinon dérivé de JWT_SECRET).
-  TOTP_ENCRYPTION_KEY: z.string().min(32, 'TOTP_ENCRYPTION_KEY doit contenir au moins 32 caractères').optional(),
+  // Une ligne « TOTP_ENCRYPTION_KEY= » laissée vide dans deploy/.env vaut « absente » (sinon l'API refuserait de démarrer).
+  TOTP_ENCRYPTION_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(32, 'TOTP_ENCRYPTION_KEY doit contenir au moins 32 caractères').optional()),
   REMINDERS_CRON_ENABLED: z
     .enum(['true', 'false'])
     .optional()

@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
@@ -32,7 +32,12 @@ export type CodeCheck = { ok: false } | { ok: true; step: number } | { ok: true;
 /** Jeton d'étape entre le mot de passe et le code : signé avec une clé à part, il ne vaut jamais comme session. */
 @Injectable()
 export class TwoFactorService {
+  private readonly logger = new Logger('DoubleAuthentification');
   private readonly usedChallenges = new Map<string, number>();
+  // Jetons d'étape en cours de vérification : une seule vérification à la fois par jeton (requêtes parallèles).
+  private readonly claimedChallenges = new Set<string>();
+  // Mauvais codes par jeton : au-delà de 5, le jeton est brûlé (il faut ressaisir le mot de passe).
+  private readonly failuresByChallenge = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -68,10 +73,30 @@ export class TwoFactorService {
     return { userId: payload.sub, jti: payload.jti };
   }
 
+  /**
+   * Réserve le jeton pour une vérification (synchrone, donc sans course entre requêtes parallèles du même processus).
+   * Refus si une autre vérification du même jeton est en cours ou s'il a déjà servi.
+   */
+  claimChallenge(jti: string): boolean {
+    if (this.claimedChallenges.has(jti) || this.usedChallenges.has(jti)) return false;
+    this.claimedChallenges.add(jti);
+    return true;
+  }
+
+  /** Vérification terminée sans succès : le jeton redevient utilisable, sauf après 5 mauvais codes (brûlé). */
+  releaseChallenge(jti: string, failed: boolean): void {
+    this.claimedChallenges.delete(jti);
+    if (!failed) return;
+    const n = (this.failuresByChallenge.get(jti) ?? 0) + 1;
+    this.failuresByChallenge.set(jti, n);
+    if (n >= 5) this.markChallengeUsed(jti);
+  }
+
   /** Jeton consommé par une connexion réussie : il ne pourra plus servir (gardé jusqu'à son expiration). */
   markChallengeUsed(jti: string): void {
     const now = Date.now();
-    for (const [k, exp] of this.usedChallenges) if (exp < now) this.usedChallenges.delete(k);
+    for (const [k, exp] of this.usedChallenges) if (exp < now) { this.usedChallenges.delete(k); this.failuresByChallenge.delete(k); }
+    this.claimedChallenges.delete(jti);
     this.usedChallenges.set(jti, now + 5 * 60_000);
   }
 
@@ -83,7 +108,14 @@ export class TwoFactorService {
     const value = code.trim();
     if (/^\d{6}$/.test(value)) {
       if (!user.totpSecret) return { ok: false };
-      const secret = decryptSecret(user.totpSecret, this.key());
+      let secret: string;
+      try {
+        secret = decryptSecret(user.totpSecret, this.key());
+      } catch {
+        // Clé de chiffrement changée depuis l'activation (JWT_SECRET ou TOTP_ENCRYPTION_KEY) : code refusé, pas d'erreur 500.
+        this.logger.error(`Secret de double authentification illisible pour l'utilisateur ${user.id} : clé de chiffrement modifiée ?`);
+        return { ok: false };
+      }
       const delta = authenticator.checkDelta(value, secret);
       if (delta === null) return { ok: false };
       const step = Math.floor(now / STEP_MS) + delta;
@@ -91,6 +123,8 @@ export class TwoFactorService {
       return { ok: true, step };
     }
     const normalized = normalizeRecoveryCode(value);
+    // Seule une saisie au format d'un code de secours déclenche les vérifications argon2 (coûteuses).
+    if (!/^[a-z2-9]{4}-[a-z2-9]{4}$/.test(normalized)) return { ok: false };
     for (let i = 0; i < user.totpRecoveryCodes.length; i++) {
       if (await argon2.verify(user.totpRecoveryCodes[i], normalized).catch(() => false)) {
         return { ok: true, recoveryCodes: user.totpRecoveryCodes.filter((_, j) => j !== i) };
@@ -99,9 +133,19 @@ export class TwoFactorService {
     return { ok: false };
   }
 
-  /** Données à enregistrer après un code accepté (période utilisée, ou code de secours retiré). */
-  afterSuccess(check: Extract<CodeCheck, { ok: true }>) {
-    return 'step' in check ? { totpLastUsedStep: check.step } : { totpRecoveryCodes: check.recoveryCodes };
+  /**
+   * Enregistre l'usage du code de façon atomique : la mise à jour n'a lieu que si l'état n'a pas changé depuis la
+   * vérification (période pas encore utilisée, ou liste de codes de secours inchangée). Deux requêtes simultanées
+   * avec le même code : une seule réussit. Renvoie false si le code a été utilisé entre-temps.
+   */
+  async consumeCode(user: TotpUser, check: Extract<CodeCheck, { ok: true }>, extra: Record<string, unknown>): Promise<boolean> {
+    const where =
+      'step' in check
+        ? { id: user.id, OR: [{ totpLastUsedStep: null }, { totpLastUsedStep: { lt: check.step } }] }
+        : { id: user.id, totpRecoveryCodes: { equals: user.totpRecoveryCodes } };
+    const data = 'step' in check ? { totpLastUsedStep: check.step } : { totpRecoveryCodes: check.recoveryCodes };
+    const { count } = await this.prisma.user.updateMany({ where, data: { ...data, ...extra } });
+    return count === 1;
   }
 
   // ---------- Mise en place, désactivation, réinitialisation ----------

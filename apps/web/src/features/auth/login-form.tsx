@@ -9,6 +9,7 @@ import { AuthShell } from '@/components/auth-shell';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/form';
 import { Link, useRouter } from '@/i18n/navigation';
+import { ApiError } from '@/lib/api';
 import { useErrorMessage } from '@/lib/use-error-message';
 import { useAuth } from './auth-context';
 
@@ -56,6 +57,8 @@ export function LoginForm() {
     } catch (err) {
       setFormError(errorMessage(err));
       codeForm.reset({ code: '' });
+      // Étape expirée (5 minutes) ou trop de mauvais codes : retour à l'e-mail et au mot de passe, avec le message.
+      if (err instanceof ApiError && (err.code === 'TWO_FACTOR_EXPIRED' || err.code === 'ACCOUNT_LOCKED')) setTwoFactorToken(null);
     }
   });
 
