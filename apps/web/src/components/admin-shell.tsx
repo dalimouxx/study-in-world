@@ -2,12 +2,11 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { LogOut, Menu, UserRound, X } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAgency } from '@/features/auth/use-agency';
 import { useAuth } from '@/features/auth/auth-context';
 import { Link, usePathname } from '@/i18n/navigation';
-import { isRtl } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { CommandPalette } from './command-palette';
 import { LanguageSwitcher } from './language-switcher';
@@ -23,7 +22,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const items = NAV_ITEMS.filter(
     (i) =>
       (!i.permission || can(i.permission)) &&
-      (!i.anyPermission || i.anyPermission.some((p) => can(p))) &&
       (!i.platformAdminOnly || user?.isPlatformAdmin) &&
       (!i.superAdminOnly || user?.roleCode === 'SUPER_ADMIN'),
   );
@@ -86,8 +84,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const tc = useTranslations('common');
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  // Le panneau sort du bord de début de ligne : la gauche en français, la droite en arabe.
-  const offscreen = isRtl(useLocale()) ? '100%' : '-100%';
 
   useEffect(() => setOpen(false), [pathname]);
   const current = NAV_ITEMS.find((i) => pathname === i.href || pathname.startsWith(`${i.href}/`));
@@ -111,9 +107,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
               onClick={() => setOpen(false)}
             />
             <motion.div
-              initial={{ x: offscreen }}
+              initial={{ x: '-100%' }}
               animate={{ x: 0 }}
-              exit={{ x: offscreen }}
+              exit={{ x: '-100%' }}
               transition={{ type: 'tween', duration: 0.25, ease: 'easeOut' }}
               className="absolute inset-y-0 start-0 w-72 max-w-[85%] border-e-2 border-ink bg-card shadow-pop-lg [html[dir=rtl]_&]:right-0"
             >

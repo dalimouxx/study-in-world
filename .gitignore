@@ -6,4 +6,3 @@ dist
 .DS_Store
 .superpowers/
 apps/web/.visual/
-apps/api/.pdf-samples/

@@ -8,7 +8,6 @@ const inv = (status, currency, lines, paid = []) => ({
   status,
   currency,
   items: lines.map(([quantity, unitPrice]) => ({ quantity, unitPrice })),
-  total: lines.reduce((s, [q, p]) => s + q * p, 0),
   payments: paid.map((amount) => ({ amount })),
 });
 
@@ -72,9 +71,4 @@ test('outstanding : arrondi des décimales (0,1 + 0,2 payé 0,3) → rien à pay
 
 test('outstanding : garde les millimes (3 décimales)', () => {
   assert.deepEqual(outstandingBalance([inv('ISSUED', 'TND', [[1, 12.345]])]), [{ currency: 'TND', amount: 12.345 }]);
-});
-
-test('outstanding : utilise le total TTC renvoyé par l’API, pas la somme des lignes', () => {
-  const taxed = { ...inv('ISSUED', 'TND', [[1, 2000]], [1000]), total: 2381 };
-  assert.deepEqual(outstandingBalance([taxed]), [{ currency: 'TND', amount: 1381 }]);
 });

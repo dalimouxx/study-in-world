@@ -35,7 +35,7 @@ export class ContractsController {
 
   @Get('contracts/:id/pdf') @RequirePermissions('finance.view')
   async pdf(@CurrentUser() user: AuthUser, @Param('id') id: string, @Res() res: Response) {
-    const { buffer, disposition } = await this.contracts.pdf(user.organizationId, id);
-    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': disposition }).send(buffer);
+    const { buffer, filename } = await this.contracts.pdf(user.organizationId, id);
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${filename}"` }).send(buffer);
   }
 }

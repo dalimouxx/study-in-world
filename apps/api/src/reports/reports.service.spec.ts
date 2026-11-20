@@ -51,15 +51,6 @@ describe('ReportsService.forecast', () => {
     expect(result.overdue).toBe(500);
   });
 
-  it('reste à encaisser : total TTC des factures taxées', async () => {
-    const { service, prisma } = build();
-    prisma.invoice.findMany.mockResolvedValue([
-      { dueDate: null, items: [{ quantity: 1, unitPrice: 2000, kind: 'SERVICE' }], total: 2381, subtotal: 2000, vatAmount: 380, disbursements: 0, stampDuty: 1, payments: [{ amount: 381 }] },
-    ]);
-    const result = await service.forecast(actor(), '30d');
-    expect(result.toCollect).toBe(2000);
-  });
-
   it('le flux de trésorerie net est encaissé moins dépenses', async () => {
     const { service, prisma } = build();
     prisma.payment.aggregate.mockResolvedValue({ _sum: { amount: 2000 } });

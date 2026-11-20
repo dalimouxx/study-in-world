@@ -14,8 +14,7 @@ export function checklistCompletion(items: { status: 'PENDING' | 'DONE' | 'NOT_A
 interface InvoiceLike {
   status: string;
   currency: string;
-  /** Total TTC renvoyé par l'API (somme brute des lignes pour une facture d'avant la TVA). */
-  total: number;
+  items: { quantity: number; unitPrice: number }[];
   payments: { amount: number }[];
 }
 
@@ -24,7 +23,7 @@ export function outstandingBalance(invoices: InvoiceLike[]): { currency: string;
   const byCurrency = new Map<string, number>();
   for (const inv of invoices) {
     if (inv.status !== 'ISSUED' && inv.status !== 'PARTIALLY_PAID') continue;
-    const total = inv.total;
+    const total = inv.items.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
     const paid = inv.payments.reduce((s, p) => s + p.amount, 0);
     // Arrondi au millime (3 décimales, comme le reste de l'application) : évite les restes fantômes des nombres flottants.
     const rest = Math.round((total - paid) * 1000) / 1000;

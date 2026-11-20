@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { CheckCircle2 } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -33,7 +33,6 @@ interface LeadValues {
 
 export function EligibilitySimulatorPage() {
   const t = useTranslations('public');
-  const locale = useLocale();
   const tc = useTranslations('common');
   const errorMessage = useErrorMessage();
   const [criteria, setCriteria] = useState<Criteria | null>(null);
@@ -67,7 +66,6 @@ export function EligibilitySimulatorPage() {
           desiredProgram: criteria?.level ? t(`levels.${criteria.level}`) : undefined,
           budget: criteria?.maxBudget ? Number(criteria.maxBudget) : undefined,
           campaign: 'simulateur-eligibilite',
-          locale,
         },
       }),
     onSuccess: () => toast.success(t('contactSent')),

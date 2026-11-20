@@ -23,7 +23,6 @@ import { useErrorMessage } from '@/lib/use-error-message';
 import { formatDateTime, whatsappLink } from '@/lib/utils';
 import { useAuth } from '@/features/auth/auth-context';
 import { ProspectFormDialog } from './prospect-form';
-import { SendMessageButton } from '@/features/message-templates/send-message-dialog';
 import { ProspectsBoard } from './prospects-board';
 
 const STATUSES: ProspectStatus[] = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'LOST'];
@@ -135,7 +134,6 @@ function Content() {
                       <Td>{p.assignedTo ? `${p.assignedTo.firstName} ${p.assignedTo.lastName}` : '–'}</Td>
                       <Td>
                         <div className="flex items-center justify-end gap-1">
-                          <SendMessageButton entityType="PROSPECT" entityId={p.id} phone={p.phone} iconOnly />
                           <Button variant="ghost" size="icon" aria-label={t('whatsapp')} onClick={() => window.open(whatsappLink(p.phone), '_blank')}>
                             <MessageCircle className="h-4 w-4 text-success" aria-hidden />
                           </Button>

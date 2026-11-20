@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CandidatesService } from '../candidates/candidates.service';
-import { documentTotals } from '../finance/totals';
 import type { AuthUser } from '../common/auth-user';
 
 export type ForecastPeriod = '7d' | '30d' | '3m' | '6m' | '12m';
@@ -52,7 +51,7 @@ export class ReportsService {
     let toCollect = 0;
     let overdue = 0;
     for (const inv of openInvoices) {
-      const total = documentTotals(inv).total;
+      const total = inv.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
       const paid = inv.payments.reduce((s, p) => s + p.amount, 0);
       const remaining = total - paid;
       toCollect += remaining;

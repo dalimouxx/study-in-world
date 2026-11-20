@@ -138,7 +138,6 @@ export class ProspectsService {
         notes: dto.notes,
         branchId: dto.branchId ?? actor.branchId,
         assignedToId: dto.assignedToId ?? actor.id,
-        preferredLanguage: dto.preferredLanguage,
       },
       include,
     });
@@ -199,7 +198,6 @@ export class ProspectsService {
           phone: prospect.phone,
           email: prospect.email,
           assignedToId: prospect.assignedToId ?? actor.id,
-          preferredLanguage: prospect.preferredLanguage,
         },
       });
       await tx.prospect.update({ where: { id }, data: { status: 'CONVERTED', convertedCandidateId: created.id } });

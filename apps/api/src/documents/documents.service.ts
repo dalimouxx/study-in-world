@@ -68,7 +68,7 @@ export class DocumentsService {
     const doc = await this.find(actor, id);
     const updated = await this.prisma.candidateDocument.update({
       where: { id },
-      data: { status: dto.status, reviewNote: dto.reviewNote, reviewedAt: new Date(), expiryDate: dto.expiryDate ? new Date(dto.expiryDate) : undefined },
+      data: { status: dto.status, reviewNote: dto.reviewNote, expiryDate: dto.expiryDate ? new Date(dto.expiryDate) : undefined },
     });
     await this.timeline.add(
       actor.organizationId,

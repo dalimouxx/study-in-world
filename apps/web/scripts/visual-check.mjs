@@ -21,7 +21,7 @@ const ADMIN_EMAIL = process.env.VISUAL_ADMIN_EMAIL ?? 'admin@demo.local';
 const ADMIN_PASSWORD = process.env.VISUAL_ADMIN_PASSWORD ?? 'LocalTest-2026-Pass';
 
 const PUBLIC_PAGES = ['/', '/destinations', '/programs', '/eligibility', '/blog', '/login', '/portal/login', '/partner-portal/login'];
-const ADMIN_PAGES = ['/dashboard', '/reminders', '/candidates', '/candidates/:first', '/settings', '/settings/messages'];
+const ADMIN_PAGES = ['/dashboard', '/candidates', '/candidates/:first', '/settings'];
 const PORTAL_EMAIL = process.env.VISUAL_PORTAL_EMAIL ?? 'yasmine@demo.local';
 const LOCALES = ['fr', 'ar'];
 const WIDTHS = [1280, 390];
@@ -69,7 +69,8 @@ async function checkPortalBottomNav(page, locale) {
   report(await sheet.isHidden(), 'portal-sheet-escape', ctx);
 }
 
-// Connexion directe dans chaque langue (le changement de langue est couvert par portal-session-reload).
+// Le portail perd sa session sur un rechargement complet ou un changement de langue (comportement existant,
+// antérieur à Bento Pop) : on se connecte donc directement dans chaque langue, sans recharger ensuite.
 async function checkPortal(browser, width) {
   for (const locale of LOCALES) {
     const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 }, deviceScaleFactor: 1 });
@@ -238,11 +239,6 @@ async function checkPortalRegressions(browser) {
   report(settled === 0, 'portal-invoices-error', '/portal/dashboard fr 1280', `« Tout est réglé » affiché ${settled} fois`);
   const arcs = await page.locator('[role="img"] svg circle').count();
   report(arcs === 1, 'portal-ring-zero', '/portal/dashboard fr 1280', `${arcs} cercle(s) à 0 %`);
-  // Session conservée après un rechargement complet (le refresh par cookie ne doit pas être refusé).
-  await page.unrouteAll({ behavior: 'ignoreErrors' });
-  await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForTimeout(2500);
-  report(/\/portal\/dashboard/.test(page.url()), 'portal-session-reload', '/portal/dashboard fr 1280', page.url());
   const loops = await page.locator('main .animate-morph').count();
   report(loops === 0, 'portal-no-loops', '/portal/dashboard fr 1280', `${loops} forme(s) en boucle`);
   await ctx.close();
@@ -305,65 +301,6 @@ async function checkRegressions(browser) {
   const gone = await loader.waitFor({ state: 'detached', timeout: 15000 }).then(() => true, () => false);
   report(gone, 'page-loader-gone', '/dashboard fr 1280');
   await ctxLoad.close();
-
-  // 6. Menu mobile de l'admin en arabe : le panneau est collé à droite et glisse depuis la droite (jamais à travers l'écran).
-  if (await apiUp()) {
-    const ctxDrawer = await browser.newContext({ viewport: { width: 390, height: 844 } });
-    // Connexion directement en arabe, sans recharger ensuite : l'API limite le rafraîchissement de session à
-    // 30 requêtes par minute et par IP, seuil que la suite complète (une seule IP) peut atteindre.
-    const dr = await ctxDrawer.newPage();
-    await dr.goto(`${BASE}/ar/login`, { waitUntil: 'networkidle' });
-    await dr.fill('#email', ADMIN_EMAIL);
-    await dr.fill('#password', ADMIN_PASSWORD);
-    await dr.click('button[type="submit"]');
-    await dr.waitForURL(/\/ar\/dashboard/, { timeout: 20000 });
-    await dr.waitForLoadState('networkidle');
-    await hideDevOverlay(dr);
-    const opened = await dr.locator('header button[class*="lg:hidden"]').click({ timeout: 15000 }).then(() => true, () => false);
-    if (!opened) {
-      await dr.screenshot({ path: '.visual/debug-admin-drawer.png' });
-      report(false, 'admin-drawer-rtl', '/dashboard ar 390', `bouton du menu introuvable sur ${dr.url()}`);
-      await ctxDrawer.close();
-    } else {
-    const panel = dr.locator('[role="dialog"] > div').last();
-    await panel.waitFor({ state: 'attached' });
-    await dr.waitForTimeout(60);
-    const mid = await panel.boundingBox();
-    await dr.waitForTimeout(700);
-    const end = await panel.boundingBox();
-    const docked = end && Math.abs(end.x + end.width - 390) <= 1;
-    const fromRight = mid && end && mid.x >= end.x - 1;
-    report(!!docked && !!fromRight, 'admin-drawer-rtl', '/dashboard ar 390', `milieu x=${mid && Math.round(mid.x)}, fin x=${end && Math.round(end.x)}`);
-    await ctxDrawer.close();
-    }
-  }
-
-  // 7. Relances du jour : le clic WhatsApp ouvre wa.me avec un texte sans aucune {variable} restante.
-  if (await apiUp()) {
-    const ctxRem = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-    const rp = await ctxRem.newPage();
-    await rp.goto(`${BASE}/fr/login`, { waitUntil: 'networkidle' });
-    await rp.fill('#email', ADMIN_EMAIL);
-    await rp.fill('#password', ADMIN_PASSWORD);
-    await rp.click('button[type="submit"]');
-    await rp.waitForURL(/\/dashboard/, { timeout: 20000 });
-    await rp.evaluate(() => { window.__opened = []; window.open = (u) => { window.__opened.push(String(u)); return null; }; });
-    await rp.locator('nav a[href$="/reminders"]').first().click();
-    await rp.waitForURL(/\/reminders/, { timeout: 20000 });
-    await rp.waitForLoadState('networkidle');
-    await hideDevOverlay(rp);
-    const btn = rp.locator('main button:has(svg.lucide-message-circle):not([disabled])').first();
-    if ((await btn.count()) === 0) {
-      console.log('SKIP reminders-whatsapp-text — aucune relance avec téléphone dans les données');
-    } else {
-      await btn.click();
-      await rp.waitForTimeout(300);
-      const opened = await rp.evaluate(() => window.__opened[0] ?? '');
-      const text = opened.includes('text=') ? decodeURIComponent(opened.split('text=')[1]) : '';
-      report(opened.startsWith('https://wa.me/') && !!text && !/[{}]/.test(text), 'reminders-whatsapp-text', '/reminders fr 1280', text.slice(0, 60));
-    }
-    await ctxRem.close();
-  }
 
   // 4. Menu mobile du site public : se ferme quand on choisit un lien, même une ancre de la même page.
   const ctxPhone = await browser.newContext({ viewport: { width: 390, height: 844 } });

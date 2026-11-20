@@ -1,4 +1,4 @@
-import { IsString, MaxLength, MinLength, IsOptional } from 'class-validator';
+import { IsString, MaxLength, MinLength } from 'class-validator';
 
 export class PortalLoginDto {
   @IsString() email!: string;
@@ -6,8 +6,7 @@ export class PortalLoginDto {
 }
 
 export class PortalRefreshDto {
-  // Optionnel : le navigateur envoie le token dans le cookie httpOnly (corps vide), l'application mobile dans le corps.
-  @IsOptional() @IsString() refreshToken?: string;
+  @IsString() refreshToken?: string;
 }
 
 export class PortalForgotPasswordDto {

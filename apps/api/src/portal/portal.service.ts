@@ -1,4 +1,3 @@
-import type { DocLang } from '../finance/pdf/labels';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContractsService } from '../contracts/contracts.service';
@@ -9,7 +8,6 @@ import { TimelineService } from '../timeline/timeline.service';
 import { apiError } from '../common/errors/api-error';
 import type { CandidateAuthUser } from '../common/auth-user';
 import { PortalUploadDocumentDto, UpdatePortalProfileDto } from './dto/portal.dto';
-import { withTotals } from '../finance/finance.service';
 import type { SignContractDto } from '../contracts/dto/contract.dto';
 
 const MAX_SIZE = 15 * 1024 * 1024;
@@ -107,18 +105,16 @@ export class PortalService {
     return this.prisma.checklistItem.findMany({ where: { visaFileId }, orderBy: { position: 'asc' } });
   }
 
-  async quotes(candidate: CandidateAuthUser) {
-    const quotes = await this.prisma.quote.findMany({ where: { candidateId: candidate.id }, include: { items: true }, orderBy: { createdAt: 'desc' } });
-    return quotes.map(withTotals);
+  quotes(candidate: CandidateAuthUser) {
+    return this.prisma.quote.findMany({ where: { candidateId: candidate.id }, include: { items: true }, orderBy: { createdAt: 'desc' } });
   }
 
-  async invoices(candidate: CandidateAuthUser) {
-    const invoices = await this.prisma.invoice.findMany({ where: { candidateId: candidate.id }, include: { items: true, payments: true }, orderBy: { createdAt: 'desc' } });
-    return invoices.map(withTotals);
+  invoices(candidate: CandidateAuthUser) {
+    return this.prisma.invoice.findMany({ where: { candidateId: candidate.id }, include: { items: true, payments: true }, orderBy: { createdAt: 'desc' } });
   }
 
-  invoicePdf(candidate: CandidateAuthUser, invoiceId: string, lang?: DocLang) {
-    return this.finance.invoicePdfForCandidate(candidate.organizationId, candidate.id, invoiceId, lang);
+  invoicePdf(candidate: CandidateAuthUser, invoiceId: string) {
+    return this.finance.invoicePdfForCandidate(candidate.organizationId, candidate.id, invoiceId);
   }
 
   appointments(candidate: CandidateAuthUser) {
@@ -156,8 +152,7 @@ export class PortalService {
   }
 
   contractPdf(candidate: CandidateAuthUser, id: string) {
-    // Limité au candidat connecté : sans ce filtre, un autre contrat de l'agence serait lisible avec son id.
-    return this.contractsService.pdf(candidate.organizationId, id, candidate.id);
+    return this.contractsService.pdf(candidate.organizationId, id);
   }
 
   /** Signature à distance, depuis le portail : mêmes règles que la signature en présentiel côté employé. */

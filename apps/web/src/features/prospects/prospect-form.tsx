@@ -1,11 +1,10 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { LanguagePreferenceSelect } from '@/components/language-preference-select';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, Select, Textarea } from '@/components/ui/form';
@@ -26,7 +25,6 @@ interface Values {
   nextFollowUpAt: string;
   source: ProspectSource;
   notes: string;
-  preferredLanguage: 'fr' | 'ar';
 }
 
 const SOURCES: ProspectSource[] = ['WEBSITE', 'PHONE', 'WALK_IN', 'REFERRAL', 'SOCIAL', 'PARTNER', 'OTHER'];
@@ -38,17 +36,16 @@ export function ProspectFormDialog({ open, onOpenChange }: { open: boolean; onOp
   const errorMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
-  const locale = useLocale();
 
   const countries = useQuery({ queryKey: ['catalog', 'countries'], queryFn: () => api<Paginated<Country>>('/countries', { query: { pageSize: 100 } }) });
   const { register, handleSubmit, reset, formState: { errors } } = useForm<Values>();
 
   useEffect(() => {
     if (open) {
-      reset({ firstName: '', lastName: '', phone: '', email: '', city: '', desiredCountryId: '', desiredProgram: '', budget: '', campaign: '', nextFollowUpAt: '', source: 'PHONE', notes: '', preferredLanguage: locale === 'ar' ? 'ar' : 'fr' });
+      reset({ firstName: '', lastName: '', phone: '', email: '', city: '', desiredCountryId: '', desiredProgram: '', budget: '', campaign: '', nextFollowUpAt: '', source: 'PHONE', notes: '' });
       setDuplicateWarning(null);
     }
-  }, [open, reset, locale]);
+  }, [open, reset]);
 
   const create = useMutation({
     mutationFn: (v: Values & { force?: boolean }) =>
@@ -122,7 +119,6 @@ export function ProspectFormDialog({ open, onOpenChange }: { open: boolean; onOp
           <Field label={t('budget')} htmlFor="p-budget"><Input id="p-budget" type="number" dir="ltr" {...register('budget')} /></Field>
           <Field label={t('campaign')} htmlFor="p-campaign"><Input id="p-campaign" {...register('campaign')} /></Field>
           <Field label={t('nextFollowUp')} htmlFor="p-followup"><Input id="p-followup" type="date" dir="ltr" {...register('nextFollowUpAt')} /></Field>
-          <Field label={tc('preferredLanguage')} htmlFor="p-lang"><LanguagePreferenceSelect id="p-lang" {...register('preferredLanguage')} /></Field>
         </div>
         <Field label={t('notes')} htmlFor="p-notes">
           <Textarea id="p-notes" rows={3} {...register('notes')} />
