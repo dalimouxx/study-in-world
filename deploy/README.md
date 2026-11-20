@@ -1,39 +1,40 @@
 # Déploiement sur le VPS (studyinworld.net)
 
-Le VPS héberge déjà d'autres sites (Tunicom, Fixi). Study in World s'installe **à côté, sans les toucher** :
-- projet Docker séparé (`studyinworld`) ;
-- ports locaux qui lui sont propres (3100 pour le site, 4100 pour l'API, sur 127.0.0.1 seulement) ;
-- un fichier Nginx de plus pour le domaine `studyinworld.net`.
+Le VPS (`187.126.31.110`, Ubuntu 24.04, Docker) héberge déjà Tunicom et Fixi derrière une **passerelle Caddy
+commune** : le conteneur `platforms-edge-gateway-1` (projet `/srv/platforms/edge`), seul à écouter sur les ports
+80 et 443, et qui gère le HTTPS. Study in World s'y ajoute **sans toucher aux autres sites** :
 
-Toutes les commandes se lancent sur le VPS, connecté en SSH (`ssh root@187.126.31.110`, ou votre utilisateur avec `sudo`).
+- projet Docker séparé, `studyinworld` (base, API, site), sans aucun port ouvert sur le VPS ;
+- l'API et le site rejoignent le réseau `platforms-studyinworld-edge`, déjà relié à la passerelle, sous les
+  noms `studyinworld-api` et `studyinworld-web` ;
+- un seul fichier ajouté à la passerelle : `/srv/platforms/edge/sites/studyinworld.caddy`.
 
-## 0. Diagnostic (lecture seule, ne modifie rien)
+Toutes les commandes se lancent sur le VPS, en SSH.
+
+## 1. Domaine (à faire en premier : la propagation peut prendre de quelques minutes à quelques heures)
+
+Chez le registraire, deux enregistrements **A** vers `187.126.31.110` : `studyinworld.net` et `www.studyinworld.net`
+(supprimer les anciens A qui pointent ailleurs). Vérifier :
 
 ```bash
-uname -a; cat /etc/os-release | head -2; free -h; df -h /
-docker --version; docker compose version
-nginx -v; ls /etc/nginx/sites-enabled/ 2>/dev/null; ls /etc/nginx/conf.d/ 2>/dev/null
-ss -ltnp | grep -E ':(80|443|3000|3100|4000|4100|5432) '
-docker ps --format '{{.Names}}\t{{.Ports}}'
+getent hosts studyinworld.net www.studyinworld.net     # doit afficher 187.126.31.110 pour les deux
 ```
 
-Le résultat dit comment Tunicom et Fixi sont servis (Nginx installé sur le VPS, ou un proxy dans Docker) et si
-les ports 3100/4100 sont libres. **S'ils sont pris**, changer `WEB_PORT`/`API_PORT` dans `deploy/.env` et les
-mêmes nombres dans le fichier Nginx.
-
-## 1. Domaine
-
-Chez le registraire du domaine, deux enregistrements **A** vers `187.126.31.110` : `studyinworld.net` et
-`www.studyinworld.net`. Vérifier depuis le VPS :
+## 2. Vérifications (lecture seule)
 
 ```bash
-getent hosts studyinworld.net www.studyinworld.net
+ls -la /srv/platforms/edge/sites/
+docker network inspect platforms-studyinworld-edge --format '{{.Name}} : {{range .Containers}}{{.Name}} {{end}}'
 ```
 
-## 2. Code et variables
+Le réseau doit exister (seule la passerelle y est reliée pour l'instant) et le dossier `sites` ne doit pas déjà
+contenir de fichier pour studyinworld.net.
+
+## 3. Code et variables
 
 ```bash
-cd /opt && git clone https://github.com/dalimouxx/study-in-world.git studyinworld && cd studyinworld/deploy
+mkdir -p /srv/platforms && cd /srv/platforms
+git clone https://github.com/dalimouxx/study-in-world.git studyinworld && cd studyinworld/deploy
 cp .env.production.example .env
 openssl rand -hex 24      # → POSTGRES_PASSWORD
 openssl rand -base64 48   # → JWT_SECRET (refaire pour CANDIDATE_JWT_SECRET et PARTNER_JWT_SECRET)
@@ -41,30 +42,35 @@ nano .env                 # coller les secrets, choisir SEED_ADMIN_PASSWORD, ré
 chmod 600 .env
 ```
 
-## 3. Démarrage
+## 4. Démarrage
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 docker compose -f docker-compose.prod.yml logs -f api     # attendre « API prête », puis Ctrl+C
-curl -s http://127.0.0.1:4100/api/health && curl -sI http://127.0.0.1:3100 | head -1
+docker compose -f docker-compose.prod.yml exec api wget -qO- http://localhost:4000/api/health   # {"status":"ok"}
 ```
 
 Au premier démarrage, l'API crée les tables (migration `0_init`) et le compte Super Admin (`SEED_ADMIN_EMAIL`).
 
-## 4. Nginx et HTTPS
-
-Si le diagnostic montre un Nginx installé sur le VPS :
+## 5. Passerelle Caddy (HTTPS)
 
 ```bash
-cp /opt/studyinworld/deploy/nginx/studyinworld.net.conf /etc/nginx/sites-available/studyinworld.net
-ln -s /etc/nginx/sites-available/studyinworld.net /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx        # nginx -t vérifie AVANT de recharger : les autres sites restent en ligne
-certbot --nginx -d studyinworld.net -d www.studyinworld.net
+cp /srv/platforms/studyinworld/deploy/caddy/studyinworld.caddy /srv/platforms/edge/sites/
+docker exec platforms-edge-gateway-1 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+docker exec platforms-edge-gateway-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
-(Si `certbot` manque : `apt install certbot python3-certbot-nginx`.)
+`validate` vérifie toute la configuration **avant** le rechargement : en cas d'erreur, ne pas lancer `reload`
+(Tunicom et Fixi continuent de tourner avec l'ancienne configuration). En cas de souci après le rechargement,
+retirer le fichier et recharger :
 
-## 5. Première connexion
+```bash
+rm /srv/platforms/edge/sites/studyinworld.caddy && docker exec platforms-edge-gateway-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
+Le certificat HTTPS est obtenu automatiquement dès que le domaine pointe vers le VPS (étape 1).
+
+## 6. Première connexion
 
 Ouvrir https://studyinworld.net, se connecter avec `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` : un nouveau mot
 de passe est demandé. Puis, dans **Paramètres** : coordonnées de l'agence (et en arabe), **Facturation** (activer
@@ -73,12 +79,12 @@ la TVA et le timbre), modèle de contrat arabe à relire.
 ## Mises à jour
 
 ```bash
-/opt/studyinworld/deploy/update.sh
+/srv/platforms/studyinworld/deploy/update.sh
 ```
 
 ## Sauvegarde de la base (conseillé : chaque nuit)
 
 ```bash
-/opt/studyinworld/deploy/backup.sh          # écrit /var/backups/studyinworld/siw-AAAA-MM-JJ.sql.gz (garde 14 jours)
-crontab -e   # ajouter : 30 2 * * * /opt/studyinworld/deploy/backup.sh
+/srv/platforms/studyinworld/deploy/backup.sh   # écrit /var/backups/studyinworld/siw-AAAA-MM-JJ.sql.gz (garde 14 jours)
+crontab -e   # ajouter : 30 2 * * * /srv/platforms/studyinworld/deploy/backup.sh
 ```

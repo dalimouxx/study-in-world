@@ -2,8 +2,10 @@
 # Lancement (depuis le dossier deploy/) : docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 #
 # Le projet porte son propre nom (« studyinworld ») : ses conteneurs, réseaux et volumes ne se mélangent pas
-# avec ceux des autres sites hébergés sur le même VPS. Rien n'est exposé sur Internet directement : l'API et
-# le site n'écoutent que sur 127.0.0.1, et le serveur web du VPS (Nginx) les sert en HTTPS sur studyinworld.net.
+# avec ceux des autres sites du VPS (Tunicom, Fixi). Aucun port n'est ouvert sur le VPS : la passerelle Caddy
+# commune (platforms-edge-gateway-1, ports 80/443) joint l'API et le site par le réseau Docker
+# « platforms-studyinworld-edge », sous les noms studyinworld-api et studyinworld-web, et gère le HTTPS.
+# La base n'est que sur le réseau interne du projet.
 name: studyinworld
 
 services:
@@ -38,8 +40,10 @@ services:
       STORAGE_DIR: /data/documents
     volumes:
       - documents:/data/documents
-    ports:
-      - "127.0.0.1:${API_PORT:-4100}:4000"
+    networks:
+      default:
+      edge:
+        aliases: [studyinworld-api]
 
   web:
     build:
@@ -49,9 +53,17 @@ services:
     restart: unless-stopped
     depends_on:
       - api
-    ports:
-      - "127.0.0.1:${WEB_PORT:-3100}:3000"
+    networks:
+      default:
+      edge:
+        aliases: [studyinworld-web]
 
 volumes:
   pgdata:
   documents:
+
+networks:
+  # Réseau déjà créé sur le VPS et relié à la passerelle Caddy.
+  edge:
+    external: true
+    name: platforms-studyinworld-edge

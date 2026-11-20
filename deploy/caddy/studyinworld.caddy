@@ -1,0 +1,22 @@
+# Passerelle Caddy commune du VPS — site studyinworld.net.
+# À copier dans /srv/platforms/edge/sites/ (importé par le Caddyfile principal). Caddy obtient et renouvelle
+# lui-même le certificat HTTPS, dès que le domaine pointe vers le VPS.
+
+studyinworld.net {
+	encode zstd gzip
+	# Documents des candidats (PDF, photos) envoyés depuis le portail.
+	request_body {
+		max_size 20MB
+	}
+	# API sur le même domaine : le cookie de connexion reste sur studyinworld.net.
+	handle /api/* {
+		reverse_proxy studyinworld-api:4000
+	}
+	handle {
+		reverse_proxy studyinworld-web:3000
+	}
+}
+
+www.studyinworld.net {
+	redir https://studyinworld.net{uri} permanent
+}
