@@ -1,12 +1,11 @@
 import { CandidateStatus } from '@prisma/client';
 import { Transform } from 'class-transformer';
-import { IsDateString, IsEmail, IsEnum, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsDateString, IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { PaginationQuery } from '../../common/pagination';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
 export class CreateCandidateDto {
-  @IsOptional() @IsIn(['fr', 'ar']) preferredLanguage?: 'fr' | 'ar';
   @Transform(trim) @IsString() @MinLength(1) @MaxLength(80) firstName!: string;
   @Transform(trim) @IsString() @MinLength(1) @MaxLength(80) lastName!: string;
   @Transform(trim) @IsString() @MinLength(4) @MaxLength(30) phone!: string;
@@ -19,7 +18,6 @@ export class CreateCandidateDto {
 }
 
 export class UpdateCandidateDto {
-  @IsOptional() @IsIn(['fr', 'ar']) preferredLanguage?: 'fr' | 'ar';
   @IsOptional() @Transform(trim) @IsString() @MinLength(1) @MaxLength(80) firstName?: string;
   @IsOptional() @Transform(trim) @IsString() @MinLength(1) @MaxLength(80) lastName?: string;
   @IsOptional() @Transform(trim) @IsString() @MinLength(4) @MaxLength(30) phone?: string;

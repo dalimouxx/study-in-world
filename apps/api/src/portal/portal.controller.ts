@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -9,7 +9,6 @@ import { CurrentCandidate } from './current-candidate.decorator';
 import { PortalUploadDocumentDto, UpdatePortalProfileDto } from './dto/portal.dto';
 import { CandidateJwtAuthGuard } from './guards/candidate-jwt-auth.guard';
 import { PortalService } from './portal.service';
-import { PdfLangQueryDto } from '../finance/dto/pdf-lang.dto';
 import type { CandidateAuthUser } from '../common/auth-user';
 import { SendMessageDto } from '../messages/dto/message.dto';
 import { SignContractDto } from '../contracts/dto/contract.dto';
@@ -87,9 +86,9 @@ export class PortalController {
   }
 
   @Get('invoices/:id/pdf')
-  async invoicePdf(@CurrentCandidate() candidate: CandidateAuthUser, @Param('id') id: string, @Query() q: PdfLangQueryDto, @Res() res: Response) {
-    const { buffer, disposition } = await this.portal.invoicePdf(candidate, id, q.lang);
-    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': disposition }).send(buffer);
+  async invoicePdf(@CurrentCandidate() candidate: CandidateAuthUser, @Param('id') id: string, @Res() res: Response) {
+    const { buffer, filename } = await this.portal.invoicePdf(candidate, id);
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${filename}"` }).send(buffer);
   }
 
   @Get('appointments')
@@ -119,8 +118,8 @@ export class PortalController {
 
   @Get('contracts/:id/pdf')
   async contractPdf(@CurrentCandidate() candidate: CandidateAuthUser, @Param('id') id: string, @Res() res: Response) {
-    const { buffer, disposition } = await this.portal.contractPdf(candidate, id);
-    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': disposition }).send(buffer);
+    const { buffer, filename } = await this.portal.contractPdf(candidate, id);
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${filename}"` }).send(buffer);
   }
 
   @Post('contracts/:id/sign')

@@ -2,7 +2,6 @@
  * - Base (toujours) : organisation, paramètres, branche, permissions, rôles, Super Admin.
  * - Démo (SEED_DEMO=true, jamais en production) : quelques employés de test.
  */
-import { DEFAULT_TEMPLATES } from '../src/message-templates/defaults';
 // Requis car ce script est exécuté seul (via "node"), hors du bootstrap Nest qui charge
 // normalement ce polyfill : auth.dto.ts utilise des décorateurs (@nestjs/swagger, class-validator).
 import 'reflect-metadata';
@@ -49,9 +48,6 @@ async function main() {
       timezone: 'Africa/Tunis',
     },
   });
-
-  // Modèles de messages par défaut (relances automatiques, documents à fournir…) : jamais écrasés s'ils existent.
-  await prisma.messageTemplate.createMany({ data: DEFAULT_TEMPLATES.map((t) => ({ organizationId: org.id, ...t })), skipDuplicates: true });
 
   const branch = await prisma.branch.upsert({
     where: { organizationId_code: { organizationId: org.id, code: 'GAB' } },

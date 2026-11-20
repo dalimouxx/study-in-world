@@ -87,12 +87,6 @@ export interface AgencySettings {
   termsOfService: string | null;
   legalNotice: string | null;
   contractTemplate: string | null;
-  contractTemplateAr: string | null;
-  nameAr: string | null;
-  addressAr: string | null;
-  taxesEnabled: boolean;
-  vatRate: number;
-  stampDuty: number;
 }
 
 // ---------- CMS « Page d'accueil » (réservé au Super Admin) ----------
@@ -197,7 +191,6 @@ interface PersonRef {
 export type LeadCategory = 'hot' | 'warm' | 'cold';
 
 export interface Prospect {
-  preferredLanguage: 'fr' | 'ar';
   id: string;
   firstName: string;
   lastName: string;
@@ -222,7 +215,6 @@ export interface Prospect {
 }
 
 export interface Candidate {
-  preferredLanguage: 'fr' | 'ar';
   id: string;
   firstName: string;
   lastName: string;
@@ -409,29 +401,9 @@ export interface LineItem {
   label: string;
   quantity: number;
   unitPrice: number;
-  /** Service de l'agence (TVA) ou débours (sans TVA). */
-  kind?: 'SERVICE' | 'DISBURSEMENT';
-  vatRate?: number;
 }
 
-/** Totaux d'un devis ou d'une facture, calculés et enregistrés par l'API : le web ne les recalcule jamais. */
-export interface DocumentTotals {
-  subtotal: number;
-  vatAmount: number;
-  disbursements: number;
-  stampDuty: number;
-  total: number;
-  /** Document créé avec les taxes : afficher le détail HT / TVA / débours / timbre / TTC. */
-  taxed: boolean;
-}
-
-export interface TaxSettings {
-  taxesEnabled: boolean;
-  vatRate: number;
-  stampDuty: number;
-}
-
-export interface Quote extends DocumentTotals {
+export interface Quote {
   id: string;
   number: string;
   status: QuoteStatus;
@@ -449,7 +421,7 @@ export interface Payment {
   paidAt: string;
 }
 
-export interface Invoice extends DocumentTotals {
+export interface Invoice {
   id: string;
   number: string;
   status: InvoiceStatus;
@@ -633,8 +605,6 @@ export interface Contract {
   signedAt: string | null;
   signerName: string | null;
   signatureMethod: SignatureMethod | null;
-  /** Langue du texte du contrat, choisie à la création (le PDF sort toujours dans cette langue). */
-  language: 'fr' | 'ar';
   createdAt: string;
 }
 
@@ -668,7 +638,6 @@ export interface HealthIssue {
   severity: IssueSeverity;
   code: string;
   message: string;
-  params?: Record<string, string | number>;
 }
 
 export interface HealthScore {

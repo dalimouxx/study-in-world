@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import type { Appointment, Branch, Employee, Paginated, Task } from '@/lib/types';
 import { useAuth } from '@/features/auth/auth-context';
-import { RemindersWidget } from '@/features/reminders/reminders-widget';
 import { DeadlinesWidget } from './deadlines-widget';
 
 /** Uniquement des chiffres réels tirés de l'API ; les indicateurs métier arriveront avec leurs modules. */
@@ -85,7 +84,6 @@ export function DashboardPage() {
       ) : (
         <Card className="mb-6 p-6 text-sm text-muted-foreground">{t('nothingYet')}</Card>
       )}
-      {(can('candidate.view') || can('prospect.view')) && <RemindersWidget />}
       <DeadlinesWidget />
     </>
   );

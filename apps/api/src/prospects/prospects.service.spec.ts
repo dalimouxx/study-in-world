@@ -63,16 +63,6 @@ describe('ProspectsService — dédoublonnage', () => {
 });
 
 describe('ProspectsService — conversion', () => {
-  it('conserve la langue préférée du prospect sur le candidat créé', async () => {
-    const { service, prisma } = build();
-    prisma.prospect.findFirst.mockResolvedValue({
-      id: 'p1', status: 'QUALIFIED', firstName: 'A', lastName: 'B', phone: '20123456', email: null, branchId: 'b1', assignedToId: 'u1', preferredLanguage: 'ar',
-    });
-    prisma.candidate.create.mockResolvedValue({ id: 'cand1' });
-    await service.convert(actor(), 'p1', {});
-    expect(prisma.candidate.create).toHaveBeenCalledWith({ data: expect.objectContaining({ preferredLanguage: 'ar' }) });
-  });
-
   it('crée un candidat, marque le prospect CONVERTED et les relie', async () => {
     const { service, prisma } = build();
     prisma.prospect.findFirst.mockResolvedValue({

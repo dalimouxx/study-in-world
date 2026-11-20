@@ -83,7 +83,6 @@ export class CandidatesService {
         passportNumber: dto.passportNumber,
         branchId: dto.branchId ?? actor.branchId,
         assignedToId: dto.assignedToId ?? actor.id,
-        preferredLanguage: dto.preferredLanguage,
       },
       include,
     });

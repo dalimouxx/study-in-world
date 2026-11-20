@@ -9,10 +9,10 @@ const actor = (): AuthUser => ({
 });
 
 function build() {
-  const prisma = { candidateDocument: { findFirst: jest.fn(), update: jest.fn().mockResolvedValue({}) } };
+  const prisma = { candidateDocument: { findFirst: jest.fn() } };
   const candidates = { assertBelongs: jest.fn().mockResolvedValue(undefined) };
   const storage = { read: jest.fn().mockResolvedValue(Buffer.from('image-bytes')) };
-  const automation = { fire: jest.fn().mockResolvedValue(undefined) };
+  const automation = {};
   const ocr = { extractPassport: jest.fn().mockResolvedValue({ success: true }) };
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
   const timeline = { add: jest.fn().mockResolvedValue(undefined) };
@@ -37,15 +37,5 @@ describe('DocumentsService.extract', () => {
     expect(storage.read).toHaveBeenCalledWith('orgA', 'path/to/file.jpg');
     expect(ocr.extractPassport).toHaveBeenCalled();
     expect(result).toEqual({ success: true });
-  });
-});
-
-describe('DocumentsService.review', () => {
-  it('renseigne reviewedAt (point de départ de la relance « document rejeté »)', async () => {
-    const { service, prisma } = build();
-    prisma.candidateDocument.findFirst.mockResolvedValue({ id: 'd1', candidateId: 'c1', label: 'Passeport' });
-    await service.review(actor(), 'd1', { status: 'REJECTED', reviewNote: 'Illisible' } as never, {});
-    const call = prisma.candidateDocument.update.mock.calls[0][0] as { data: { reviewedAt?: unknown } };
-    expect(call.data.reviewedAt).toBeInstanceOf(Date);
   });
 });

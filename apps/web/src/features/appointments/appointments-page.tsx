@@ -15,7 +15,6 @@ import { Card } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input } from '@/components/ui/form';
 import { api } from '@/lib/api';
-import { localInputToIso } from '@/lib/local-datetime';
 import type { Appointment } from '@/lib/types';
 import { useErrorMessage } from '@/lib/use-error-message';
 import { formatDateTime } from '@/lib/utils';
@@ -45,7 +44,7 @@ function Content() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['appointments'] });
 
   const create = useMutation({
-    mutationFn: (v: FormValues) => api('/appointments', { method: 'POST', body: { ...v, startAt: localInputToIso(v.startAt), endAt: localInputToIso(v.endAt), location: v.location || undefined } }),
+    mutationFn: (v: FormValues) => api('/appointments', { method: 'POST', body: { ...v, location: v.location || undefined } }),
     onSuccess: () => { void invalidate(); setFormOpen(false); },
     onError: (err) => toast.error(errorMessage(err)),
   });

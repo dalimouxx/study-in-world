@@ -130,20 +130,6 @@ les logs du terminal où tourne `npm run start:dev`**. Pour essayer le portail d
 3. Ouvrez ce lien dans le navigateur, choisissez un mot de passe.
 4. Connectez-vous sur `http://localhost:3000/fr/portal/login`.
 
-## Relances automatiques et messages tout prêts
-
-- **Chaque matin à 07:00** (fuseau de l'agence, réglé dans Paramètres), l'API :
-  - envoie les e-mails de rappel (rendez-vous et rendez-vous visa du lendemain, factures en retard au plus 3 fois espacées de 7 jours, document rejeté) ;
-  - prévient les conseillers des prospects à relancer ;
-  - envoie à chaque employé son récapitulatif du jour.
-- **Aucun doublon** : chaque envoi est journalisé (`ReminderLog`, clé unique). Une relance ignorée (pas d'e-mail, SMTP absent) ou en échec reste à faire et sera retentée.
-- **Deux réveils, au choix ou ensemble** :
-  - **intégré** à l'API (chaque heure, agences à 07:xx locale ; `REMINDERS_CRON_ENABLED=false` pour le couper) ;
-  - **extérieur** : `POST /api/jobs/daily-reminders` avec `Authorization: Bearer <JOBS_SECRET>` (Vercel Cron, cron d'un serveur). Sans `JOBS_SECRET`, la route répond 404.
-- **E-mails** : ils ne partent que si `SMTP_HOST` est configuré ; sinon ils sont seulement journalisés.
-- **Page « Relances du jour »** (`/reminders`) : WhatsApp en un clic avec le message prêt, dans la langue préférée du client.
-- **Modèles de messages** : modifiables dans Paramètres → Messages (FR/AR, variables `{prenom}`, `{date}`…).
-
 ## Décisions à connaître
 
 - **Employé = utilisateur** : une seule table `User` (au lieu de `User` + `Employee`).

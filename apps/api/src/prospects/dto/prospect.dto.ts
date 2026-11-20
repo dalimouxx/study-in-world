@@ -1,12 +1,11 @@
 import { ProspectSource, ProspectStatus } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
-import { IsDateString, IsEmail, IsEnum, IsIn, IsNumber, IsOptional, IsString, Min, MaxLength, MinLength } from 'class-validator';
+import { IsDateString, IsEmail, IsEnum, IsNumber, IsOptional, IsString, Min, MaxLength, MinLength } from 'class-validator';
 import { PaginationQuery } from '../../common/pagination';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
 export class CreateProspectDto {
-  @IsOptional() @IsIn(['fr', 'ar']) preferredLanguage?: 'fr' | 'ar';
   @Transform(trim) @IsString() @MinLength(1) @MaxLength(80) firstName!: string;
   @Transform(trim) @IsString() @MinLength(1) @MaxLength(80) lastName!: string;
   @Transform(trim) @IsString() @MinLength(4) @MaxLength(30) phone!: string;
@@ -26,7 +25,6 @@ export class CreateProspectDto {
 }
 
 export class UpdateProspectDto {
-  @IsOptional() @IsIn(['fr', 'ar']) preferredLanguage?: 'fr' | 'ar';
   @IsOptional() @Transform(trim) @IsString() @MinLength(1) @MaxLength(80) firstName?: string;
   @IsOptional() @Transform(trim) @IsString() @MinLength(1) @MaxLength(80) lastName?: string;
   @IsOptional() @Transform(trim) @IsString() @MinLength(4) @MaxLength(30) phone?: string;
