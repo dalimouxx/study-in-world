@@ -1,5 +1,5 @@
 import type { DocLang } from '../finance/pdf/labels';
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContractsService } from '../contracts/contracts.service';
 import { FinanceService } from '../finance/finance.service';
@@ -10,6 +10,7 @@ import { apiError } from '../common/errors/api-error';
 import type { CandidateAuthUser } from '../common/auth-user';
 import { PortalUploadDocumentDto, UpdatePortalProfileDto } from './dto/portal.dto';
 import { withTotals } from '../finance/finance.service';
+import { AlertsService } from '../alerts/alerts.service';
 import type { SignContractDto } from '../contracts/dto/contract.dto';
 
 const MAX_SIZE = 15 * 1024 * 1024;
@@ -28,6 +29,7 @@ export class PortalService {
     private readonly finance: FinanceService,
     private readonly messages: MessagesService,
     private readonly contractsService: ContractsService,
+    @Optional() private readonly alerts?: AlertsService,
   ) {}
 
   profile(candidate: CandidateAuthUser) {
@@ -78,6 +80,7 @@ export class PortalService {
       },
     });
     await this.timelineService.add(candidate.organizationId, 'CANDIDATE', candidate.id, 'DOCUMENT', `Document déposé par le candidat : ${dto.label} (v${doc.version})`);
+    this.alerts?.emit({ kind: 'portal_document', candidateId: candidate.id, name: `${candidate.firstName} ${candidate.lastName}`, document: dto.label });
     return doc;
   }
 
@@ -147,8 +150,11 @@ export class PortalService {
     return list;
   }
 
-  sendMessage(candidate: CandidateAuthUser, content: string) {
-    return this.messages.sendFromCandidate(candidate.organizationId, candidate.id, content);
+  async sendMessage(candidate: CandidateAuthUser, content: string) {
+    const sent = await this.messages.sendFromCandidate(candidate.organizationId, candidate.id, content);
+    // Le contenu du message ne part jamais sur Telegram : seulement qui a écrit, avec le lien vers son dossier.
+    this.alerts?.emit({ kind: 'portal_message', candidateId: candidate.id, name: `${candidate.firstName} ${candidate.lastName}` });
+    return sent;
   }
 
   contracts(candidate: CandidateAuthUser) {
@@ -161,7 +167,11 @@ export class PortalService {
   }
 
   /** Signature à distance, depuis le portail : mêmes règles que la signature en présentiel côté employé. */
-  signContract(candidate: CandidateAuthUser, id: string, dto: SignContractDto) {
-    return this.contractsService.sign(candidate.organizationId, candidate.id, id, dto, {});
+  async signContract(candidate: CandidateAuthUser, id: string, dto: SignContractDto) {
+    await this.contractsService.sign(candidate.organizationId, candidate.id, id, dto, {});
+    if (this.alerts) {
+      const contract = await this.prisma.contract.findFirst({ where: { id, candidateId: candidate.id }, select: { number: true } });
+      this.alerts.emit({ kind: 'contract_signed_online', candidateId: candidate.id, name: `${candidate.firstName} ${candidate.lastName}`, number: contract?.number ?? '' });
+    }
   }
 }

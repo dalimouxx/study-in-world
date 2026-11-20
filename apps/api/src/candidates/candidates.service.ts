@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Optional } from '@nestjs/common';
 import { Prisma, TimelineType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -6,6 +6,7 @@ import { TimelineService } from '../timeline/timeline.service';
 import { apiError } from '../common/errors/api-error';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
 import { Paginated, skipTake } from '../common/pagination';
+import { AlertsService } from '../alerts/alerts.service';
 import { AddNoteDto, CreateCandidateDto, ListCandidatesQuery, UpdateCandidateDto } from './dto/candidate.dto';
 
 const include = {
@@ -23,6 +24,7 @@ export class CandidatesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly timeline: TimelineService,
+    @Optional() private readonly alerts?: AlertsService,
   ) {}
 
   async list(actor: AuthUser, q: ListCandidatesQuery): Promise<Paginated<CandidateWithRelations>> {
@@ -89,6 +91,7 @@ export class CandidatesService {
     });
     await this.timeline.add(actor.organizationId, 'CANDIDATE', created.id, TimelineType.SYSTEM, 'Candidat créé', actor.id);
     await this.audit.log({ organizationId: actor.organizationId, userId: actor.id, action: 'candidate.create', entity: 'Candidate', entityId: created.id, meta });
+    this.alerts?.emit({ kind: 'candidate_created', candidateId: created.id, name: `${created.firstName} ${created.lastName}`, by: `${actor.firstName} ${actor.lastName}` });
     return created;
   }
 

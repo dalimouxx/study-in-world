@@ -1,6 +1,7 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { apiError } from '../common/errors/api-error';
+import { AlertsService } from '../alerts/alerts.service';
 import type { PartnerAuthUser } from '../common/auth-user';
 
 /**
@@ -10,7 +11,10 @@ import type { PartnerAuthUser } from '../common/auth-user';
  */
 @Injectable()
 export class PartnerPortalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly alerts?: AlertsService,
+  ) {}
 
   profile(partner: PartnerAuthUser) {
     return this.prisma.partner.findFirstOrThrow({
@@ -54,10 +58,12 @@ export class PartnerPortalService {
   }
 
   async addComment(partner: PartnerAuthUser, candidateId: string, content: string) {
-    await this.assertOwnCandidate(partner, candidateId);
-    return this.prisma.partnerComment.create({
+    const candidate = await this.assertOwnCandidate(partner, candidateId);
+    const comment = await this.prisma.partnerComment.create({
       data: { organizationId: partner.organizationId, candidateId, partnerUserId: partner.id, content },
     });
+    this.alerts?.emit({ kind: 'partner_comment', candidateId, name: `${candidate.firstName} ${candidate.lastName}`, partner: `${partner.firstName} ${partner.lastName}` });
+    return comment;
   }
 
   commissions(partner: PartnerAuthUser) {
@@ -68,8 +74,9 @@ export class PartnerPortalService {
     });
   }
 
-  private async assertOwnCandidate(partner: PartnerAuthUser, candidateId: string): Promise<void> {
-    const found = await this.prisma.candidate.findFirst({ where: { id: candidateId, organizationId: partner.organizationId, partnerId: partner.partnerId, deletedAt: null }, select: { id: true } });
+  private async assertOwnCandidate(partner: PartnerAuthUser, candidateId: string): Promise<{ firstName: string; lastName: string }> {
+    const found = await this.prisma.candidate.findFirst({ where: { id: candidateId, organizationId: partner.organizationId, partnerId: partner.partnerId, deletedAt: null }, select: { id: true, firstName: true, lastName: true } });
     if (!found) throw apiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Candidat introuvable');
+    return found;
   }
 }

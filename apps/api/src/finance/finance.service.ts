@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Optional } from '@nestjs/common';
 import { Prisma, TimelineType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -11,6 +11,7 @@ import { CandidatesService } from '../candidates/candidates.service';
 import { LABELS, pdfFile, type DocKind, type DocLang } from './pdf/labels';
 import { PdfService, type DocumentItem, type DocumentTotals } from './pdf/pdf.service';
 import { CreateInvoiceDto, CreateQuoteDto, RecordPaymentDto, UpdateQuoteStatusDto } from './dto/finance.dto';
+import { AlertsService } from '../alerts/alerts.service';
 import { computeTotals, documentTotals, lineVatRate, NO_TAXES, type LineKind, type TaxSettings } from './totals';
 
 const quoteInclude = { items: true } satisfies Prisma.QuoteInclude;
@@ -44,7 +45,17 @@ export class FinanceService {
     private readonly pdf: PdfService,
     private readonly audit: AuditService,
     private readonly timeline: TimelineService,
+    @Optional() private readonly alerts?: AlertsService,
   ) {}
+
+  /** Alerte Telegram sur un candidat : son nom est relu en arrière-plan, sans jamais bloquer ni faire échouer l'action. */
+  private alertCandidate(candidateId: string, make: (name: string) => Parameters<AlertsService['emit']>[0]): void {
+    if (!this.alerts) return;
+    void this.prisma.candidate
+      .findUnique({ where: { id: candidateId }, select: { firstName: true, lastName: true } })
+      .then((c) => c && this.alerts!.emit(make(`${c.firstName} ${c.lastName}`)))
+      .catch(() => undefined);
+  }
 
   // ---------- Devis ----------
 
@@ -121,6 +132,7 @@ export class FinanceService {
     });
     await this.timeline.add(actor.organizationId, 'CANDIDATE', quote.candidateId, TimelineType.SYSTEM, `Facture ${number} créée à partir du devis ${quote.number}`, actor.id);
     await this.audit.log({ organizationId: actor.organizationId, userId: actor.id, action: 'invoice.create', entity: 'Invoice', entityId: invoice.id, metadata: { fromQuote: quote.number }, meta });
+    this.alertCandidate(quote.candidateId, (name) => ({ kind: 'invoice', candidateId: quote.candidateId, name, invoiceNumber: number, by: `${actor.firstName} ${actor.lastName}` }));
     return withTotals(invoice);
   }
 
@@ -152,6 +164,7 @@ export class FinanceService {
     });
     await this.timeline.add(actor.organizationId, 'CANDIDATE', candidateId, TimelineType.SYSTEM, `Facture ${number} créée (${totals.total.toFixed(3)} ${invoice.currency})`, actor.id);
     await this.audit.log({ organizationId: actor.organizationId, userId: actor.id, action: 'invoice.create', entity: 'Invoice', entityId: invoice.id, metadata: { candidateId, number }, meta });
+    this.alertCandidate(candidateId, (name) => ({ kind: 'invoice', candidateId, name, invoiceNumber: number, by: `${actor.firstName} ${actor.lastName}` }));
     return withTotals(invoice);
   }
 
@@ -198,6 +211,7 @@ export class FinanceService {
     await this.prisma.invoice.update({ where: { id: invoiceId }, data: { status } });
 
     await this.timeline.add(actor.organizationId, 'CANDIDATE', invoice.candidateId, TimelineType.SYSTEM, `Paiement de ${dto.amount.toFixed(3)} ${invoice.currency} reçu (facture ${invoice.number}, reçu ${receiptNumber})`, actor.id);
+    this.alertCandidate(invoice.candidateId, (name) => ({ kind: 'payment', candidateId: invoice.candidateId, name, invoiceNumber: invoice.number, by: `${actor.firstName} ${actor.lastName}` }));
     await this.audit.log({ organizationId: actor.organizationId, userId: actor.id, action: 'payment.create', entity: 'Payment', entityId: payment.id, metadata: { invoiceId, amount: dto.amount, method: dto.method }, meta });
     return payment;
   }

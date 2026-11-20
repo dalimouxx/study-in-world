@@ -40,6 +40,9 @@ const schema = z.object({
   // Relances automatiques : secret de la route POST /api/jobs/daily-reminders (réveil extérieur, ex. Vercel Cron).
   // Absent → la route répond 404. Le réveil intégré (chaque heure, agences à 07:xx locale) se coupe avec REMINDERS_CRON_ENABLED=false.
   JOBS_SECRET: z.string().min(24, 'JOBS_SECRET doit contenir au moins 24 caractères').optional(),
+  // Alertes Telegram (groupe d'équipe) : facultatives ; sans elles, aucune alerte n'est envoyée.
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_CHAT_ID: z.string().optional(),
   REMINDERS_CRON_ENABLED: z
     .enum(['true', 'false'])
     .optional()

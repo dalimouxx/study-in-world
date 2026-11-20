@@ -94,11 +94,46 @@ Ouvrir https://studyinworld.net, se connecter avec `SEED_ADMIN_EMAIL` / `SEED_AD
 de passe est demandé. Puis, dans **Paramètres** : coordonnées de l'agence (et en arabe), **Facturation** (activer
 la TVA et le timbre), modèle de contrat arabe à relire.
 
+## Alertes Telegram
+
+Le groupe Telegram de l'équipe reçoit : nouveaux prospects du site, documents et messages des candidats, contrats
+signés en ligne, commentaires des partenaires, nouveaux candidats, factures, paiements, erreurs serveur, chaque
+déploiement (`update.sh`) et chaque panne du site (`watchdog.sh`). Jamais de pièce, de numéro de passeport, de
+montant ni de contenu de message.
+
+1. Dans Telegram, ouvrir **@BotFather**, envoyer `/newbot`, choisir un nom : il donne un **jeton** (token).
+2. Créer le groupe d'équipe, y **ajouter le bot**, puis écrire `/start` dans le groupe.
+3. Sur le VPS, enregistrer le jeton sans l'afficher, puis retrouver l'identifiant du groupe :
+
+```bash
+cd /srv/platforms/studyinworld/deploy && read -rsp "Jeton du bot : " T && echo && sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN=$T|" .env && unset T
+```
+
+```bash
+T=$(grep ^TELEGRAM_BOT_TOKEN= .env | cut -d= -f2-); curl -s "https://api.telegram.org/bot$T/getUpdates" | grep -o '"chat":{"id":-[0-9]*,"title":"[^"]*"' | sort -u; unset T
+```
+
+4. Reporter l'identifiant (nombre négatif, par exemple `-1001234567890`) dans `.env`, puis relancer :
+
+```bash
+sed -i "s|^TELEGRAM_CHAT_ID=.*|TELEGRAM_CHAT_ID=-1001234567890|" .env    # remplacer par le vrai identifiant
+docker compose -f docker-compose.prod.yml --env-file .env up -d
+. ./telegram.sh && tg "✅ <b>Alertes Study in World activées</b>"
+```
+
+5. Surveillance du site toutes les 5 minutes :
+
+```bash
+(crontab -l 2>/dev/null; echo "*/5 * * * * /srv/platforms/studyinworld/deploy/watchdog.sh >/dev/null 2>&1") | crontab -
+```
+
 ## Mises à jour
 
 ```bash
 /srv/platforms/studyinworld/deploy/update.sh
 ```
+
+Le groupe Telegram reçoit le début, la réussite (avec la version) ou l'échec du déploiement.
 
 ## Sauvegarde de la base (conseillé : chaque nuit)
 

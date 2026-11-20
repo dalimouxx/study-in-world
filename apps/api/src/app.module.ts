@@ -50,10 +50,12 @@ import { TranslationModule } from './translation/translation.module';
 import { LandingPageModule } from './landing-page/landing-page.module';
 import { TasksModule } from './tasks/tasks.module';
 import { TimelineModule } from './timeline/timeline.module';
+import { AlertsModule } from './alerts/alerts.module';
 import { VisaModule } from './visa/visa.module';
 
 @Module({
   imports: [
+    AlertsModule,
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,

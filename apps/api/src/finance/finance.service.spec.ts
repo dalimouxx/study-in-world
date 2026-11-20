@@ -202,3 +202,24 @@ describe('FinanceService — TVA, débours et timbre', () => {
     await expect(service.taxSettings('orgA')).resolves.toEqual({ taxesEnabled: false, vatRate: 19, stampDuty: 1 });
   });
 });
+
+describe('FinanceService — alertes Telegram', () => {
+  it('paiement : alerte « payment » avec le nom du candidat et le numéro de facture', async () => {
+    const { service, prisma } = build();
+    prisma.candidate.findUnique = jest.fn().mockResolvedValue({ firstName: 'Ali', lastName: 'Ben' });
+    const alerts = { emit: jest.fn() };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (service as any).alerts = alerts;
+    await service.recordPayment(actor(), 'inv1', { amount: 200, method: 'BANK_TRANSFER' }, {});
+    await new Promise((r) => setImmediate(r));
+    expect(alerts.emit).toHaveBeenCalledWith({ kind: 'payment', candidateId: 'cand1', name: 'Ali Ben', invoiceNumber: 'FAC-2026-0001', by: 'A B' });
+  });
+
+  it('une panne de lecture pour l’alerte ne fait pas échouer le paiement', async () => {
+    const { service, prisma } = build();
+    prisma.candidate.findUnique = jest.fn().mockRejectedValue(new Error('db'));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (service as any).alerts = { emit: jest.fn() };
+    await expect(service.recordPayment(actor(), 'inv1', { amount: 200, method: 'BANK_TRANSFER' }, {})).resolves.toBeDefined();
+  });
+});

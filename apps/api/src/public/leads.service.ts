@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimelineService } from '../timeline/timeline.service';
+import { AlertsService } from '../alerts/alerts.service';
 import { CreateLeadDto } from './dto/lead.dto';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timeline: TimelineService,
+    @Optional() private readonly alerts?: AlertsService,
   ) {}
 
   /**
@@ -43,5 +45,6 @@ export class LeadsService {
       },
     });
     await this.timeline.add(org.id, 'PROSPECT', prospect.id, 'SYSTEM', dto.campaign ? `Demande reçue depuis le site web (${dto.campaign})` : 'Demande reçue depuis le site web');
+    this.alerts?.emit({ kind: 'lead', name: `${dto.firstName} ${dto.lastName}` });
   }
 }
