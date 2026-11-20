@@ -56,6 +56,20 @@ describe('HealthScoreService.compute', () => {
     expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'INVOICE_OVERDUE', severity: 'CRITICAL' })]));
   });
 
+  it('chaque problème transmet ses valeurs (params) pour être traduit côté interface', async () => {
+    const { service, prisma } = build();
+    prisma.candidateDocument.findMany.mockResolvedValue([passportDoc({ expiryDate: new Date(Date.now() + 10 * 86_400_000 + 1000) }), requiredDocs[2]]);
+    prisma.invoice.findMany.mockResolvedValue([{ id: 'i1', number: 'FAC-1', dueDate: new Date(Date.now() - 86_400_000) }]);
+    const result = await service.compute(actor(), 'cand1');
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'DOCUMENT_MISSING', params: { type: 'DIPLOMA' } }),
+        expect.objectContaining({ code: 'DOCUMENT_EXPIRING', params: { label: 'Passeport', days: 10 } }),
+        expect.objectContaining({ code: 'INVOICE_OVERDUE', params: { number: 'FAC-1' } }),
+      ]),
+    );
+  });
+
   it('le score ne descend jamais sous 0 même avec de nombreux problèmes cumulés', async () => {
     const { service, prisma } = build();
     prisma.candidate.findUniqueOrThrow.mockResolvedValue({ id: 'cand1', status: 'ACTIVE', birthDate: null, nationality: null, passportNumber: null, email: null });

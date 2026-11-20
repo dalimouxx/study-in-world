@@ -50,6 +50,115 @@ describe('ContractsService.create', () => {
   });
 });
 
+describe('ContractsService.create — langue du contrat', () => {
+  const content = (c: unknown) => (c as { content: string }).content;
+  const language = (c: unknown) => (c as { language: string }).language;
+  const items = [{ label: 'Service X', quantity: 1, unitPrice: 100 }];
+
+  it('crée le contrat dans la langue préférée du candidat (ar) avec le modèle arabe par défaut', async () => {
+    const { service, prisma } = build();
+    prisma.candidate.findFirst.mockResolvedValue({ id: 'cand1', firstName: 'Ali', lastName: 'Ben', passportNumber: 'X123', preferredLanguage: 'ar' });
+    const created = await service.create(actor(), 'cand1', { items }, {});
+    expect(language(created)).toBe('ar');
+    expect(content(created)).toContain('تلتزم الوكالة');
+    expect(content(created)).toContain('Ali Ben');
+    expect(content(created)).toContain('100.000 TND');
+    expect(content(created)).not.toContain('{{');
+    // Ponctuation arabe : pas d'espace avant les deux-points.
+    expect(content(created)).toContain('- Service X × 1: 100.000 TND');
+  });
+
+  it('dto.language l’emporte sur la préférence', async () => {
+    const { service, prisma } = build();
+    prisma.candidate.findFirst.mockResolvedValue({ id: 'cand1', firstName: 'Ali', lastName: 'Ben', passportNumber: 'X123', preferredLanguage: 'ar' });
+    const created = await service.create(actor(), 'cand1', { items, language: 'fr' }, {});
+    expect(language(created)).toBe('fr');
+    expect(content(created)).toContain('il a été convenu');
+  });
+
+  it('utilise contractTemplateAr de l’agence s’il existe', async () => {
+    const { service, prisma } = build();
+    prisma.agencySettings.findUnique.mockResolvedValue({ name: 'Study in World', currency: 'TND', contractTemplate: null, contractTemplateAr: 'عقد خاص {{number}}' });
+    const created = await service.create(actor(), 'cand1', { items, language: 'ar' }, {});
+    expect(content(created)).toBe('عقد خاص CTR-2026-0001');
+  });
+
+  it('candidat sans préférence → fr', async () => {
+    const { service } = build();
+    const created = await service.create(actor(), 'cand1', { items }, {});
+    expect(language(created)).toBe('fr');
+  });
+});
+
+describe('ContractsService.create — total TTC', () => {
+  const content = (c: unknown) => (c as { content: string }).content;
+  const amount = (c: unknown) => (c as { totalAmount: number }).totalAmount;
+  const taxedQuote = {
+    id: 'q1', total: 3881, subtotal: 2000, vatAmount: 380, disbursements: 1500, stampDuty: 1,
+    items: [{ label: 'Accompagnement', quantity: 1, unitPrice: 2000, kind: 'SERVICE' }, { label: 'Inscription', quantity: 1, unitPrice: 1500, kind: 'DISBURSEMENT' }],
+  };
+
+  it('contrat depuis un devis taxé : total = total du devis, débours signalé', async () => {
+    const { service, prisma } = build();
+    prisma.quote.findFirst.mockResolvedValue(taxedQuote);
+    const created = await service.create(actor(), 'cand1', { quoteId: 'q1' }, {});
+    expect(amount(created)).toBe(3881);
+    expect(content(created)).toContain('Montant total : 3881.000 TND');
+    expect(content(created)).toContain('- Inscription × 1 : 1500.000 TND (débours)');
+  });
+
+  it('contrat arabe : débours signalé en arabe', async () => {
+    const { service, prisma } = build();
+    prisma.quote.findFirst.mockResolvedValue(taxedQuote);
+    const created = await service.create(actor(), 'cand1', { quoteId: 'q1', language: 'ar' }, {});
+    expect(content(created)).toContain('(مصاريف مسبقة)');
+  });
+
+  it('contrat depuis un devis ancien, taxes activées : somme brute', async () => {
+    const { service, prisma } = build();
+    prisma.agencySettings.findUnique.mockResolvedValue({ name: 'SIW', currency: 'TND', taxesEnabled: true, vatRate: 19, stampDuty: 1 });
+    prisma.quote.findFirst.mockResolvedValue({ id: 'q1', total: null, items: [{ label: 'A', quantity: 2, unitPrice: 100, kind: 'SERVICE' }] });
+    expect(amount(await service.create(actor(), 'cand1', { quoteId: 'q1' }, {}))).toBe(200);
+  });
+
+  it('contrat manuel, taxes activées : total calculé avec TVA et timbre', async () => {
+    const { service, prisma } = build();
+    prisma.agencySettings.findUnique.mockResolvedValue({ name: 'SIW', currency: 'TND', taxesEnabled: true, vatRate: 19, stampDuty: 1 });
+    const created = await service.create(actor(), 'cand1', { items: [{ label: 'A', quantity: 1, unitPrice: 2000 }, { label: 'B', quantity: 1, unitPrice: 1500, kind: 'DISBURSEMENT' }] }, {});
+    expect(amount(created)).toBe(3881);
+  });
+});
+
+describe('ContractsService.pdf', () => {
+  const signedAr = { id: 'ctr1', organizationId: 'orgA', candidateId: 'cand1', number: 'CTR-2026-0001', content: 'نص', language: 'ar', createdAt: new Date(), signatureImage: null };
+
+  it('contrat : ?lang ignoré, langue du contrat', async () => {
+    const { service, prisma } = build();
+    prisma.contract.findFirst.mockResolvedValue(signedAr);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pdfSvc = (service as any).pdfService as { contract: jest.Mock };
+    const res = await service.pdf('orgA', 'ctr1');
+    expect(pdfSvc.contract.mock.calls[0][0].lang).toBe('ar');
+    expect(res.filename).toBe('عقد-CTR-2026-0001.pdf');
+  });
+
+  it('contrat existant sans language → fr', async () => {
+    const { service, prisma } = build();
+    prisma.contract.findFirst.mockResolvedValue({ ...signedAr, language: undefined });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pdfSvc = (service as any).pdfService as { contract: jest.Mock };
+    await service.pdf('orgA', 'ctr1');
+    expect(pdfSvc.contract.mock.calls[0][0].lang).toBe('fr');
+  });
+
+  it('portail : un candidat ne voit que ses propres contrats', async () => {
+    const { service, prisma } = build();
+    prisma.contract.findFirst.mockResolvedValue(signedAr);
+    await service.pdf('orgA', 'ctr1', 'cand2');
+    expect(prisma.contract.findFirst).toHaveBeenCalledWith({ where: { id: 'ctr1', organizationId: 'orgA', candidateId: 'cand2' } });
+  });
+});
+
 describe('ContractsService.sign', () => {
   it('refuse de signer un contrat déjà signé', async () => {
     const { service, prisma } = build();

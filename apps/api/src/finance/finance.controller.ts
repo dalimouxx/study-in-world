@@ -1,16 +1,23 @@
-import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentUser, ReqMeta, RequirePermissions } from '../common/decorators';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
 import { CreateInvoiceDto, CreateQuoteDto, RecordPaymentDto, UpdateQuoteStatusDto } from './dto/finance.dto';
 import { FinanceService } from './finance.service';
+import { PdfLangQueryDto } from './dto/pdf-lang.dto';
 
 @ApiTags('finance')
 @ApiBearerAuth()
 @Controller()
 export class FinanceController {
   constructor(private readonly finance: FinanceService) {}
+
+  /** Réglages de taxes pour le formulaire de devis et de facture (sans exiger le droit de voir les Paramètres). */
+  @Get('finance/tax-settings') @RequirePermissions('finance.view')
+  taxSettings(@CurrentUser() user: AuthUser) {
+    return this.finance.taxSettings(user.organizationId);
+  }
 
   // ----- Devis -----
   @Get('candidates/:candidateId/quotes') @RequirePermissions('finance.view')
@@ -34,9 +41,9 @@ export class FinanceController {
   }
 
   @Get('quotes/:id/pdf') @RequirePermissions('finance.view')
-  async quotePdf(@CurrentUser() user: AuthUser, @Param('id') id: string, @Res() res: Response) {
-    const { buffer, filename } = await this.finance.quotePdf(user, id);
-    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${filename}"` }).send(buffer);
+  async quotePdf(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() q: PdfLangQueryDto, @Res() res: Response) {
+    const { buffer, disposition } = await this.finance.quotePdf(user, id, q.lang);
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': disposition }).send(buffer);
   }
 
   // ----- Factures -----
@@ -51,9 +58,9 @@ export class FinanceController {
   }
 
   @Get('invoices/:id/pdf') @RequirePermissions('finance.view')
-  async invoicePdf(@CurrentUser() user: AuthUser, @Param('id') id: string, @Res() res: Response) {
-    const { buffer, filename } = await this.finance.invoicePdf(user, id);
-    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${filename}"` }).send(buffer);
+  async invoicePdf(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() q: PdfLangQueryDto, @Res() res: Response) {
+    const { buffer, disposition } = await this.finance.invoicePdf(user, id, q.lang);
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': disposition }).send(buffer);
   }
 
   @Post('invoices/:id/payments') @RequirePermissions('finance.manage')
@@ -62,8 +69,8 @@ export class FinanceController {
   }
 
   @Get('payments/:id/receipt') @RequirePermissions('finance.view')
-  async receipt(@CurrentUser() user: AuthUser, @Param('id') id: string, @Res() res: Response) {
-    const { buffer, filename } = await this.finance.receiptPdf(user, id);
-    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${filename}"` }).send(buffer);
+  async receipt(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() q: PdfLangQueryDto, @Res() res: Response) {
+    const { buffer, disposition } = await this.finance.receiptPdf(user, id, q.lang);
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': disposition }).send(buffer);
   }
 }

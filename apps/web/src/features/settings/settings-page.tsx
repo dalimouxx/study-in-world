@@ -10,6 +10,7 @@ import { RequirePermission } from '@/components/require-permission';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Field, Input, Select, Textarea } from '@/components/ui/form';
+import { Link } from '@/i18n/navigation';
 import { api } from '@/lib/api';
 import type { AgencySettings } from '@/lib/types';
 import { useErrorMessage } from '@/lib/use-error-message';
@@ -22,14 +23,23 @@ const SOCIALS: SocialKey[] = ['facebook', 'instagram', 'tiktok', 'linkedin', 'yo
 const TEXT_FIELDS = [
   'name', 'address', 'phone', 'whatsapp', 'email', 'website', 'openingHours',
   'legalInfo', 'taxId', 'bankDetails', 'currency', 'timezone', 'privacyPolicy', 'termsOfService', 'legalNotice',
-  'contractTemplate',
+  'contractTemplate', 'contractTemplateAr', 'nameAr', 'addressAr',
 ] as const;
 
-type Values = { [K in (typeof TEXT_FIELDS)[number]]: string } & { social: Record<SocialKey, string> };
+type Values = { [K in (typeof TEXT_FIELDS)[number]]: string } & {
+  social: Record<SocialKey, string>;
+  // Facturation : TVA et timbre fiscal appliqués aux nouveaux devis et factures.
+  taxesEnabled: boolean;
+  vatRate: number;
+  stampDuty: number;
+};
 
 const toValues = (s: AgencySettings): Values => ({
-  ...(Object.fromEntries(TEXT_FIELDS.map((k) => [k, (s[k] as string | null) ?? ''])) as Omit<Values, 'social'>),
+  ...(Object.fromEntries(TEXT_FIELDS.map((k) => [k, (s[k] as string | null) ?? ''])) as { [K in (typeof TEXT_FIELDS)[number]]: string }),
   social: Object.fromEntries(SOCIALS.map((k) => [k, s.socialLinks?.[k] ?? ''])) as Values['social'],
+  taxesEnabled: s.taxesEnabled ?? false,
+  vatRate: s.vatRate ?? 19,
+  stampDuty: s.stampDuty ?? 1,
 });
 
 export function SettingsPage() {
@@ -51,6 +61,7 @@ function Section({ title, description, children }: { title: string; description?
 
 function Content() {
   const t = useTranslations('settings');
+  const tm = useTranslations('messageTemplates');
   const tc = useTranslations('common');
   const ta = useTranslations('auth');
   const errorMessage = useErrorMessage();
@@ -70,6 +81,8 @@ function Content() {
     onSuccess: (data) => {
       queryClient.setQueryData(['agency-settings'], data);
       void queryClient.invalidateQueries({ queryKey: ['public-agency'] });
+      // Le formulaire de devis/facture relit tout de suite les nouveaux réglages de taxes.
+      void queryClient.invalidateQueries({ queryKey: ['finance', 'tax-settings'] });
       reset(toValues(data));
       toast.success(t('saved'));
     },
@@ -80,7 +93,7 @@ function Content() {
   if (query.isError) return <p role="alert" className="text-sm text-destructive">{errorMessage(query.error)}</p>;
 
   const ro = !canManage;
-  const f = (k: keyof Omit<Values, 'social'>, opts?: { required?: boolean }) =>
+  const f = (k: (typeof TEXT_FIELDS)[number], opts?: { required?: boolean }) =>
     register(k, { ...(opts?.required ? { required: tc('required') } : {}), disabled: ro });
 
   return (
@@ -95,6 +108,9 @@ function Content() {
         <Field label={t('name')} htmlFor="s-name" error={errors.name?.message} className="sm:col-span-2">
           <Input id="s-name" aria-invalid={!!errors.name} {...f('name', { required: true })} />
         </Field>
+        <Field label={t('nameAr')} htmlFor="s-name-ar" hint={t('arabicDocsHint')} className="sm:col-span-2">
+          <Input id="s-name-ar" dir="rtl" lang="ar" {...f('nameAr')} />
+        </Field>
         <p className="text-sm text-muted-foreground sm:col-span-2">{t('logosMovedHint')}</p>
       </Section>
 
@@ -106,6 +122,7 @@ function Content() {
         </Field>
         <Field label={t('website')} htmlFor="s-web"><Input id="s-web" dir="ltr" {...f('website')} /></Field>
         <Field label={t('address')} htmlFor="s-addr" className="sm:col-span-2"><Input id="s-addr" {...f('address')} /></Field>
+        <Field label={t('addressAr')} htmlFor="s-addr-ar" className="sm:col-span-2"><Input id="s-addr-ar" dir="rtl" lang="ar" {...f('addressAr')} /></Field>
         <Field label={t('openingHours')} htmlFor="s-hours" className="sm:col-span-2"><Input id="s-hours" {...f('openingHours')} /></Field>
       </Section>
 
@@ -133,15 +150,44 @@ function Content() {
         <Field label={t('bankDetails')} htmlFor="s-bank" hint={t('bankHint')} className="sm:col-span-2"><Textarea id="s-bank" rows={3} {...f('bankDetails')} /></Field>
       </Section>
 
+      <Section title={t('billingTitle')} description={t('billingHint')}>
+        <label htmlFor="s-taxes" className="flex items-start gap-3 text-sm sm:col-span-2">
+          <input id="s-taxes" type="checkbox" className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]" {...register('taxesEnabled', { disabled: ro })} />
+          <span>
+            <span className="font-medium">{t('taxesEnabled')}</span>
+            <span className="block text-muted-foreground">{t('taxesEnabledHint')}</span>
+          </span>
+        </label>
+        <Field label={t('vatRate')} htmlFor="s-vat" error={errors.vatRate?.message}>
+          <Input id="s-vat" type="number" inputMode="decimal" min={0} max={100} step={0.01} dir="ltr" aria-invalid={!!errors.vatRate}
+            {...register('vatRate', { disabled: ro, valueAsNumber: true, validate: (v) => (Number.isFinite(v) && v >= 0 && v <= 100) || t('vatRateInvalid') })} />
+        </Field>
+        <Field label={t('stampDuty')} htmlFor="s-stamp" error={errors.stampDuty?.message}>
+          <Input id="s-stamp" type="number" inputMode="decimal" min={0} step={0.001} dir="ltr" aria-invalid={!!errors.stampDuty}
+            {...register('stampDuty', { disabled: ro, valueAsNumber: true, validate: (v) => (Number.isFinite(v) && v >= 0) || t('stampDutyInvalid') })} />
+        </Field>
+      </Section>
+
       <Section title={t('content')} description={t('contentHint')}>
         <Field label={t('privacyPolicy')} htmlFor="s-privacy" className="sm:col-span-2"><Textarea id="s-privacy" rows={5} {...f('privacyPolicy')} /></Field>
         <Field label={t('termsOfService')} htmlFor="s-terms" className="sm:col-span-2"><Textarea id="s-terms" rows={5} {...f('termsOfService')} /></Field>
         <Field label={t('legalNotice')} htmlFor="s-notice" className="sm:col-span-2"><Textarea id="s-notice" rows={5} {...f('legalNotice')} /></Field>
       </Section>
 
+      <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
+        <div className="min-w-0">
+          <h2 className="font-display text-base font-bold tracking-tight">{tm('title')}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{tm('settingsSectionHint')}</p>
+        </div>
+        <Link href="/settings/messages" className="pop pop-hover inline-flex h-10 items-center gap-2 rounded-xl bg-card px-4 text-sm font-semibold text-ink">{tm('open')}</Link>
+      </Card>
+
       <Section title={t('contractTemplateTitle')} description={t('contractTemplateHint')}>
         <Field label={t('contractTemplate')} htmlFor="s-contract" hint={t('contractTemplateVars')} className="sm:col-span-2">
           <Textarea id="s-contract" rows={10} {...f('contractTemplate')} />
+        </Field>
+        <Field label={t('contractTemplateAr')} htmlFor="s-contract-ar" hint={t('contractTemplateVars')} className="sm:col-span-2">
+          <Textarea id="s-contract-ar" rows={10} dir="rtl" lang="ar" {...f('contractTemplateAr')} />
         </Field>
       </Section>
     </form>

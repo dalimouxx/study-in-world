@@ -9,6 +9,7 @@ const actor = (): AuthUser => ({
 
 function build() {
   const prisma = {
+    messageTemplate: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
     user: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockImplementation(({ data }: { data: unknown }) => Promise.resolve({ id: 'newAdminUser', ...(data as object) })) },
     permission: { findMany: jest.fn().mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]) },
     organization: {

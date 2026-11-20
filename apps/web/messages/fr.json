@@ -38,7 +38,10 @@
     "searchNoResults": "Aucun résultat",
     "candidatesGroup": "Candidats",
     "prospectsGroup": "Prospects",
-    "exportFailed": "L'export a échoué, réessayez."
+    "exportFailed": "L'export a échoué, réessayez.",
+    "preferredLanguage": "Langue préférée",
+    "languageFr": "Français",
+    "languageAr": "العربية"
   },
   "nav": {
     "main": "Navigation principale",
@@ -64,7 +67,8 @@
     "partners": "Partenaires",
     "blog": "Blog",
     "siteAdmin": "Page d’accueil",
-    "platformAdmin": "Gestion des agences"
+    "platformAdmin": "Gestion des agences",
+    "reminders": "Relances"
   },
   "auth": {
     "brandFallback": "Study in World",
@@ -295,7 +299,19 @@
     "contractTemplateTitle": "Modèle de contrat",
     "contractTemplateHint": "Texte utilisé pour générer chaque nouveau contrat.",
     "contractTemplate": "Modèle",
-    "contractTemplateVars": "Espaces réservés disponibles : {{agency_name}}, {{candidate_name}}, {{candidate_passport}}, {{services}}, {{total}}, {{currency}}, {{date}}, {{number}}. Laissez vide pour utiliser le modèle par défaut."
+    "contractTemplateVars": "Espaces réservés disponibles : {{agency_name}}, {{candidate_name}}, {{candidate_passport}}, {{services}}, {{total}}, {{currency}}, {{date}}, {{number}}. Laissez vide pour utiliser le modèle par défaut.",
+    "nameAr": "Nom de l’agence (arabe)",
+    "addressAr": "Adresse (arabe)",
+    "arabicDocsHint": "Utilisés sur les devis, factures et contrats en arabe. Laissés vides, le nom et l’adresse en français s’affichent.",
+    "contractTemplateAr": "Modèle (arabe)",
+    "billingTitle": "Facturation",
+    "billingHint": "TVA et timbre fiscal des nouveaux devis et factures. Les documents déjà émis ne changent jamais.",
+    "taxesEnabled": "Appliquer la TVA et le timbre fiscal",
+    "taxesEnabledHint": "À activer si l’agence est assujettie à la TVA. Chaque ligne est alors un service (TVA) ou un débours (sans TVA).",
+    "vatRate": "Taux de TVA (%)",
+    "stampDuty": "Timbre fiscal (TND)",
+    "vatRateInvalid": "Entre 0 et 100 %.",
+    "stampDutyInvalid": "Montant positif."
   },
   "siteAdmin": {
     "title": "Page d’accueil",
@@ -727,7 +743,32 @@
     "ocrBirthDate": "Date de naissance",
     "ocrExpirationDate": "Date d’expiration du passeport",
     "ocrChecksumFailed": "Non vérifié",
-    "ocrApply": "Appliquer"
+    "ocrApply": "Appliquer",
+    "healthIssues": {
+      "PROFILE_INCOMPLETE": "Profil incomplet ({count, plural, one {# champ manquant} other {# champs manquants}})",
+      "DOCUMENT_MISSING": "Document manquant : {type}",
+      "DOCUMENT_REJECTED": "Document rejeté : {label}",
+      "DOCUMENT_EXPIRED": "{label} expiré depuis {days, plural, one {# jour} other {# jours}}",
+      "DOCUMENT_EXPIRING": "{label} expire dans {days, plural, one {# jour} other {# jours}}",
+      "NO_APPLICATION": "Aucune candidature créée",
+      "APPLICATION_DEADLINE_PASSED": "Date limite dépassée : {university}",
+      "APPLICATION_DEADLINE_SOON": "Date limite dans {days, plural, one {# jour} other {# jours}} : {university}",
+      "VISA_APPOINTMENT_PASSED": "Rendez-vous visa ({country}) dépassé sans mise à jour du statut",
+      "INVOICE_OVERDUE": "Facture {number} en retard de paiement",
+      "TASKS_OVERDUE": "{count, plural, one {# tâche en retard} other {# tâches en retard}}"
+    },
+    "contractLanguage": "Langue du contrat",
+    "contractLanguageHint": "Par défaut, la langue préférée du candidat. Un contrat signé reste dans sa langue.",
+    "openInLanguage": "Ouvrir en {language}",
+    "totalHt": "Total HT",
+    "vatLine": "TVA {rate} %",
+    "disbursements": "Débours",
+    "stampDuty": "Timbre fiscal",
+    "totalTtc": "Total à payer TTC",
+    "ttc": "TTC",
+    "lineKind": "Type de ligne",
+    "lineKindService": "Service {rate} %",
+    "lineKindDisbursement": "Débours"
   },
   "tasks": {
     "title": "Tâches",
@@ -1553,5 +1594,81 @@
     "title": "Notifications",
     "empty": "Aucune notification",
     "markAllRead": "Tout marquer comme lu"
+  },
+  "reminders": {
+    "title": "Relances du jour",
+    "subtitle": "Ce que la plateforme a repéré pour aujourd’hui. Un clic sur WhatsApp ouvre le message prêt à envoyer.",
+    "toDo": "À faire",
+    "unassigned": "Non assignées",
+    "doneToday": "Faites aujourd’hui",
+    "mine": "Mes relances",
+    "all": "Toute l’agence",
+    "counts": "{todo, plural, =0 {Rien à faire} one {# à faire} other {# à faire}} · {done, plural, =0 {aucune faite} one {# faite} other {# faites}}",
+    "empty": "Aucune relance aujourd’hui",
+    "emptyHint": "Les rendez-vous de demain, les prospects à relancer, les factures en retard et les documents rejetés apparaîtront ici.",
+    "whatsapp": "WhatsApp",
+    "noPhone": "Pas de numéro de téléphone",
+    "openFile": "Ouvrir le dossier",
+    "done": "Fait",
+    "kinds": {
+      "APPOINTMENT_TOMORROW": "Rendez-vous demain",
+      "VISA_APPOINTMENT_TOMORROW": "Rendez-vous visa demain",
+      "PROSPECT_FOLLOW_UP": "Prospect à relancer",
+      "INVOICE_OVERDUE": "Facture en retard",
+      "DOCUMENT_REJECTED": "Document à renvoyer"
+    },
+    "summary": {
+      "APPOINTMENT_TOMORROW": "Demain {date} à {heure}",
+      "VISA_APPOINTMENT_TOMORROW": "{pays} · demain {date} à {heure}",
+      "PROSPECT_FOLLOW_UP": "Relance prévue le {date}",
+      "INVOICE_OVERDUE": "{facture} · reste {montant} {devise}",
+      "DOCUMENT_REJECTED": "{document}"
+    },
+    "auto": {
+      "EMAIL_SENT": "E-mail envoyé",
+      "EMAIL_FAILED": "Échec de l’e-mail, nouvel essai demain",
+      "NOTIFICATION_SENT": "Conseiller prévenu",
+      "EMAIL_SKIPPED_NO_EMAIL": "E-mail non envoyé : pas d’adresse",
+      "EMAIL_SKIPPED_NO_SMTP": "E-mail non envoyé : envoi d’e-mails non configuré"
+    },
+    "nextFollowUpTitle": "Prochaine relance",
+    "nextFollowUpHint": "Quand faut-il relancer ce prospect ?",
+    "nextFollowUpNone": "Aucune relance prévue",
+    "save": "Enregistrer",
+    "widgetTitle": "Relances du jour",
+    "widgetCount": "{count, plural, =0 {Rien à faire aujourd’hui} one {# relance à faire} other {# relances à faire}}"
+  },
+  "messageTemplates": {
+    "title": "Messages",
+    "subtitle": "Les messages envoyés aux candidats et aux prospects, en français et en arabe. Les variables entre accolades sont remplacées automatiquement.",
+    "automatic": "Relances automatiques",
+    "free": "Messages libres",
+    "channelWHATSAPP": "WhatsApp",
+    "channelEMAIL": "E-mail",
+    "nameFr": "Nom (français)",
+    "nameAr": "Nom (arabe)",
+    "subjectFr": "Objet (français)",
+    "subjectAr": "Objet (arabe)",
+    "bodyFr": "Message en français",
+    "bodyAr": "Message en arabe",
+    "variables": "Variables (cliquez pour insérer)",
+    "preview": "Aperçu",
+    "previewHint": "Avec des valeurs d’exemple",
+    "save": "Enregistrer",
+    "saved": "Modèle enregistré",
+    "reset": "Rétablir le texte par défaut",
+    "resetTitle": "Rétablir le texte par défaut ?",
+    "resetDescription": "Votre texte actuel sera remplacé par le texte d’origine, en français et en arabe.",
+    "resetDone": "Texte par défaut rétabli",
+    "readOnly": "Lecture seule : il faut la permission de modifier les paramètres.",
+    "settingsSectionHint": "Modifier les messages de relance et les messages tout prêts (WhatsApp et e-mail).",
+    "open": "Gérer les messages",
+    "send": "Envoyer un message",
+    "sendTitle": "Envoyer un message WhatsApp",
+    "chooseTemplate": "Modèle",
+    "messageLabel": "Message (modifiable)",
+    "openWhatsapp": "Ouvrir WhatsApp",
+    "noPhone": "Pas de numéro de téléphone",
+    "inLanguage": "En {language}"
   }
 }

@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -14,4 +14,6 @@ export class CreateLeadDto {
   @IsOptional() @Transform(trim) @IsString() @MaxLength(160) desiredProgram?: string;
   @IsOptional() @IsNumber() @Min(0) budget?: number;
   @IsOptional() @Transform(trim) @IsString() @MaxLength(120) campaign?: string;
+  /** Langue de la page du site d'où vient la demande : devient la langue préférée du prospect. */
+  @IsOptional() @IsIn(['fr', 'ar']) locale?: 'fr' | 'ar';
 }

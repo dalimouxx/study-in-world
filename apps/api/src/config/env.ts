@@ -37,6 +37,13 @@ const schema = z.object({
   // retombe sur le disque local du conteneur (comportement historique, voir son commentaire). Deux
   // buckets distincts : un privé (documents candidats, jamais exposé publiquement) et un public (photos/
   // logos de la landing page, lus directement par le navigateur via S3_PUBLIC_BASE_URL).
+  // Relances automatiques : secret de la route POST /api/jobs/daily-reminders (réveil extérieur, ex. Vercel Cron).
+  // Absent → la route répond 404. Le réveil intégré (chaque heure, agences à 07:xx locale) se coupe avec REMINDERS_CRON_ENABLED=false.
+  JOBS_SECRET: z.string().min(24, 'JOBS_SECRET doit contenir au moins 24 caractères').optional(),
+  REMINDERS_CRON_ENABLED: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v !== 'false'),
   S3_ENDPOINT: z.string().url().optional(),
   S3_REGION: z.string().default('auto'),
   S3_ACCESS_KEY_ID: z.string().optional(),

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileSignature, FileText, Plus, Receipt, Trash, TrendingUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/empty-state';
@@ -13,10 +13,12 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, Select } from '@/components/ui/form';
 import { api, apiBaseUrl, getAccessToken } from '@/lib/api';
-import type { CandidateProfitability, Commission, CommissionStatus, Contract, ContractStatus, Expense, Invoice, LineItem, PaymentMethod, Quote, QuoteStatus } from '@/lib/types';
+import type { CandidateProfitability, Commission, CommissionStatus, Contract, ContractStatus, Expense, Invoice, PaymentMethod, Quote, QuoteStatus, TaxSettings } from '@/lib/types';
+import { previewTotals, type LineKind } from '@/lib/invoice-totals';
 import { useErrorMessage } from '@/lib/use-error-message';
 import { useAuth } from '@/features/auth/auth-context';
 import { SignContractDialog } from '@/features/shared/sign-contract-dialog';
+import { LanguagePreferenceSelect } from '@/components/language-preference-select';
 
 const QUOTE_TONE: Record<QuoteStatus, 'neutral' | 'primary' | 'success' | 'danger'> = { DRAFT: 'neutral', SENT: 'primary', ACCEPTED: 'success', REJECTED: 'danger', EXPIRED: 'neutral' };
 const INVOICE_TONE = { DRAFT: 'neutral', ISSUED: 'primary', PARTIALLY_PAID: 'primary', PAID: 'success', CANCELLED: 'danger' } as const;
@@ -87,7 +89,6 @@ function CommissionsSection({ candidateId, hasPartner }: { candidateId: string; 
 }
 const METHODS: PaymentMethod[] = ['CASH', 'BANK_TRANSFER', 'CARD', 'CHEQUE'];
 
-const total = (items: LineItem[]) => items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 const fmt = (n: number, currency: string) => `${n.toFixed(3)} ${currency}`;
 
 function openPdf(path: string) {
@@ -97,23 +98,85 @@ function openPdf(path: string) {
     .then((blob) => window.open(URL.createObjectURL(blob), '_blank'));
 }
 
-interface ItemForm { label: string; quantity: number; unitPrice: number }
+type DocLang = 'fr' | 'ar';
+const otherLang = (l: DocLang): DocLang => (l === 'ar' ? 'fr' : 'ar');
 
-function ItemsFormDialog({
-  open, onOpenChange, title, onSubmit, loading,
-}: { open: boolean; onOpenChange: (o: boolean) => void; title: string; onSubmit: (items: ItemForm[]) => void; loading: boolean }) {
+/**
+ * Bouton PDF (langue préférée du candidat, choisie par l'API) et, à côté, un petit lien vers l'autre langue
+ * (« العربية » ou « Français »), pour une famille qui préfère l'autre version.
+ */
+function PdfButtons({ path, lang, label, icon: Icon }: { path: string; lang: DocLang; label: string; icon: typeof FileText }) {
   const t = useTranslations('candidates');
   const tc = useTranslations('common');
-  const { register, control, handleSubmit, reset } = useForm<{ items: ItemForm[] }>({ defaultValues: { items: [{ label: '', quantity: 1, unitPrice: 0 }] } });
+  const other = otherLang(lang);
+  const name = tc(other === 'ar' ? 'languageAr' : 'languageFr');
+  return (
+    <span className="inline-flex items-center">
+      <Button variant="ghost" size="icon" aria-label={label} onClick={() => openPdf(path)}>
+        <Icon className="h-4 w-4" aria-hidden />
+      </Button>
+      <Button variant="ghost" size="sm" lang={other} className="h-8 px-2 text-xs text-muted-foreground" aria-label={t('openInLanguage', { language: name })} onClick={() => openPdf(`${path}?lang=${other}`)}>
+        {name}
+      </Button>
+    </span>
+  );
+}
+
+interface ItemForm { label: string; quantity: number; unitPrice: number; kind: LineKind }
+
+const EMPTY_LINE: ItemForm = { label: '', quantity: 1, unitPrice: 0, kind: 'SERVICE' };
+
+/** Récapitulatif en direct pendant la saisie (le montant qui fait foi est celui enregistré par l'API). */
+function TotalsPreview({ items, settings, currency }: { items: ItemForm[]; settings: TaxSettings; currency: string }) {
+  const t = useTranslations('candidates');
+  const p = previewTotals(items, settings);
+  const rows: [string, number][] = [
+    [t('totalHt'), p.subtotal],
+    [t('vatLine', { rate: settings.vatRate }), p.vatAmount],
+    ...(p.disbursements > 0 ? [[t('disbursements'), p.disbursements] as [string, number]] : []),
+    [t('stampDuty'), p.stampDuty],
+  ];
+  return (
+    <dl className="ms-auto w-full max-w-xs space-y-1 rounded-xl bg-muted/40 p-3 text-sm" aria-live="polite">
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex justify-between gap-4 text-muted-foreground">
+          <dt>{label}</dt>
+          <dd className="whitespace-nowrap tabular-nums" dir="ltr">{fmt(value, currency)}</dd>
+        </div>
+      ))}
+      <div className="flex justify-between gap-4 border-t border-border pt-1 font-semibold">
+        <dt>{t('totalTtc')}</dt>
+        <dd className="whitespace-nowrap tabular-nums" dir="ltr">{fmt(p.total, currency)}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function ItemsFormDialog({
+  open, onOpenChange, title, onSubmit, loading, taxes,
+}: { open: boolean; onOpenChange: (o: boolean) => void; title: string; onSubmit: (items: ItemForm[]) => void; loading: boolean; taxes?: TaxSettings }) {
+  const t = useTranslations('candidates');
+  const tc = useTranslations('common');
+  const { register, control, handleSubmit, reset, watch } = useForm<{ items: ItemForm[] }>({ defaultValues: { items: [EMPTY_LINE] } });
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  // Agence sans taxes : formulaire inchangé (pas de choix service / débours, pas de récapitulatif).
+  const taxed = !!taxes?.taxesEnabled;
+  const items = watch('items');
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (o) reset({ items: [{ label: '', quantity: 1, unitPrice: 0 }] }); }} title={title}>
+    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (o) reset({ items: [EMPTY_LINE] }); }} title={title}>
       <form onSubmit={handleSubmit((v) => onSubmit(v.items))} noValidate className="space-y-4">
         <div className="space-y-2">
+          {/* Avec les taxes, la ligne a un champ de plus : la description passe sur sa propre ligne pour rester lisible. */}
           {fields.map((f, i) => (
-            <div key={f.id} className="flex items-end gap-2">
-              <Input className="flex-1" placeholder={t('itemLabel')} {...register(`items.${i}.label`, { required: true })} />
+            <div key={f.id} className={taxed ? 'flex flex-wrap items-end gap-2 border-b border-border pb-3 last:border-0' : 'flex items-end gap-2'}>
+              <Input className={taxed ? 'basis-full' : 'flex-1'} placeholder={t('itemLabel')} aria-label={t('itemLabel')} {...register(`items.${i}.label`, { required: true })} />
+              {taxed && (
+                <Select className="min-w-[8.5rem] flex-1" aria-label={t('lineKind')} {...register(`items.${i}.kind`)}>
+                  <option value="SERVICE">{t('lineKindService', { rate: taxes!.vatRate })}</option>
+                  <option value="DISBURSEMENT">{t('lineKindDisbursement')}</option>
+                </Select>
+              )}
               <Input type="number" min={1} step={1} className="w-20" aria-label={t('quantity')} {...register(`items.${i}.quantity`, { valueAsNumber: true, min: 1 })} />
               <Input type="number" min={0} step={0.001} className="w-32" aria-label={t('unitPrice')} {...register(`items.${i}.unitPrice`, { valueAsNumber: true, min: 0 })} />
               <Button type="button" variant="ghost" size="icon" aria-label={tc('delete')} disabled={fields.length <= 1} onClick={() => remove(i)}>
@@ -122,10 +185,12 @@ function ItemsFormDialog({
             </div>
           ))}
         </div>
-        <Button type="button" variant="secondary" size="sm" onClick={() => append({ label: '', quantity: 1, unitPrice: 0 })}>{t('addLine')}</Button>
+        <Button type="button" variant="secondary" size="sm" onClick={() => append(EMPTY_LINE)}>{t('addLine')}</Button>
+        {taxed && <TotalsPreview items={items} settings={taxes!} currency="TND" />}
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>{tc('cancel')}</Button>
-          <Button type="submit" loading={loading}>{tc('create')}</Button>
+          {/* Tant que les réglages de taxes ne sont pas chargés, on ne crée pas : les lignes partiraient sans leur type. */}
+          <Button type="submit" loading={loading} disabled={!taxes}>{tc('create')}</Button>
         </div>
       </form>
     </Dialog>
@@ -133,11 +198,16 @@ function ItemsFormDialog({
 }
 
 function CreateContractDialog({
-  open, onOpenChange, quotes, onSubmit, loading,
-}: { open: boolean; onOpenChange: (o: boolean) => void; quotes: Quote[]; onSubmit: (quoteId: string) => void; loading: boolean }) {
+  open, onOpenChange, quotes, onSubmit, loading, defaultLanguage,
+}: { open: boolean; onOpenChange: (o: boolean) => void; quotes: Quote[]; onSubmit: (quoteId: string, language: DocLang) => void; loading: boolean; defaultLanguage: DocLang }) {
   const t = useTranslations('candidates');
   const tc = useTranslations('common');
   const [quoteId, setQuoteId] = useState('');
+  const [language, setLanguage] = useState<DocLang>(defaultLanguage);
+  // À chaque ouverture, on repart de la langue préférée du candidat.
+  useEffect(() => {
+    if (open) setLanguage(defaultLanguage);
+  }, [open, defaultLanguage]);
   const eligible = quotes.filter((q) => q.status === 'ACCEPTED');
 
   return (
@@ -149,13 +219,18 @@ function CreateContractDialog({
           <Field label={t('basedOnQuote')} htmlFor="ctr-quote">
             <Select id="ctr-quote" value={quoteId} onChange={(e) => setQuoteId(e.target.value)}>
               <option value="">—</option>
-              {eligible.map((q) => <option key={q.id} value={q.id}>{q.number} — {fmt(total(q.items), q.currency)}</option>)}
+              {eligible.map((q) => <option key={q.id} value={q.id}>{q.number} — {fmt(q.total, q.currency)}</option>)}
             </Select>
+          </Field>
+        )}
+        {eligible.length > 0 && (
+          <Field label={t('contractLanguage')} htmlFor="ctr-lang" hint={t('contractLanguageHint')}>
+            <LanguagePreferenceSelect id="ctr-lang" value={language} onChange={(e) => setLanguage(e.target.value as DocLang)} />
           </Field>
         )}
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>{tc('cancel')}</Button>
-          <Button disabled={!quoteId} loading={loading} onClick={() => onSubmit(quoteId)}>{tc('create')}</Button>
+          <Button disabled={!quoteId} loading={loading} onClick={() => onSubmit(quoteId, language)}>{tc('create')}</Button>
         </div>
       </div>
     </Dialog>
@@ -232,7 +307,7 @@ function ProfitabilitySection({ candidateId }: { candidateId: string }) {
   );
 }
 
-export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; hasPartner: boolean }) {
+export function FinanceTab({ candidateId, hasPartner, preferredLanguage }: { candidateId: string; hasPartner: boolean; preferredLanguage: DocLang }) {
   const t = useTranslations('candidates');
   const tc = useTranslations('common');
   const errorMessage = useErrorMessage();
@@ -253,6 +328,8 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
   const quotes = useQuery({ queryKey: ['candidates', candidateId, 'quotes'], queryFn: () => api<Quote[]>(`/candidates/${candidateId}/quotes`) });
   const invoices = useQuery({ queryKey: ['candidates', candidateId, 'invoices'], queryFn: () => api<Invoice[]>(`/candidates/${candidateId}/invoices`) });
   const contracts = useQuery({ queryKey: ['candidates', candidateId, 'contracts'], queryFn: () => api<Contract[]>(`/candidates/${candidateId}/contracts`) });
+  // Réglages de taxes de l'agence pour le formulaire (accessibles avec le droit finance, sans les Paramètres).
+  const taxSettings = useQuery({ queryKey: ['finance', 'tax-settings'], queryFn: () => api<TaxSettings>('/finance/tax-settings') });
 
   const createQuote = useMutation({
     mutationFn: (items: ItemForm[]) => api(`/candidates/${candidateId}/quotes`, { method: 'POST', body: { items } }),
@@ -280,7 +357,7 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
     onError: (err) => toast.error(errorMessage(err)),
   });
   const createContract = useMutation({
-    mutationFn: (quoteId: string) => api(`/candidates/${candidateId}/contracts`, { method: 'POST', body: { quoteId } }),
+    mutationFn: ({ quoteId, language }: { quoteId: string; language: DocLang }) => api(`/candidates/${candidateId}/contracts`, { method: 'POST', body: { quoteId, language } }),
     onSuccess: () => { invalidate(); setContractFormOpen(false); toast.success(t('contractCreated')); },
     onError: (err) => toast.error(errorMessage(err)),
   });
@@ -312,13 +389,11 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
               <Card key={q.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div>
                   <p className="font-medium">{q.number}</p>
-                  <p className="text-sm text-muted-foreground">{fmt(total(q.items), q.currency)}</p>
+                  <p className="text-sm text-muted-foreground">{fmt(q.total, q.currency)}{q.taxed && <> · {t('ttc')}</>}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={QUOTE_TONE[q.status]}>{t(`quoteStatuses.${q.status}`)}</Badge>
-                  <Button variant="ghost" size="icon" aria-label={tc('download')} onClick={() => openPdf(`/quotes/${q.id}/pdf`)}>
-                    <FileText className="h-4 w-4" aria-hidden />
-                  </Button>
+                  <PdfButtons path={`/quotes/${q.id}/pdf`} lang={preferredLanguage} label={tc('download')} icon={FileText} />
                   {can('finance.manage') && q.status === 'DRAFT' && (
                     <Button size="sm" variant="secondary" onClick={() => setQuoteStatus.mutate({ id: q.id, status: 'SENT' })}>{t('markSent')}</Button>
                   )}
@@ -358,8 +433,10 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
                     {ctr.signedAt && <> · {t('signedBy', { name: ctr.signerName ?? '' })}</>}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={CONTRACT_TONE[ctr.status]}>{t(`contractStatuses.${ctr.status}`)}</Badge>
+                  {/* Un contrat n'existe que dans sa langue (texte figé) : pas de lien vers l'autre langue. */}
+                  <Badge tone="neutral" lang={ctr.language}>{tc(ctr.language === 'ar' ? 'languageAr' : 'languageFr')}</Badge>
                   <Button variant="ghost" size="icon" aria-label={tc('download')} onClick={() => openPdf(`/contracts/${ctr.id}/pdf`)}>
                     <FileText className="h-4 w-4" aria-hidden />
                   </Button>
@@ -391,20 +468,18 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
         ) : (
           <div className="space-y-2">
             {invoices.data.map((inv) => {
-              const invTotal = total(inv.items);
+              const invTotal = inv.total;
               const paid = inv.payments.reduce((s, p) => s + p.amount, 0);
               return (
                 <Card key={inv.id} className="p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="font-medium">{inv.number}</p>
-                      <p className="text-sm text-muted-foreground">{fmt(paid, inv.currency)} / {fmt(invTotal, inv.currency)}</p>
+                      <p className="text-sm text-muted-foreground">{fmt(paid, inv.currency)} / {fmt(invTotal, inv.currency)}{inv.taxed && <> · {t('ttc')}</>}</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={INVOICE_TONE[inv.status]}>{t(`invoiceStatuses.${inv.status}`)}</Badge>
-                      <Button variant="ghost" size="icon" aria-label={tc('download')} onClick={() => openPdf(`/invoices/${inv.id}/pdf`)}>
-                        <FileText className="h-4 w-4" aria-hidden />
-                      </Button>
+                      <PdfButtons path={`/invoices/${inv.id}/pdf`} lang={preferredLanguage} label={tc('download')} icon={FileText} />
                       {can('finance.manage') && inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
                         <Button size="sm" onClick={() => setPayingInvoice(inv)}>{t('recordPayment')}</Button>
                       )}
@@ -415,9 +490,7 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
                       {inv.payments.map((p) => (
                         <li key={p.id} className="flex items-center justify-between">
                           <span>{t(`paymentMethods.${p.method}`)} · {fmt(p.amount, inv.currency)}</span>
-                          <Button variant="ghost" size="icon" aria-label={t('receipt')} onClick={() => openPdf(`/payments/${p.id}/receipt`)}>
-                            <Receipt className="h-4 w-4" aria-hidden />
-                          </Button>
+                          <PdfButtons path={`/payments/${p.id}/receipt`} lang={preferredLanguage} label={t('receipt')} icon={Receipt} />
                         </li>
                       ))}
                     </ul>
@@ -433,9 +506,9 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
 
       <CommissionsSection candidateId={candidateId} hasPartner={hasPartner} />
 
-      <ItemsFormDialog open={quoteFormOpen} onOpenChange={setQuoteFormOpen} title={t('newQuote')} onSubmit={(items) => createQuote.mutate(items)} loading={createQuote.isPending} />
-      <ItemsFormDialog open={invoiceFormOpen} onOpenChange={setInvoiceFormOpen} title={t('newInvoice')} onSubmit={(items) => createInvoice.mutate(items)} loading={createInvoice.isPending} />
-      <CreateContractDialog open={contractFormOpen} onOpenChange={setContractFormOpen} quotes={quotes.data ?? []} onSubmit={(quoteId) => createContract.mutate(quoteId)} loading={createContract.isPending} />
+      <ItemsFormDialog open={quoteFormOpen} onOpenChange={setQuoteFormOpen} title={t('newQuote')} onSubmit={(items) => createQuote.mutate(items)} loading={createQuote.isPending} taxes={taxSettings.data} />
+      <ItemsFormDialog open={invoiceFormOpen} onOpenChange={setInvoiceFormOpen} title={t('newInvoice')} onSubmit={(items) => createInvoice.mutate(items)} loading={createInvoice.isPending} taxes={taxSettings.data} />
+      <CreateContractDialog open={contractFormOpen} onOpenChange={setContractFormOpen} quotes={quotes.data ?? []} onSubmit={(quoteId, language) => createContract.mutate({ quoteId, language })} loading={createContract.isPending} defaultLanguage={preferredLanguage} />
       <SignContractDialog contract={signingContract} open={!!signingContract} onOpenChange={(o) => !o && setSigningContract(null)} onSign={(v) => signContract.mutate(v)} loading={signContract.isPending} />
 
       <Dialog open={!!payingInvoice} onOpenChange={(o) => !o && setPayingInvoice(null)} title={t('recordPayment')}>
@@ -448,7 +521,8 @@ export function FinanceTab({ candidateId, hasPartner }: { candidateId: string; h
 function PaymentForm({ invoice, onSubmit, loading, onCancel }: { invoice: Invoice; onSubmit: (v: { amount: number; method: PaymentMethod }) => void; loading: boolean; onCancel: () => void }) {
   const t = useTranslations('candidates');
   const tc = useTranslations('common');
-  const remaining = total(invoice.items) - invoice.payments.reduce((s, p) => s + p.amount, 0);
+  // Arrondi au millime : évite un montant proposé du type 3408.4040000000005.
+  const remaining = Math.round((invoice.total - invoice.payments.reduce((s, p) => s + p.amount, 0)) * 1000) / 1000;
   const { register, handleSubmit, formState: { errors } } = useForm<{ amount: number; method: PaymentMethod }>({ defaultValues: { amount: remaining, method: 'CASH' } });
 
   return (

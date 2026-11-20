@@ -1,7 +1,8 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { LanguagePreferenceSelect } from '@/components/language-preference-select';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { api } from '@/lib/api';
 import type { Candidate } from '@/lib/types';
 import { useErrorMessage } from '@/lib/use-error-message';
 
-interface Values { firstName: string; lastName: string; phone: string; email: string }
+interface Values { firstName: string; lastName: string; phone: string; email: string; preferredLanguage: 'fr' | 'ar' }
 
 export function CandidateFormDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const t = useTranslations('candidates');
@@ -21,6 +22,7 @@ export function CandidateFormDialog({ open, onOpenChange }: { open: boolean; onO
   const errorMessage = useErrorMessage();
   const queryClient = useQueryClient();
   const router = useRouter();
+  const locale = useLocale();
   const { register, handleSubmit, reset, formState: { errors } } = useForm<Values>();
 
   const create = useMutation({
@@ -35,7 +37,7 @@ export function CandidateFormDialog({ open, onOpenChange }: { open: boolean; onO
   });
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (o) reset({ firstName: '', lastName: '', phone: '', email: '' }); }} title={t('newTitle')}>
+    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (o) reset({ firstName: '', lastName: '', phone: '', email: '', preferredLanguage: locale === 'ar' ? 'ar' : 'fr' }); }} title={t('newTitle')}>
       <form onSubmit={handleSubmit((v) => create.mutate(v))} noValidate className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t('firstName')} htmlFor="c-first" error={errors.firstName?.message}>
@@ -50,6 +52,9 @@ export function CandidateFormDialog({ open, onOpenChange }: { open: boolean; onO
         </Field>
         <Field label={t('email')} htmlFor="c-email" error={errors.email?.message}>
           <Input id="c-email" type="email" dir="ltr" {...register('email', { pattern: { value: /^$|^\S+@\S+\.\S+$/, message: ta('emailInvalid') } })} />
+        </Field>
+        <Field label={tc('preferredLanguage')} htmlFor="c-lang">
+          <LanguagePreferenceSelect id="c-lang" {...register('preferredLanguage')} />
         </Field>
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={() => onOpenChange(false)}>{tc('cancel')}</Button>

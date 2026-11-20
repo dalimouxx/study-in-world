@@ -10,10 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getPortalAccessToken, portalApi, portalApiBaseUrl } from '@/lib/portal-api';
-import type { Invoice, InvoiceStatus, LineItem } from '@/lib/types';
+import type { Invoice, InvoiceStatus } from '@/lib/types';
 
 const TONE: Record<InvoiceStatus, 'neutral' | 'primary' | 'success' | 'danger'> = { DRAFT: 'neutral', ISSUED: 'primary', PARTIALLY_PAID: 'primary', PAID: 'success', CANCELLED: 'danger' };
-const total = (items: LineItem[]) => items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 const fmt = (n: number, currency: string) => `${n.toFixed(3)} ${currency}`;
 
 function openPdf(path: string) {
@@ -42,7 +41,7 @@ export function PortalFinancePage() {
         ) : (
           <StaggerGroup className="space-y-3">
             {items.map((inv) => {
-              const invTotal = total(inv.items);
+              const invTotal = inv.total;
               const paid = inv.payments.reduce((s, p) => s + p.amount, 0);
               const pct = invTotal > 0 ? Math.min(100, (paid / invTotal) * 100) : 0;
               return (

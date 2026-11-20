@@ -8,7 +8,10 @@ export type IssueSeverity = 'CRITICAL' | 'IMPORTANT' | 'ATTENTION' | 'INFO';
 export interface HealthIssue {
   severity: IssueSeverity;
   code: string;
+  /** Message français de repli ; l'interface traduit à partir de `code` + `params` (FR/AR). */
   message: string;
+  /** Valeurs variables du message (type de document, nombre de jours, numéro de facture…). */
+  params?: Record<string, string | number>;
 }
 
 const PENALTY: Record<IssueSeverity, number> = { CRITICAL: 25, IMPORTANT: 15, ATTENTION: 5, INFO: 2 };
@@ -48,22 +51,22 @@ export class HealthScoreService {
       !candidate.birthDate && 'birthDate', !candidate.nationality && 'nationality', !candidate.passportNumber && 'passportNumber', !candidate.email && 'email',
     ].filter(Boolean);
     if (missingFields.length > 0) {
-      issues.push({ severity: 'ATTENTION', code: 'PROFILE_INCOMPLETE', message: `Profil incomplet (${missingFields.length} champ${missingFields.length > 1 ? 's' : ''} manquant${missingFields.length > 1 ? 's' : ''})` });
+      issues.push({ severity: 'ATTENTION', code: 'PROFILE_INCOMPLETE', params: { count: missingFields.length }, message: `Profil incomplet (${missingFields.length} champ${missingFields.length > 1 ? 's' : ''} manquant${missingFields.length > 1 ? 's' : ''})` });
     }
 
     // Documents requis
     for (const type of REQUIRED_DOCUMENT_TYPES) {
       const doc = documents.find((d) => d.type === type);
-      if (!doc) issues.push({ severity: 'IMPORTANT', code: 'DOCUMENT_MISSING', message: `Document manquant : ${type}` });
-      else if (doc.status === 'REJECTED') issues.push({ severity: 'IMPORTANT', code: 'DOCUMENT_REJECTED', message: `Document rejeté : ${doc.label}` });
+      if (!doc) issues.push({ severity: 'IMPORTANT', code: 'DOCUMENT_MISSING', params: { type }, message: `Document manquant : ${type}` });
+      else if (doc.status === 'REJECTED') issues.push({ severity: 'IMPORTANT', code: 'DOCUMENT_REJECTED', params: { label: doc.label }, message: `Document rejeté : ${doc.label}` });
     }
 
     // Documents expirés / bientôt expirés
     for (const doc of documents) {
       if (!doc.expiryDate) continue;
       const daysLeft = Math.floor((doc.expiryDate.getTime() - now.getTime()) / DAY_MS);
-      if (daysLeft < 0) issues.push({ severity: 'CRITICAL', code: 'DOCUMENT_EXPIRED', message: `${doc.label} expiré depuis ${Math.abs(daysLeft)} jour(s)` });
-      else if (daysLeft <= 90) issues.push({ severity: daysLeft <= 30 ? 'CRITICAL' : 'IMPORTANT', code: 'DOCUMENT_EXPIRING', message: `${doc.label} expire dans ${daysLeft} jour(s)` });
+      if (daysLeft < 0) issues.push({ severity: 'CRITICAL', code: 'DOCUMENT_EXPIRED', params: { label: doc.label, days: Math.abs(daysLeft) }, message: `${doc.label} expiré depuis ${Math.abs(daysLeft)} jour(s)` });
+      else if (daysLeft <= 90) issues.push({ severity: daysLeft <= 30 ? 'CRITICAL' : 'IMPORTANT', code: 'DOCUMENT_EXPIRING', params: { label: doc.label, days: daysLeft }, message: `${doc.label} expire dans ${daysLeft} jour(s)` });
     }
 
     // Candidatures
@@ -74,29 +77,29 @@ export class HealthScoreService {
     for (const app of activeApplications) {
       if (app.deadline) {
         const daysLeft = Math.floor((app.deadline.getTime() - now.getTime()) / DAY_MS);
-        if (daysLeft < 0 && app.status === 'DRAFT') issues.push({ severity: 'CRITICAL', code: 'APPLICATION_DEADLINE_PASSED', message: `Date limite dépassée : ${app.university}` });
-        else if (daysLeft <= 7 && app.status === 'DRAFT') issues.push({ severity: 'IMPORTANT', code: 'APPLICATION_DEADLINE_SOON', message: `Date limite dans ${daysLeft} jour(s) : ${app.university}` });
+        if (daysLeft < 0 && app.status === 'DRAFT') issues.push({ severity: 'CRITICAL', code: 'APPLICATION_DEADLINE_PASSED', params: { university: app.university }, message: `Date limite dépassée : ${app.university}` });
+        else if (daysLeft <= 7 && app.status === 'DRAFT') issues.push({ severity: 'IMPORTANT', code: 'APPLICATION_DEADLINE_SOON', params: { university: app.university, days: daysLeft }, message: `Date limite dans ${daysLeft} jour(s) : ${app.university}` });
       }
     }
 
     // Visa
     for (const v of visaFiles) {
       if (v.appointmentDate && v.appointmentDate < now && !['APPROVED', 'REFUSED'].includes(v.status)) {
-        issues.push({ severity: 'CRITICAL', code: 'VISA_APPOINTMENT_PASSED', message: `Rendez-vous visa (${v.country}) dépassé sans mise à jour du statut` });
+        issues.push({ severity: 'CRITICAL', code: 'VISA_APPOINTMENT_PASSED', params: { country: v.country }, message: `Rendez-vous visa (${v.country}) dépassé sans mise à jour du statut` });
       }
     }
 
     // Finance
     for (const inv of invoices) {
       if (inv.dueDate && inv.dueDate < now) {
-        issues.push({ severity: 'CRITICAL', code: 'INVOICE_OVERDUE', message: `Facture ${inv.number} en retard de paiement` });
+        issues.push({ severity: 'CRITICAL', code: 'INVOICE_OVERDUE', params: { number: inv.number }, message: `Facture ${inv.number} en retard de paiement` });
       }
     }
 
     // Tâches en retard
     const overdueTasks = tasks.filter((t) => t.dueDate && t.dueDate < now);
     if (overdueTasks.length > 0) {
-      issues.push({ severity: 'IMPORTANT', code: 'TASKS_OVERDUE', message: `${overdueTasks.length} tâche(s) en retard` });
+      issues.push({ severity: 'IMPORTANT', code: 'TASKS_OVERDUE', params: { count: overdueTasks.length }, message: `${overdueTasks.length} tâche(s) en retard` });
     }
 
     const score = Math.max(0, 100 - issues.reduce((sum, i) => sum + PENALTY[i.severity], 0));

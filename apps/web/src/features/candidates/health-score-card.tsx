@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ProgressRing } from '@/components/progress-ring';
 import { Card } from '@/components/ui/card';
 import { api } from '@/lib/api';
-import type { HealthCategory, HealthScore, IssueSeverity } from '@/lib/types';
+import type { HealthCategory, HealthIssue, HealthScore, IssueSeverity } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 const CATEGORY_TONE: Record<HealthCategory, 'success' | 'primary' | 'danger'> = { good: 'success', watch: 'primary', risk: 'danger' };
@@ -26,6 +26,15 @@ export function HealthScoreCard({ candidateId }: { candidateId: string }) {
   if (query.isLoading || !query.data) return null;
   const { score, category, issues } = query.data;
   const visible = expanded ? issues : issues.slice(0, 3);
+  // Message traduit à partir du code et des valeurs envoyés par l'API ; repli sur le message français de l'API
+  // pour un code que l'interface ne connaît pas encore (API plus récente que l'interface).
+  const issueText = (issue: HealthIssue) => {
+    const key = `healthIssues.${issue.code}`;
+    if (!t.has(key)) return issue.message;
+    const params = { ...issue.params };
+    if (typeof params.type === 'string' && t.has(`documentTypes.${params.type}`)) params.type = t(`documentTypes.${params.type}`);
+    return t(key, params);
+  };
 
   return (
     <Card className="h-full p-5">
@@ -46,7 +55,7 @@ export function HealthScoreCard({ candidateId }: { candidateId: string }) {
             return (
               <li key={i} className="flex items-start gap-2 text-sm">
                 <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', SEVERITY_COLOR[issue.severity])} aria-hidden />
-                <span>{issue.message}</span>
+                <span>{issueText(issue)}</span>
               </li>
             );
           })}
