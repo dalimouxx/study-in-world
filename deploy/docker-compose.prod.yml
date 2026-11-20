@@ -1,0 +1,57 @@
+# Production sur VPS : base PostgreSQL, API NestJS et site Next.js.
+# Lancement (depuis le dossier deploy/) : docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+#
+# Le projet porte son propre nom (« studyinworld ») : ses conteneurs, réseaux et volumes ne se mélangent pas
+# avec ceux des autres sites hébergés sur le même VPS. Rien n'est exposé sur Internet directement : l'API et
+# le site n'écoutent que sur 127.0.0.1, et le serveur web du VPS (Nginx) les sert en HTTPS sur studyinworld.net.
+name: studyinworld
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-siw}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?définir POSTGRES_PASSWORD dans deploy/.env}
+      POSTGRES_DB: ${POSTGRES_DB:-siw}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ../apps/api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-siw}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-siw}?schema=public
+      APP_URL: https://studyinworld.net
+      FRONTEND_URL: https://studyinworld.net
+      # Documents des candidats : dans un volume, pour survivre aux mises à jour des conteneurs.
+      STORAGE_DIR: /data/documents
+    volumes:
+      - documents:/data/documents
+    ports:
+      - "127.0.0.1:${API_PORT:-4100}:4000"
+
+  web:
+    build:
+      context: ../apps/web
+      args:
+        NEXT_PUBLIC_API_URL: https://studyinworld.net/api
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3100}:3000"
+
+volumes:
+  pgdata:
+  documents:
