@@ -94,9 +94,11 @@ des documents n'est plus utile sur le VPS (volume Docker persistant) : il est re
 1. **`deploy/.env` est inclus dans l'archive chiffrée.** Sans lui, une restauration sur un nouveau VPS perdrait la clé
    des secrets de double authentification (tous les comptes à réinitialiser) et les autres secrets. Le gestionnaire de
    mots de passe du propriétaire garde donc **trois choses** : `BACKUP_PASSPHRASE`, l'identifiant et la clé B2.
-2. **La clé B2 du VPS ne peut pas supprimer** (droits : lister, lire, écrire). La conservation de 30 jours est faite
-   par une **règle de cycle de vie du compartiment** chez Backblaze. Ainsi, même un VPS piraté ou un script fautif ne
-   peut pas effacer les sauvegardes déjà envoyées. Le script ne supprime que les copies locales.
+2. **Les sauvegardes envoyées ne peuvent pas être supprimées pendant 30 jours**, même avec la clé du VPS : verrou
+   d'objet (Object Lock, mode Governance, 30 jours) sur le compartiment B2, puis une règle de cycle de vie qui efface
+   au-delà (cacher à 30 jours, supprimer 1 jour après). Ainsi, même un VPS piraté ou un script fautif ne peut pas
+   effacer les sauvegardes déjà envoyées. Le script ne supprime que les copies locales. (Révisé à l'implémentation :
+   l'interface de Backblaze ne propose pas de clé sans droit de suppression ; le verrou donne la même protection.)
 3. **Obligation de la double authentification** : rôles `SUPER_ADMIN` et `ADMIN` de **toutes les agences**, et tout
    compte **administrateur de la plateforme** (`isPlatformAdmin`), quel que soit son rôle.
 4. **Blocage côté serveur** : un garde global de l'API refuse toute requête d'un compte qui doit mettre en place la

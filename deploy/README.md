@@ -135,9 +135,59 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d
 
 Le groupe Telegram reçoit le début, la réussite (avec la version) ou l'échec du déploiement.
 
-## Sauvegarde de la base (conseillé : chaque nuit)
+## Sauvegarde hors du VPS (Backblaze B2)
+
+Chaque nuit : la base, les documents des candidats et `deploy/.env`, dans une archive **chiffrée sur le VPS** avant
+l'envoi vers Backblaze B2. B2 garde 30 jours, le VPS 7 jours. Le groupe Telegram reçoit « Sauvegarde réussie » ou
+« Échec de la sauvegarde ».
+
+### Mise en place (une fois)
+
+1. **Backblaze** (backblaze.com, offre B2) : créer un compte, puis un compartiment (« Create a Bucket ») :
+   nom par exemple `studyinworld-sauvegardes`, **Private**, **Object Lock : Enable**.
+2. Dans ce compartiment :
+   - **Object Lock** → « Default Retention Policy » : mode **Governance**, durée **30 jours**. Aucune archive ne
+     peut être supprimée avant 30 jours, même avec la clé du VPS (protection contre un VPS piraté ou une erreur).
+   - **Lifecycle Settings** → « Use custom lifecycle rules » : préfixe `studyinworld/`, cacher les fichiers après
+     **30** jours, les supprimer **1** jour après. (C'est Backblaze qui efface les archives de plus de 30 jours.)
+3. **Application Keys** → « Add a New Application Key » : accès **à ce compartiment seulement**, type **Read and
+   Write**. Noter le `keyID` et la `applicationKey` (affichée une seule fois).
+4. **Dans un gestionnaire de mots de passe, hors du VPS**, noter : le `keyID`, la `applicationKey`, et la phrase de
+   chiffrement générée à l'étape 5. Sans elles, les sauvegardes sont illisibles si le VPS disparaît.
+5. Sur le VPS :
 
 ```bash
-/srv/platforms/studyinworld/deploy/backup.sh   # écrit /var/backups/studyinworld/siw-AAAA-MM-JJ.sql.gz (garde 14 jours)
-crontab -e   # ajouter : 30 2 * * * /srv/platforms/studyinworld/deploy/backup.sh
+apt-get install -y rclone gpg
+cd /srv/platforms/studyinworld/deploy
+grep -q '^BACKUP_PASSPHRASE=' .env || printf 'BACKUP_PASSPHRASE=\nB2_ACCOUNT_ID=\nB2_APPLICATION_KEY=\nB2_BUCKET=\n' >> .env
+P=$(openssl rand -base64 48 | tr -d '\n/+='); sed -i "s|^BACKUP_PASSPHRASE=.*|BACKUP_PASSPHRASE=$P|" .env; echo "Phrase à noter dans le gestionnaire de mots de passe : $P"; unset P
+read -rsp "keyID B2 : " K && echo && sed -i "s|^B2_ACCOUNT_ID=.*|B2_ACCOUNT_ID=$(printf %s "$K" | tr -d '[:space:]')|" .env && unset K
+read -rsp "applicationKey B2 : " K && echo && sed -i "s|^B2_APPLICATION_KEY=.*|B2_APPLICATION_KEY=$(printf %s "$K" | tr -d '[:space:]')|" .env && unset K
+sed -i "s|^B2_BUCKET=.*|B2_BUCKET=studyinworld-sauvegardes|" .env     # le nom de votre compartiment
 ```
+
+6. Premier essai, puis chaque nuit à 2 h 30 :
+
+```bash
+/srv/platforms/studyinworld/deploy/backup.sh
+(crontab -l 2>/dev/null | grep -v backup.sh; echo "30 2 * * * /srv/platforms/studyinworld/deploy/backup.sh >> /var/log/studyinworld-backup.log 2>&1") | crontab -
+```
+
+### Restaurer
+
+Vérifier une sauvegarde **sans rien toucher** (base de contrôle à part, affiche les nombres d'utilisateurs, de
+candidats et de documents) :
+
+```bash
+/srv/platforms/studyinworld/deploy/restore.sh 2026-11-20
+```
+
+Remplacer la production par une sauvegarde (demande de taper `RESTAURER`) :
+
+```bash
+/srv/platforms/studyinworld/deploy/restore.sh 2026-11-20 --production
+```
+
+**Sur un VPS neuf** : cloner le dépôt (étape 3), créer `deploy/.env` avec seulement les quatre lignes B2 et la phrase,
+démarrer la base (`docker compose -f docker-compose.prod.yml --env-file .env up -d db`), lancer `restore.sh <date>`,
+puis reprendre les réglages complets dans `/var/tmp/studyinworld-restore/env` et lancer `restore.sh <date> --production`.

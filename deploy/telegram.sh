@@ -3,7 +3,8 @@
 # Lit TELEGRAM_BOT_TOKEN et TELEGRAM_CHAT_ID dans deploy/.env ; sans eux, ne fait rien. N'échoue jamais.
 # Usage : . ./telegram.sh ; tg "<b>Titre</b>\nDétail"
 
-_tg_env() { grep -E "^$1=" "$(dirname "${BASH_SOURCE[0]}")/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"'; }
+# « || true » : une variable absente de .env ne doit jamais arrêter un script lancé en mode strict (set -euo pipefail).
+_tg_env() { { grep -E "^$1=" "$(dirname "${BASH_SOURCE[0]}")/.env" 2>/dev/null || true; } | tail -1 | cut -d= -f2- | tr -d '"'; }
 TG_TOKEN="$(_tg_env TELEGRAM_BOT_TOKEN)"
 TG_CHAT="$(_tg_env TELEGRAM_CHAT_ID)"
 
