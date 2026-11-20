@@ -23,6 +23,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const items = NAV_ITEMS.filter(
     (i) =>
       (!i.permission || can(i.permission)) &&
+      (!i.anyPermission || i.anyPermission.some((p) => can(p))) &&
       (!i.platformAdminOnly || user?.isPlatformAdmin) &&
       (!i.superAdminOnly || user?.roleCode === 'SUPER_ADMIN'),
   );

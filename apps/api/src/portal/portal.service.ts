@@ -1,3 +1,4 @@
+import type { DocLang } from '../finance/pdf/labels';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContractsService } from '../contracts/contracts.service';
@@ -113,8 +114,8 @@ export class PortalService {
     return this.prisma.invoice.findMany({ where: { candidateId: candidate.id }, include: { items: true, payments: true }, orderBy: { createdAt: 'desc' } });
   }
 
-  invoicePdf(candidate: CandidateAuthUser, invoiceId: string) {
-    return this.finance.invoicePdfForCandidate(candidate.organizationId, candidate.id, invoiceId);
+  invoicePdf(candidate: CandidateAuthUser, invoiceId: string, lang?: DocLang) {
+    return this.finance.invoicePdfForCandidate(candidate.organizationId, candidate.id, invoiceId, lang);
   }
 
   appointments(candidate: CandidateAuthUser) {
@@ -152,7 +153,8 @@ export class PortalService {
   }
 
   contractPdf(candidate: CandidateAuthUser, id: string) {
-    return this.contractsService.pdf(candidate.organizationId, id);
+    // Limité au candidat connecté : sans ce filtre, un autre contrat de l'agence serait lisible avec son id.
+    return this.contractsService.pdf(candidate.organizationId, id, candidate.id);
   }
 
   /** Signature à distance, depuis le portail : mêmes règles que la signature en présentiel côté employé. */

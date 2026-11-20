@@ -21,7 +21,7 @@ const ADMIN_EMAIL = process.env.VISUAL_ADMIN_EMAIL ?? 'admin@demo.local';
 const ADMIN_PASSWORD = process.env.VISUAL_ADMIN_PASSWORD ?? 'LocalTest-2026-Pass';
 
 const PUBLIC_PAGES = ['/', '/destinations', '/programs', '/eligibility', '/blog', '/login', '/portal/login', '/partner-portal/login'];
-const ADMIN_PAGES = ['/dashboard', '/candidates', '/candidates/:first', '/settings'];
+const ADMIN_PAGES = ['/dashboard', '/reminders', '/candidates', '/candidates/:first', '/settings', '/settings/messages'];
 const PORTAL_EMAIL = process.env.VISUAL_PORTAL_EMAIL ?? 'yasmine@demo.local';
 const LOCALES = ['fr', 'ar'];
 const WIDTHS = [1280, 390];
@@ -336,6 +336,33 @@ async function checkRegressions(browser) {
     report(!!docked && !!fromRight, 'admin-drawer-rtl', '/dashboard ar 390', `milieu x=${mid && Math.round(mid.x)}, fin x=${end && Math.round(end.x)}`);
     await ctxDrawer.close();
     }
+  }
+
+  // 7. Relances du jour : le clic WhatsApp ouvre wa.me avec un texte sans aucune {variable} restante.
+  if (await apiUp()) {
+    const ctxRem = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const rp = await ctxRem.newPage();
+    await rp.goto(`${BASE}/fr/login`, { waitUntil: 'networkidle' });
+    await rp.fill('#email', ADMIN_EMAIL);
+    await rp.fill('#password', ADMIN_PASSWORD);
+    await rp.click('button[type="submit"]');
+    await rp.waitForURL(/\/dashboard/, { timeout: 20000 });
+    await rp.evaluate(() => { window.__opened = []; window.open = (u) => { window.__opened.push(String(u)); return null; }; });
+    await rp.locator('nav a[href$="/reminders"]').first().click();
+    await rp.waitForURL(/\/reminders/, { timeout: 20000 });
+    await rp.waitForLoadState('networkidle');
+    await hideDevOverlay(rp);
+    const btn = rp.locator('main button:has(svg.lucide-message-circle):not([disabled])').first();
+    if ((await btn.count()) === 0) {
+      console.log('SKIP reminders-whatsapp-text — aucune relance avec téléphone dans les données');
+    } else {
+      await btn.click();
+      await rp.waitForTimeout(300);
+      const opened = await rp.evaluate(() => window.__opened[0] ?? '');
+      const text = opened.includes('text=') ? decodeURIComponent(opened.split('text=')[1]) : '';
+      report(opened.startsWith('https://wa.me/') && !!text && !/[{}]/.test(text), 'reminders-whatsapp-text', '/reminders fr 1280', text.slice(0, 60));
+    }
+    await ctxRem.close();
   }
 
   // 4. Menu mobile du site public : se ferme quand on choisit un lien, même une ancre de la même page.

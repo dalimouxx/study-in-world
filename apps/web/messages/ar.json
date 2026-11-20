@@ -38,7 +38,10 @@
     "searchNoResults": "لا توجد نتائج",
     "candidatesGroup": "المترشحون",
     "prospectsGroup": "العملاء المحتملون",
-    "exportFailed": "فشل التصدير، حاول مرة أخرى."
+    "exportFailed": "فشل التصدير، حاول مرة أخرى.",
+    "preferredLanguage": "اللغة المفضلة",
+    "languageFr": "Français",
+    "languageAr": "العربية"
   },
   "nav": {
     "main": "التنقل الرئيسي",
@@ -64,7 +67,8 @@
     "partners": "الشركاء",
     "blog": "المدونة",
     "siteAdmin": "الصفحة الرئيسية",
-    "platformAdmin": "إدارة الوكالات"
+    "platformAdmin": "إدارة الوكالات",
+    "reminders": "المتابعات"
   },
   "auth": {
     "brandFallback": "Study in World",
@@ -295,7 +299,11 @@
     "contractTemplateTitle": "نموذج العقد",
     "contractTemplateHint": "النص المستخدم لإنشاء كل عقد جديد.",
     "contractTemplate": "النموذج",
-    "contractTemplateVars": "المتغيرات المتاحة: {{agency_name}}, {{candidate_name}}, {{candidate_passport}}, {{services}}, {{total}}, {{currency}}, {{date}}, {{number}}. اتركه فارغًا لاستخدام النموذج الافتراضي."
+    "contractTemplateVars": "المتغيرات المتاحة: {{agency_name}}, {{candidate_name}}, {{candidate_passport}}, {{services}}, {{total}}, {{currency}}, {{date}}, {{number}}. اتركه فارغًا لاستخدام النموذج الافتراضي.",
+    "nameAr": "اسم الوكالة (بالعربية)",
+    "addressAr": "العنوان (بالعربية)",
+    "arabicDocsHint": "يُستعملان في عروض الأسعار والفواتير والعقود بالعربية. إن تُركا فارغين، يظهر الاسم والعنوان بالفرنسية.",
+    "contractTemplateAr": "النموذج (بالعربية)"
   },
   "siteAdmin": {
     "title": "الصفحة الرئيسية",
@@ -740,7 +748,10 @@
       "VISA_APPOINTMENT_PASSED": "فات موعد التأشيرة ({country}) دون تحديث الحالة",
       "INVOICE_OVERDUE": "الفاتورة {number} متأخرة الدفع",
       "TASKS_OVERDUE": "{count, plural, one {مهمة واحدة متأخرة} two {مهمتان متأخرتان} few {# مهام متأخرة} many {# مهمة متأخرة} other {# مهمة متأخرة}}"
-    }
+    },
+    "contractLanguage": "لغة العقد",
+    "contractLanguageHint": "افتراضيًا، اللغة المفضلة للمترشح. يبقى العقد الممضى بلغته.",
+    "openInLanguage": "فتح بـ{language}"
   },
   "tasks": {
     "title": "المهام",
@@ -1566,5 +1577,81 @@
     "title": "الإشعارات",
     "empty": "لا توجد إشعارات",
     "markAllRead": "تعليم الكل كمقروء"
+  },
+  "reminders": {
+    "title": "متابعات اليوم",
+    "subtitle": "ما رصدته المنصة لليوم. نقرة على واتساب تفتح الرسالة جاهزة للإرسال.",
+    "toDo": "للإنجاز",
+    "unassigned": "غير مُسندة",
+    "doneToday": "أُنجزت اليوم",
+    "mine": "متابعاتي",
+    "all": "كل الوكالة",
+    "counts": "{todo, plural, =0 {لا شيء للإنجاز} one {واحدة للإنجاز} two {اثنتان للإنجاز} few {# للإنجاز} many {# للإنجاز} other {# للإنجاز}} · {done, plural, =0 {لا شيء مُنجز} one {واحدة مُنجزة} two {اثنتان مُنجزتان} few {# مُنجزة} many {# مُنجزة} other {# مُنجزة}}",
+    "empty": "لا متابعات اليوم",
+    "emptyHint": "ستظهر هنا مواعيد الغد والعملاء المحتملون الذين يجب متابعتهم والفواتير المتأخرة والوثائق المرفوضة.",
+    "whatsapp": "واتساب",
+    "noPhone": "لا يوجد رقم هاتف",
+    "openFile": "فتح الملف",
+    "done": "تم",
+    "kinds": {
+      "APPOINTMENT_TOMORROW": "موعد غدًا",
+      "VISA_APPOINTMENT_TOMORROW": "موعد تأشيرة غدًا",
+      "PROSPECT_FOLLOW_UP": "عميل محتمل يجب متابعته",
+      "INVOICE_OVERDUE": "فاتورة متأخرة",
+      "DOCUMENT_REJECTED": "وثيقة يجب إعادة إرسالها"
+    },
+    "summary": {
+      "APPOINTMENT_TOMORROW": "غدًا {date} على الساعة {heure}",
+      "VISA_APPOINTMENT_TOMORROW": "{pays} · غدًا {date} على الساعة {heure}",
+      "PROSPECT_FOLLOW_UP": "متابعة مقررة يوم {date}",
+      "INVOICE_OVERDUE": "{facture} · المتبقي {montant} {devise}",
+      "DOCUMENT_REJECTED": "{document}"
+    },
+    "auto": {
+      "EMAIL_SENT": "أُرسل البريد الإلكتروني",
+      "EMAIL_FAILED": "فشل البريد، محاولة جديدة غدًا",
+      "NOTIFICATION_SENT": "تم تنبيه المستشار",
+      "EMAIL_SKIPPED_NO_EMAIL": "لم يُرسل البريد: لا يوجد عنوان",
+      "EMAIL_SKIPPED_NO_SMTP": "لم يُرسل البريد: إرسال البريد غير مُعدّ"
+    },
+    "nextFollowUpTitle": "المتابعة القادمة",
+    "nextFollowUpHint": "متى يجب متابعة هذا العميل المحتمل؟",
+    "nextFollowUpNone": "لا متابعة مقررة",
+    "save": "حفظ",
+    "widgetTitle": "متابعات اليوم",
+    "widgetCount": "{count, plural, =0 {لا شيء للإنجاز اليوم} one {متابعة واحدة للإنجاز} two {متابعتان للإنجاز} few {# متابعات للإنجاز} many {# متابعة للإنجاز} other {# متابعة للإنجاز}}"
+  },
+  "messageTemplates": {
+    "title": "الرسائل",
+    "subtitle": "الرسائل المُرسلة إلى المترشحين والعملاء المحتملين، بالفرنسية والعربية. المتغيرات بين الأقواس تُعوَّض تلقائيًا.",
+    "automatic": "متابعات تلقائية",
+    "free": "رسائل حرة",
+    "channelWHATSAPP": "واتساب",
+    "channelEMAIL": "بريد إلكتروني",
+    "nameFr": "الاسم (بالفرنسية)",
+    "nameAr": "الاسم (بالعربية)",
+    "subjectFr": "الموضوع (بالفرنسية)",
+    "subjectAr": "الموضوع (بالعربية)",
+    "bodyFr": "الرسالة بالفرنسية",
+    "bodyAr": "الرسالة بالعربية",
+    "variables": "المتغيرات (انقر للإدراج)",
+    "preview": "معاينة",
+    "previewHint": "بقيم على سبيل المثال",
+    "save": "حفظ",
+    "saved": "تم حفظ النموذج",
+    "reset": "استعادة النص الافتراضي",
+    "resetTitle": "استعادة النص الافتراضي؟",
+    "resetDescription": "سيُستبدل نصك الحالي بالنص الأصلي، بالفرنسية والعربية.",
+    "resetDone": "تمت استعادة النص الافتراضي",
+    "readOnly": "للقراءة فقط: تحتاج صلاحية تعديل الإعدادات.",
+    "settingsSectionHint": "تعديل رسائل المتابعة والرسائل الجاهزة (واتساب والبريد الإلكتروني).",
+    "open": "إدارة الرسائل",
+    "send": "إرسال رسالة",
+    "sendTitle": "إرسال رسالة واتساب",
+    "chooseTemplate": "النموذج",
+    "messageLabel": "الرسالة (قابلة للتعديل)",
+    "openWhatsapp": "فتح واتساب",
+    "noPhone": "لا يوجد رقم هاتف",
+    "inLanguage": "بـ{language}"
   }
 }

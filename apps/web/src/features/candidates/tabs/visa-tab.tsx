@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, Select } from '@/components/ui/form';
 import { api } from '@/lib/api';
+import { isoToLocalInput, localInputToIso } from '@/lib/local-datetime';
 import type { ChecklistItem, ChecklistItemStatus, VisaFile, VisaStatus } from '@/lib/types';
 import { useErrorMessage } from '@/lib/use-error-message';
 import { cn, formatDateTime } from '@/lib/utils';
@@ -120,7 +121,7 @@ export function VisaTab({ candidateId }: { candidateId: string }) {
     mutationFn: (v: DetailsForm) =>
       api(`/visa-files/${editing!.id}`, {
         method: 'PATCH',
-        body: { visaCenter: v.visaCenter || undefined, referenceNumber: v.referenceNumber || undefined, submissionDate: v.submissionDate || undefined, appointmentDate: v.appointmentDate || undefined },
+        body: { visaCenter: v.visaCenter || undefined, referenceNumber: v.referenceNumber || undefined, submissionDate: v.submissionDate || undefined, appointmentDate: localInputToIso(v.appointmentDate) },
       }),
     onSuccess: () => { void invalidate(); setEditing(null); toast.success(tc('save')); },
     onError: (err) => toast.error(errorMessage(err)),
@@ -168,7 +169,7 @@ export function VisaTab({ candidateId }: { candidateId: string }) {
                         setEditing(v);
                         detailsForm.reset({
                           visaCenter: v.visaCenter ?? '', referenceNumber: v.referenceNumber ?? '',
-                          submissionDate: v.submissionDate?.slice(0, 10) ?? '', appointmentDate: v.appointmentDate?.slice(0, 16) ?? '',
+                          submissionDate: v.submissionDate?.slice(0, 10) ?? '', appointmentDate: isoToLocalInput(v.appointmentDate),
                         });
                       }}
                     >

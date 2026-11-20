@@ -24,6 +24,11 @@ export class MailService {
       : null;
   }
 
+  /** Vrai si un serveur SMTP est configuré (sinon les e-mails sont seulement écrits dans les logs). */
+  isConfigured(): boolean {
+    return !!this.transporter;
+  }
+
   async send(to: string, subject: string, text: string, html?: string): Promise<void> {
     if (!this.transporter) {
       // Pas de SMTP configuré : on n'échoue pas (dev). Le contenu est loggé pour test local uniquement.

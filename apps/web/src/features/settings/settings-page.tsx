@@ -10,6 +10,7 @@ import { RequirePermission } from '@/components/require-permission';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Field, Input, Select, Textarea } from '@/components/ui/form';
+import { Link } from '@/i18n/navigation';
 import { api } from '@/lib/api';
 import type { AgencySettings } from '@/lib/types';
 import { useErrorMessage } from '@/lib/use-error-message';
@@ -22,7 +23,7 @@ const SOCIALS: SocialKey[] = ['facebook', 'instagram', 'tiktok', 'linkedin', 'yo
 const TEXT_FIELDS = [
   'name', 'address', 'phone', 'whatsapp', 'email', 'website', 'openingHours',
   'legalInfo', 'taxId', 'bankDetails', 'currency', 'timezone', 'privacyPolicy', 'termsOfService', 'legalNotice',
-  'contractTemplate',
+  'contractTemplate', 'contractTemplateAr', 'nameAr', 'addressAr',
 ] as const;
 
 type Values = { [K in (typeof TEXT_FIELDS)[number]]: string } & { social: Record<SocialKey, string> };
@@ -51,6 +52,7 @@ function Section({ title, description, children }: { title: string; description?
 
 function Content() {
   const t = useTranslations('settings');
+  const tm = useTranslations('messageTemplates');
   const tc = useTranslations('common');
   const ta = useTranslations('auth');
   const errorMessage = useErrorMessage();
@@ -95,6 +97,9 @@ function Content() {
         <Field label={t('name')} htmlFor="s-name" error={errors.name?.message} className="sm:col-span-2">
           <Input id="s-name" aria-invalid={!!errors.name} {...f('name', { required: true })} />
         </Field>
+        <Field label={t('nameAr')} htmlFor="s-name-ar" hint={t('arabicDocsHint')} className="sm:col-span-2">
+          <Input id="s-name-ar" dir="rtl" lang="ar" {...f('nameAr')} />
+        </Field>
         <p className="text-sm text-muted-foreground sm:col-span-2">{t('logosMovedHint')}</p>
       </Section>
 
@@ -106,6 +111,7 @@ function Content() {
         </Field>
         <Field label={t('website')} htmlFor="s-web"><Input id="s-web" dir="ltr" {...f('website')} /></Field>
         <Field label={t('address')} htmlFor="s-addr" className="sm:col-span-2"><Input id="s-addr" {...f('address')} /></Field>
+        <Field label={t('addressAr')} htmlFor="s-addr-ar" className="sm:col-span-2"><Input id="s-addr-ar" dir="rtl" lang="ar" {...f('addressAr')} /></Field>
         <Field label={t('openingHours')} htmlFor="s-hours" className="sm:col-span-2"><Input id="s-hours" {...f('openingHours')} /></Field>
       </Section>
 
@@ -139,9 +145,20 @@ function Content() {
         <Field label={t('legalNotice')} htmlFor="s-notice" className="sm:col-span-2"><Textarea id="s-notice" rows={5} {...f('legalNotice')} /></Field>
       </Section>
 
+      <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
+        <div className="min-w-0">
+          <h2 className="font-display text-base font-bold tracking-tight">{tm('title')}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{tm('settingsSectionHint')}</p>
+        </div>
+        <Link href="/settings/messages" className="pop pop-hover inline-flex h-10 items-center gap-2 rounded-xl bg-card px-4 text-sm font-semibold text-ink">{tm('open')}</Link>
+      </Card>
+
       <Section title={t('contractTemplateTitle')} description={t('contractTemplateHint')}>
         <Field label={t('contractTemplate')} htmlFor="s-contract" hint={t('contractTemplateVars')} className="sm:col-span-2">
           <Textarea id="s-contract" rows={10} {...f('contractTemplate')} />
+        </Field>
+        <Field label={t('contractTemplateAr')} htmlFor="s-contract-ar" hint={t('contractTemplateVars')} className="sm:col-span-2">
+          <Textarea id="s-contract-ar" rows={10} dir="rtl" lang="ar" {...f('contractTemplateAr')} />
         </Field>
       </Section>
     </form>

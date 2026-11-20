@@ -72,6 +72,8 @@ model Organization {
   landingFaqItems    LandingFaqItem[]
   testimonials       Testimonial[]
   partnerLogos       PartnerLogo[]
+  reminderLogs       ReminderLog[]
+  messageTemplates   MessageTemplate[]
 }
 
 enum OrganizationPlan {
@@ -316,6 +318,7 @@ model Prospect {
   nextFollowUpAt       DateTime?
   source               ProspectSource @default(OTHER)
   status               ProspectStatus @default(NEW)
+  preferredLanguage    Language       @default(fr)
   assignedToId         String?
   notes                String?
   convertedCandidateId String?        @unique
@@ -349,6 +352,7 @@ model Candidate {
   assignedToId      String?
   partnerId         String? // partenaire à l'origine du candidat (section 63-64), pour l'isolation stricte du portail partenaire
   status            CandidateStatus @default(ACTIVE)
+  preferredLanguage Language        @default(fr) // langue des messages envoyés au candidat (relances, modèles)
   // Portail candidat (Phase 3, section 19)
   passwordHash      String?
   portalActivatedAt DateTime?
@@ -426,6 +430,7 @@ model CandidateDocument {
   size           Int
   status         DocumentStatus @default(PENDING)
   reviewNote     String?
+  reviewedAt     DateTime? // date de la revue (approbation ou rejet) — point de départ de la relance « document rejeté »
   expiryDate     DateTime? // ex : date d'expiration du passeport — alimente le Health Score (section 21/26)
   uploadedById   String?
   deletedAt      DateTime?
@@ -686,6 +691,8 @@ model Contract {
   number          String
   status          ContractStatus   @default(DRAFT)
   content         String
+  // Langue du texte figé dans `content` (choisie à la création) : le PDF du contrat sort toujours dans cette langue.
+  language        Language         @default(fr)
   totalAmount     Float
   currency        String           @default("TND")
   signedAt        DateTime?
@@ -1304,6 +1311,10 @@ model AgencySettings {
   termsOfService   String?
   legalNotice      String?
   contractTemplate String? // texte du modèle de contrat, avec des espaces réservés {{comme_ceci}} (section 35)
+  // Version arabe du modèle de contrat (mêmes espaces réservés) et coordonnées en arabe pour les documents arabes.
+  contractTemplateAr String?
+  nameAr             String?
+  addressAr          String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -1314,35 +1325,36 @@ model AgencySettings {
  * Contenu éditable de la landing page publique (CMS, section « amélioration frontend »), réservé au rôle
  * Super Admin (jamais au rôle Administrateur, même si celui-ci a aussi « ALL » comme permissions — voir
  * SuperAdminGuard, volontairement distinct de PermissionsGuard pour cette raison).
- *
  * Chaque texte a un champ *Fr (saisi par le Super Admin) et un champ *Ar (rempli automatiquement par
  * traduction à l'enregistrement — voir TranslationService). Si la traduction échoue (clé API absente ou
  * en erreur), *Ar reste simplement null et le front retombe sur le texte français par défaut : on ne bloque
  * jamais l'enregistrement pour un problème de traduction.
  */
 model LandingPageContent {
-  id             String  @id @default(cuid())
-  organizationId String  @unique
-  heroTitleFr        String?
-  heroTitleAr        String?
-  heroSubtitleFr     String?
-  heroSubtitleAr     String?
-  heroImageUrl       String?
-  aboutTitleFr       String?
-  aboutTitleAr       String?
-  aboutTextFr        String?
-  aboutTextAr        String?
-  aboutImageUrl      String?
-  seoTitleFr         String?
-  seoTitleAr         String?
-  seoDescriptionFr   String?
-  seoDescriptionAr   String?
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(cuid())
+  organizationId   String   @unique
+  heroTitleFr      String?
+  heroTitleAr      String?
+  heroSubtitleFr   String?
+  heroSubtitleAr   String?
+  heroImageUrl     String?
+  aboutTitleFr     String?
+  aboutTitleAr     String?
+  aboutTextFr      String?
+  aboutTextAr      String?
+  aboutImageUrl    String?
+  seoTitleFr       String?
+  seoTitleAr       String?
+  seoDescriptionFr String?
+  seoDescriptionAr String?
+  updatedAt        DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
 }
 
-/** Carte de service affichée sur la landing page (section « Nos services ») — liste réordonnable, Super Admin uniquement. */
+/**
+ * Carte de service affichée sur la landing page (section « Nos services ») — liste réordonnable, Super Admin uniquement.
+ */
 model LandingService {
   id             String   @id @default(cuid())
   organizationId String
@@ -1362,7 +1374,9 @@ model LandingService {
   @@index([organizationId, position])
 }
 
-/** Question/réponse de la FAQ publique — liste réordonnable, Super Admin uniquement. */
+/**
+ * Question/réponse de la FAQ publique — liste réordonnable, Super Admin uniquement.
+ */
 model LandingFaqItem {
   id             String   @id @default(cuid())
   organizationId String
@@ -1460,6 +1474,8 @@ model PlatformInvoice {
 enum NotificationType {
   NEW_MESSAGE
   TASK_ASSIGNED
+  REMINDER
+  DAILY_DIGEST
 }
 
 /**
@@ -1501,4 +1517,79 @@ model BlogPost {
 
   @@unique([organizationId, slug])
   @@index([organizationId, status, publishedAt])
+}
+
+// ---------- Relances automatiques et messages tout prêts (étape 2, chantiers 1 et 2) ----------
+
+enum Language {
+  fr
+  ar
+}
+
+enum ReminderKind {
+  APPOINTMENT_TOMORROW
+  VISA_APPOINTMENT_TOMORROW
+  PROSPECT_FOLLOW_UP
+  INVOICE_OVERDUE
+  DOCUMENT_REJECTED
+  DAILY_DIGEST
+}
+
+enum ReminderChannel {
+  EMAIL
+  NOTIFICATION
+  WHATSAPP
+}
+
+enum ReminderStatus {
+  SENT
+  SKIPPED
+  FAILED
+}
+
+/// Journal des relances : seule une ligne SENT porte la clé exacte (dedupeKey) et verrouille donc la relance ;
+/// les lignes SKIPPED / FAILED ont une clé suffixée « #<horodatage> » (historique, jamais bloquantes).
+model ReminderLog {
+  id             String          @id @default(cuid())
+  organizationId String
+  kind           ReminderKind
+  entityType     String
+  entityId       String
+  channel        ReminderChannel
+  dedupeKey      String
+  status         ReminderStatus
+  error          String?
+  sentById       String?
+  createdAt      DateTime        @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, dedupeKey])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, entityType, entityId])
+}
+
+enum MessageChannel {
+  WHATSAPP
+  EMAIL
+}
+
+/// Modèles de messages modifiables par l'agence (FR/AR), avec variables {prenom}, {date}…
+model MessageTemplate {
+  id             String         @id @default(cuid())
+  organizationId String
+  key            String
+  channel        MessageChannel
+  nameFr         String
+  nameAr         String
+  subjectFr      String?
+  subjectAr      String?
+  bodyFr         String
+  bodyAr         String
+  isSystem       Boolean        @default(false)
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, key, channel])
 }

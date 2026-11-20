@@ -8,19 +8,9 @@ import { PdfService } from '../finance/pdf/pdf.service';
 import { apiError } from '../common/errors/api-error';
 import type { AuthUser, RequestMeta } from '../common/auth-user';
 import { CandidatesService } from '../candidates/candidates.service';
+import { formatDocDate, pdfFile, type DocLang } from '../finance/pdf/labels';
+import { contractTemplate } from './contract-templates';
 import { ContractItemDto, CreateContractDto, SignContractDto } from './dto/contract.dto';
-
-const DEFAULT_TEMPLATE = `Entre l'agence {{agency_name}}, d'une part,
-et {{candidate_name}}, titulaire du passeport {{candidate_passport}}, ci-après « le candidat », d'autre part,
-
-il a été convenu ce qui suit :
-
-L'agence s'engage à fournir au candidat les services suivants :
-{{services}}
-
-Montant total : {{total}} {{currency}}
-
-Fait le {{date}}, référence {{number}}.`;
 
 const total = (items: { quantity: number; unitPrice: number }[]) => items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 
@@ -65,19 +55,20 @@ export class ContractsService {
     const number = await this.counter.next(actor.organizationId, 'contract', 'CTR');
     const amount = total(items);
     const currency = settings?.currency ?? 'TND';
-    const content = this.render(settings?.contractTemplate ?? DEFAULT_TEMPLATE, {
+    const lang: DocLang = dto.language ?? candidate.preferredLanguage ?? 'fr';
+    const content = this.render(contractTemplate(lang, settings), {
       agency_name: settings?.name ?? 'Study in World',
       candidate_name: `${candidate.firstName} ${candidate.lastName}`,
       candidate_passport: candidate.passportNumber ?? '—',
       services: items.map((i) => `- ${i.label} × ${i.quantity} : ${(i.quantity * i.unitPrice).toFixed(3)} ${currency}`).join('\n'),
       total: amount.toFixed(3),
       currency,
-      date: new Date().toLocaleDateString('fr-TN'),
+      date: formatDocDate(lang, new Date()),
       number,
     });
 
     const created = await this.prisma.contract.create({
-      data: { organizationId: actor.organizationId, candidateId, quoteId: dto.quoteId, number, content, totalAmount: amount, currency, createdById: actor.id },
+      data: { organizationId: actor.organizationId, candidateId, quoteId: dto.quoteId, number, content, language: lang, totalAmount: amount, currency, createdById: actor.id },
     });
     await this.timeline.add(actor.organizationId, 'CANDIDATE', candidateId, 'SYSTEM', `Contrat ${number} créé (${amount.toFixed(3)} ${currency})`, actor.id);
     await this.audit.log({ organizationId: actor.organizationId, userId: actor.id, action: 'contract.create', entity: 'Contract', entityId: created.id, metadata: { candidateId, number }, meta });
@@ -117,19 +108,18 @@ export class ContractsService {
     await this.audit.log({ organizationId, userId: actorUserId, action: 'contract.sign', entity: 'Contract', entityId: id, metadata: { signerName: dto.signerName, method: dto.method }, meta });
   }
 
-  async pdf(organizationId: string, id: string) {
-    const contract = await this.prisma.contract.findFirst({ where: { id, organizationId } });
+  /** PDF du contrat, toujours dans la langue de son texte figé. `candidateId` limite au candidat (portail). */
+  async pdf(organizationId: string, id: string, candidateId?: string) {
+    const contract = await this.prisma.contract.findFirst({ where: { id, organizationId, ...(candidateId ? { candidateId } : {}) } });
     if (!contract) throw apiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Contrat introuvable');
     const settings = await this.prisma.agencySettings.findUnique({ where: { organizationId } });
+    const lang: DocLang = contract.language ?? 'fr';
     const signature = contract.signatureImage
       ? { image: await this.storage.read(organizationId, contract.signatureImage), signerName: contract.signerName ?? '', signedAt: contract.signedAt ?? new Date() }
       : null;
-    const buffer = await this.pdfService.contract(
-      { number: contract.number, date: contract.createdAt, agency: { name: settings?.name ?? 'Study in World', address: settings?.address } },
-      contract.content,
-      signature,
-    );
-    return { buffer, filename: `${contract.number}.pdf` };
+    const agency = { name: settings?.name ?? 'Study in World', nameAr: settings?.nameAr, address: settings?.address, addressAr: settings?.addressAr };
+    const buffer = await this.pdfService.contract({ number: contract.number, date: contract.createdAt, agency, lang }, contract.content, signature);
+    return { buffer, ...pdfFile('contract', lang, contract.number) };
   }
 
   private render(template: string, vars: Record<string, string>): string {
